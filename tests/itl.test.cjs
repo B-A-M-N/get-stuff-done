@@ -156,6 +156,14 @@ describe('ITL schema', () => {
       route: '/dostuff:new-project',
       needs_clarification: false,
       clarification_questions: [],
+      clarification: {
+        mode: 'none',
+        resume_allowed: true,
+        pause_if_unresolved: false,
+        reason: 'No clarification checkpoint is required.',
+        unresolved_risk: 'Unresolved items can stay visible as guidance and be revisited during structured discussion.',
+        prompts: [],
+      },
       project_seed: {
         goals: interpretation.goals,
         constraints: interpretation.constraints,
@@ -623,7 +631,11 @@ describe('ITL audit and gsd-tools integration', () => {
     });
 
     assert.strictEqual(output.needs_clarification, true);
+    assert.strictEqual(output.clarification.mode, 'blocking');
+    assert.strictEqual(output.clarification.resume_allowed, false);
+    assert.strictEqual(output.clarification.pause_if_unresolved, true);
     assert.ok(output.clarification_questions.length > 0, 'clarification questions provided');
+    assert.ok(output.clarification.prompts.length > 0, 'clarification prompts provided');
   });
 
   test('initialization seed asks for a primary goal when no explicit goal is detected', () => {
@@ -632,7 +644,9 @@ describe('ITL audit and gsd-tools integration', () => {
     });
 
     assert.strictEqual(output.needs_clarification, true);
+    assert.strictEqual(output.clarification.mode, 'blocking');
     assert.ok(output.clarification_questions.includes('What is the single most important outcome you want this project to deliver first?'));
+    assert.ok(output.clarification.prompts.some(prompt => prompt.question.includes('single most important outcome')));
   });
 
   test('initialization seed matches the gsd-tools init-seed contract', () => {
@@ -658,10 +672,12 @@ describe('ITL audit and gsd-tools integration', () => {
 
   test('discuss seed requests bounded clarification for ambiguous phase narratives', () => {
     const output = buildDiscussPhaseSeed(tmpDir, {
-      text: 'Maybe the phase should somehow do stuff, but also everything, without changing anything.',
+      text: 'I want this phase to make the workflow feel smoother, but I am not sure which interaction matters most yet.',
     });
 
-    assert.strictEqual(output.needs_clarification, true);
+    assert.strictEqual(output.needs_clarification, false);
+    assert.strictEqual(output.clarification.mode, 'recommended');
+    assert.strictEqual(output.clarification.resume_allowed, true);
     assert.ok(output.clarification_questions.length > 0, 'clarification questions provided');
   });
 
@@ -671,6 +687,7 @@ describe('ITL audit and gsd-tools integration', () => {
     });
 
     assert.strictEqual(output.needs_clarification, true);
+    assert.strictEqual(output.clarification.mode, 'blocking');
     assert.ok(output.clarification_questions.includes('Should the first version stay intentionally minimal, or are you asking for a broader initial scope?'));
   });
 
@@ -691,15 +708,18 @@ describe('ITL audit and gsd-tools integration', () => {
     });
 
     assert.strictEqual(output.needs_clarification, true);
+    assert.strictEqual(output.clarification.mode, 'blocking');
     assert.ok(output.clarification_questions.length > 0, 'clarification questions provided');
   });
 
-  test('verification seed asks for a release priority when speed and completeness conflict', () => {
+  test('verification seed requires clarification when speed and completeness conflict', () => {
     const output = buildVerificationSeed(tmpDir, {
       text: 'I need this shipped quickly, but it also has to be comprehensive with 100% coverage and fully audited.',
     });
 
-    assert.strictEqual(output.needs_clarification, false);
+    assert.strictEqual(output.needs_clarification, true);
+    assert.strictEqual(output.clarification.mode, 'required');
+    assert.strictEqual(output.clarification.resume_allowed, false);
     assert.ok(output.clarification_questions.includes('Which matters more for the first release: shipping quickly or maximizing completeness?'));
   });
 });
@@ -846,6 +866,24 @@ describe('ITL command wrappers', () => {
     } finally {
       cleanup(tmpDir);
     }
+  });
+
+  test('itl-schema exports sub-schemas as individual named exports (SCHEMA-05)', () => {
+    const {
+      interpretationSchema,
+      ambiguitySchema,
+      lockabilitySchema,
+      clarificationCheckpointSchema,
+      clarificationPromptSchema,
+      schemas,
+    } = require('../get-stuff-done/bin/lib/itl-schema.cjs');
+
+    [interpretationSchema, ambiguitySchema, lockabilitySchema, clarificationCheckpointSchema, clarificationPromptSchema].forEach((schema, i) => {
+      assert.ok(schema != null, `schema at index ${i} should not be null`);
+      assert.ok(typeof schema.safeParse === 'function', `schema at index ${i} should have safeParse`);
+    });
+
+    assert.ok(schemas.clarificationPromptSchema != null, 'schemas.clarificationPromptSchema should be in schemas namespace');
   });
 
   test('clarification falls back to raw finding messages for unknown ambiguity types', () => {
