@@ -8,7 +8,7 @@ const os = require('os');
 const { safeReadFile, normalizePhaseName, execGit, findPhaseInternal, getMilestoneInfo, stripShippedMilestones, output, error } = require('./core.cjs');
 const { extractFrontmatter, parseMustHavesBlock } = require('./frontmatter.cjs');
 const { writeStateMd } = require('./state.cjs');
-const { checkpointResponseSchema } = require('./artifact-schema.cjs');
+const { checkpointResponseSchema, executionSummarySchema } = require('./artifact-schema.cjs');
 
 function cmdVerifySummary(cwd, summaryPath, checkFileCount, raw) {
   if (!summaryPath) {
