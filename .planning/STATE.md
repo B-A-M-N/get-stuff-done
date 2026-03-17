@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v0.1
 milestone_name: milestone
 status: planning
-stopped_at: Completed 15-03-PLAN.md
-last_updated: "2026-03-17T08:40:07.417Z"
+stopped_at: Completed 15-04-PLAN.md
+last_updated: "2026-03-17T13:03:30.600Z"
 last_activity: 2026-03-17 — Roadmap created; 23 requirements mapped across 6 phases (15-20).
 progress:
   total_phases: 6
   completed_phases: 1
-  total_plans: 3
-  completed_plans: 3
+  total_plans: 4
+  completed_plans: 4
   percent: 0
 ---
 
@@ -51,6 +51,7 @@ Progress: [░░░░░░░░░░░░] 0%
 | Phase 15-schema-foundation P02 | 3min | 1 tasks | 1 files |
 | Phase 15-schema-foundation P01 | 9min | 1 tasks | 2 files |
 | Phase 15-schema-foundation P03 | 6min | 2 tasks | 3 files |
+| Phase 15-schema-foundation P04 | 2min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -80,6 +81,7 @@ for v0.2.0.
 - [Phase 15-schema-foundation]: Error messages in checkpointResponseSchema match legacy verify.cjs strings exactly for checkpoint-validator.test.cjs compatibility
 - [Phase 15-schema-foundation]: cmdVerifyCheckpointResponse now delegates entirely to checkpointResponseSchema.safeParse — no manual regex or field loop retained
 - [Phase 15-schema-foundation]: On success, fields is result.data (schema-coerced); on failure, fields is empty {} to avoid partial-state consumer errors
+- [Phase 15-schema-foundation]: Zod v4 safeParse failures: always use result.error.issues (not result.error.errors)
 
 ### Blockers/Concerns
 
@@ -87,6 +89,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-17T08:40:07.393Z
-Stopped at: Completed 15-03-PLAN.md
+Last session: 2026-03-17T13:03:30.593Z
+Stopped at: Completed 15-04-PLAN.md
 Resume file: None
