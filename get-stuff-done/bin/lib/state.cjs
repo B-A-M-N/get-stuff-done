@@ -445,6 +445,27 @@ function cmdStateRecordSession(cwd, options, raw) {
   if (!result) result = stateReplaceField(content, 'Resume file', resumeFile);
   if (result) { content = result; updated.push('Resume File'); }
 
+  if (options.clarification_status) {
+    result = stateReplaceField(content, 'Clarification Status', options.clarification_status);
+    if (result) { content = result; updated.push('Clarification Status'); }
+  }
+
+  if (options.clarification_rounds !== null && options.clarification_rounds !== undefined) {
+    result = stateReplaceField(content, 'Clarification Rounds', String(options.clarification_rounds));
+    if (result) { content = result; updated.push('Clarification Rounds'); }
+  }
+
+  if (options.last_clarification_reason) {
+    result = stateReplaceField(content, 'Last Clarification Reason', options.last_clarification_reason);
+    if (result) { content = result; updated.push('Last Clarification Reason'); }
+  }
+
+  if (options.resume_requires_user_input !== null && options.resume_requires_user_input !== undefined) {
+    const normalized = String(options.resume_requires_user_input).toLowerCase() === 'true' ? 'true' : 'false';
+    result = stateReplaceField(content, 'Resume Requires User Input', normalized);
+    if (result) { content = result; updated.push('Resume Requires User Input'); }
+  }
+
   if (updated.length > 0) {
     writeStateMd(statePath, content, cwd);
     output({ recorded: true, updated }, raw, 'true');
@@ -453,16 +474,7 @@ function cmdStateRecordSession(cwd, options, raw) {
   }
 }
 
-function cmdStateSnapshot(cwd, raw) {
-  const statePath = path.join(cwd, '.planning', 'STATE.md');
-
-  if (!fs.existsSync(statePath)) {
-    output({ error: 'STATE.md not found' }, raw);
-    return;
-  }
-
-  const content = fs.readFileSync(statePath, 'utf-8');
-
+function parseStateSnapshot(content) {
   // Extract basic fields
   const currentPhase = stateExtractField(content, 'Current Phase');
   const currentPhaseName = stateExtractField(content, 'Current Phase Name');
@@ -474,11 +486,16 @@ function cmdStateSnapshot(cwd, raw) {
   const lastActivity = stateExtractField(content, 'Last Activity');
   const lastActivityDesc = stateExtractField(content, 'Last Activity Description');
   const pausedAt = stateExtractField(content, 'Paused At');
+  const clarificationStatus = stateExtractField(content, 'Clarification Status');
+  const clarificationRoundsRaw = stateExtractField(content, 'Clarification Rounds');
+  const lastClarificationReason = stateExtractField(content, 'Last Clarification Reason');
+  const resumeRequiresUserInputRaw = stateExtractField(content, 'Resume Requires User Input');
 
   // Parse numeric fields
   const totalPhases = totalPhasesRaw ? parseInt(totalPhasesRaw, 10) : null;
   const totalPlansInPhase = totalPlansRaw ? parseInt(totalPlansRaw, 10) : null;
   const progressPercent = progressRaw ? parseInt(progressRaw.replace('%', ''), 10) : null;
+  const clarificationRounds = clarificationRoundsRaw ? parseInt(clarificationRoundsRaw, 10) : null;
 
   // Extract decisions table
   const decisions = [];
@@ -516,6 +533,13 @@ function cmdStateSnapshot(cwd, raw) {
     resume_file: null,
   };
 
+  const clarification = {
+    status: clarificationStatus,
+    rounds: clarificationRounds,
+    last_reason: lastClarificationReason,
+    resume_requires_user_input: resumeRequiresUserInputRaw ? resumeRequiresUserInputRaw.toLowerCase() === 'true' : null,
+  };
+
   const sessionMatch = content.match(/##\s*Session\s*\n([\s\S]*?)(?=\n##|$)/i);
   if (sessionMatch) {
     const sessionSection = sessionMatch[1];
@@ -531,7 +555,7 @@ function cmdStateSnapshot(cwd, raw) {
     if (resumeFileMatch) session.resume_file = resumeFileMatch[1].trim();
   }
 
-  const result = {
+  return {
     current_phase: currentPhase,
     current_phase_name: currentPhaseName,
     total_phases: totalPhases,
@@ -544,8 +568,25 @@ function cmdStateSnapshot(cwd, raw) {
     decisions,
     blockers,
     paused_at: pausedAt,
+    clarification_status: clarificationStatus,
+    clarification_rounds: clarificationRounds,
+    last_clarification_reason: lastClarificationReason,
+    resume_requires_user_input: clarification.resume_requires_user_input,
+    clarification,
     session,
   };
+}
+
+function cmdStateSnapshot(cwd, raw) {
+  const statePath = path.join(cwd, '.planning', 'STATE.md');
+
+  if (!fs.existsSync(statePath)) {
+    output({ error: 'STATE.md not found' }, raw);
+    return;
+  }
+
+  const content = fs.readFileSync(statePath, 'utf-8');
+  const result = parseStateSnapshot(content);
 
   output(result, raw);
 }
@@ -568,6 +609,12 @@ function buildStateFrontmatter(bodyContent, cwd) {
   const lastActivity = stateExtractField(bodyContent, 'Last Activity');
   const stoppedAt = stateExtractField(bodyContent, 'Stopped At') || stateExtractField(bodyContent, 'Stopped at');
   const pausedAt = stateExtractField(bodyContent, 'Paused At');
+  const clarificationStatus = stateExtractField(bodyContent, 'Clarification Status');
+  const clarificationRoundsRaw = stateExtractField(bodyContent, 'Clarification Rounds');
+  const lastClarificationReason = stateExtractField(bodyContent, 'Last Clarification Reason');
+  const resumeRequiresUserInputRaw = stateExtractField(bodyContent, 'Resume Requires User Input');
+  const checkpointStatus = stateExtractField(bodyContent, 'Checkpoint Status');
+  const checkpointPath = stateExtractField(bodyContent, 'Checkpoint Path');
 
   let milestone = null;
   let milestoneName = null;
@@ -620,6 +667,19 @@ function buildStateFrontmatter(bodyContent, cwd) {
     if (pctMatch) progressPercent = parseInt(pctMatch[1], 10);
   }
 
+  let clarificationRounds = null;
+  if (clarificationRoundsRaw) {
+    const rounds = parseInt(clarificationRoundsRaw, 10);
+    if (!isNaN(rounds)) clarificationRounds = rounds;
+  }
+
+  let resumeRequiresUserInput = null;
+  if (resumeRequiresUserInputRaw) {
+    const normalized = resumeRequiresUserInputRaw.toLowerCase();
+    if (normalized === 'true') resumeRequiresUserInput = true;
+    if (normalized === 'false') resumeRequiresUserInput = false;
+  }
+
   // Normalize status to one of: planning, discussing, executing, verifying, paused, completed, unknown
   let normalizedStatus = status || 'unknown';
   const statusLower = (status || '').toLowerCase();
@@ -649,6 +709,12 @@ function buildStateFrontmatter(bodyContent, cwd) {
   fm.status = normalizedStatus;
   if (stoppedAt) fm.stopped_at = stoppedAt;
   if (pausedAt) fm.paused_at = pausedAt;
+  if (clarificationStatus) fm.clarification_status = clarificationStatus;
+  if (clarificationRounds !== null) fm.clarification_rounds = clarificationRounds;
+  if (lastClarificationReason) fm.last_clarification_reason = lastClarificationReason;
+  if (resumeRequiresUserInput !== null) fm.resume_requires_user_input = resumeRequiresUserInput;
+  if (checkpointStatus) fm.checkpoint_status = checkpointStatus;
+  if (checkpointPath) fm.checkpoint_path = checkpointPath;
   fm.last_updated = new Date().toISOString();
   if (lastActivity) fm.last_activity = lastActivity;
 
@@ -701,6 +767,33 @@ function cmdStateJson(cwd, raw) {
   }
 
   output(fm, raw, JSON.stringify(fm, null, 2));
+}
+
+function cmdStateCheckpoint(cwd, options, raw) {
+  const statePath = path.join(cwd, '.planning', 'STATE.md');
+  if (!fs.existsSync(statePath)) { output({ error: 'STATE.md not found' }, raw); return; }
+
+  let content = fs.readFileSync(statePath, 'utf-8');
+  const updated = [];
+
+  // Both replacements happen before the single writeStateMd call — atomicity guarantee
+  const statusValue = options.status || '';
+  let result = stateReplaceField(content, 'Checkpoint Status', statusValue);
+  if (result) { content = result; updated.push('Checkpoint Status'); }
+
+  const pathValue = options.checkpointPath || '';
+  result = stateReplaceField(content, 'Checkpoint Path', pathValue);
+  if (result) { content = result; updated.push('Checkpoint Path'); }
+
+  if (updated.length > 0) {
+    writeStateMd(statePath, content, cwd);
+  }
+
+  output(
+    { updated, checkpoint_status: options.status || null, checkpoint_path: options.checkpointPath || null },
+    raw,
+    updated.length > 0 ? 'true' : 'false'
+  );
 }
 
 /**
@@ -796,4 +889,7 @@ module.exports = {
   cmdStateSnapshot,
   cmdStateJson,
   cmdStateBeginPhase,
+  cmdStateCheckpoint,
+  parseStateSnapshot,
+  buildStateFrontmatter,
 };
