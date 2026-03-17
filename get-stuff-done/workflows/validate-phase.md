@@ -11,15 +11,25 @@ Audit Nyquist validation gaps for a completed phase. Generate missing tests. Upd
 ## 0. Initialize
 
 ```bash
-INIT=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" init phase-op "${PHASE_ARG}")
+INIT=$(node "/home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" init phase-op "${PHASE_ARG}")
 if [[ "$INIT" == @file:* ]]; then INIT=$(cat "${INIT#@file:}"); fi
 ```
 
 Parse: `phase_dir`, `phase_number`, `phase_name`, `phase_slug`, `padded_phase`.
 
+### Clarification Gate
+
 ```bash
-AUDITOR_MODEL=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" resolve-model gsd-nyquist-auditor --raw)
-NYQUIST_CFG=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" config get workflow.nyquist_validation --raw)
+BLOCKED=$(node "/home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" state get clarification_status --raw)
+if [[ "$BLOCKED" == "blocked" ]]; then
+  echo "ERROR: Project is currently BLOCKED. Use /gsd:discuss-phase to resolve ambiguities before validating."
+  exit 1
+fi
+```
+
+```bash
+AUDITOR_MODEL=$(node "/home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" resolve-model gsd-nyquist-auditor --raw)
+NYQUIST_CFG=$(node "/home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" config get workflow.nyquist_validation --raw)
 ```
 
 If `NYQUIST_CFG` is `false`: exit with "Nyquist validation is disabled. Enable via /gsd:settings."
@@ -128,7 +138,7 @@ Handle return:
 git add {test_files}
 git commit -m "test(phase-${PHASE}): add Nyquist validation tests"
 
-node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" commit "docs(phase-${PHASE}): add/update validation strategy"
+node "/home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" commit "docs(phase-${PHASE}): add/update validation strategy"
 ```
 
 ## 8. Results + Routing
