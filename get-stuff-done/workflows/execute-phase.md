@@ -230,7 +230,8 @@ When executor returns a checkpoint AND (`AUTO_CHAIN` is `"true"` OR `AUTO_CFG` i
 
 1. Spawn agent for checkpoint plan
 2. Agent runs until checkpoint task or auth gate → returns structured state
-3. Agent return includes: completed tasks table, current task + blocker, checkpoint type/details, what's awaited
+3. Agent return includes: completed tasks table, current task + blocker, checkpoint type/details, what's awaited, plus explicit checkpoint fields: `status`, `why_blocked`, `what_is_uncertain`, `choices`, `allow_freeform`, and `resume_condition`
+3.5. Validate the checkpoint payload with `verify checkpoint-response` before showing it to the user. If malformed, reject it and request a corrected checkpoint return.
 4. **Present to user:**
    ```
    ## Checkpoint: [Type]
@@ -240,7 +241,26 @@ When executor returns a checkpoint AND (`AUTO_CHAIN` is `"true"` OR `AUTO_CFG` i
 
    [Checkpoint Details from agent return]
    [Awaiting section from agent return]
+   [Why blocked / uncertainty / resume condition]
    ```
+
+4.5. **Transition CHECKPOINT.md and STATE.md to awaiting-response** (after presenting to user, before waiting for response):
+   ```bash
+   # Update STATE.md checkpoint lifecycle fields atomically
+   node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" state checkpoint \
+     --status awaiting-response \
+     --path "{phase_dir}/CHECKPOINT.md"
+
+   # Update CHECKPOINT.md status field
+   node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" frontmatter set \
+     "{phase_dir}/CHECKPOINT.md" --field status --value '"awaiting-response"'
+
+   # Commit both files together
+   node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" commit \
+     "chore({phase}-checkpoint): update checkpoint to awaiting-response" \
+     --files "{phase_dir}/CHECKPOINT.md" .planning/STATE.md
+   ```
+
 5. User responds: "approved"/"done" | issue description | decision selection
 6. **Spawn continuation agent (NOT resume)** using continuation-prompt.md template:
    - `{completed_tasks_table}`: From checkpoint return
@@ -249,6 +269,28 @@ When executor returns a checkpoint AND (`AUTO_CHAIN` is `"true"` OR `AUTO_CFG` i
    - `{resume_instructions}`: Based on checkpoint type
 7. Continuation agent verifies previous commits, continues from resume point
 8. Repeat until plan completes or user stops
+
+8.5. **Transition CHECKPOINT.md and STATE.md to resolved** (after continuation agent completes successfully):
+   ```bash
+   RESOLVED_AT=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+   # Mark CHECKPOINT.md resolved with timestamp
+   node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" frontmatter set \
+     "{phase_dir}/CHECKPOINT.md" --field status --value '"resolved"'
+   node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" frontmatter set \
+     "{phase_dir}/CHECKPOINT.md" --field resolved_at --value "\"$RESOLVED_AT\""
+
+   # Clear checkpoint fields from STATE.md (empty values excluded from frontmatter by falsy guard)
+   node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" state checkpoint \
+     --status "" --path ""
+
+   # Commit both files together
+   node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" commit \
+     "chore({phase}-checkpoint): resolve checkpoint" \
+     --files "{phase_dir}/CHECKPOINT.md" .planning/STATE.md
+   ```
+
+   Note: CHECKPOINT.md is kept in the phase directory as a resolved audit artifact (status: resolved, resolved_at set). It does not interfere with future checkpoints because resume-project checks the status field, not file presence.
 
 **Why fresh agent, not resume:** Resume relies on internal serialization that breaks with parallel tool calls. Fresh agents with explicit state are more reliable.
 
