@@ -24,7 +24,7 @@ See full archived roadmap: `.planning/milestones/v0.1.0-ROADMAP.md`
 
 ### Phases
 
-- [ ] **Phase 15: Schema Foundation** - Zod schemas for checkpoint response, checkpoint artifact, and ITL sub-schema decomposition
+- [x] **Phase 15: Schema Foundation** - Zod schemas for checkpoint response, checkpoint artifact, and ITL sub-schema decomposition (completed 2026-03-17)
 - [ ] **Phase 16: Checkpoint Artifact Lifecycle** - CHECKPOINT.md written, re-read, validated, and tracked across resume boundaries
 - [ ] **Phase 17: Runtime Gate Enforcement** - Blocked-state gates in plan-phase, execute-phase, autonomous, and resume-project
 - [ ] **Phase 18: Context Enrichment** - Pre-flight ambient state harvest before clarification escalation
@@ -113,7 +113,7 @@ Plans:
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 15. Schema Foundation | 2/3 | In Progress|  | - |
+| 15. Schema Foundation | 3/3 | Complete   | 2026-03-17 | - |
 | 16. Checkpoint Artifact Lifecycle | v0.2.0 | 0/TBD | Not started | - |
 | 17. Runtime Gate Enforcement | v0.2.0 | 0/TBD | Not started | - |
 | 18. Context Enrichment | v0.2.0 | 0/TBD | Not started | - |

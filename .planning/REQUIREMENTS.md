@@ -46,7 +46,7 @@
 - [x] **SCHEMA-01**: `checkpointArtifactSchema` (Zod) — canonical shape for persisted CHECKPOINT.md (status, type, why_blocked, what_is_uncertain, choices, allow_freeform, resume_condition, resolved_at)
 - [ ] **SCHEMA-02**: `executionSummarySchema` (Zod) — canonical shape for SUMMARY.md (one_liner, work_completed, key_files, verification, requirements_completed)
 - [ ] **SCHEMA-03**: `cmdVerifySummary` upgraded to validate against `executionSummarySchema` (currently only checks file count)
-- [ ] **SCHEMA-04**: `checkpointResponseSchema` (Zod) formalizes the agent checkpoint return contract — replaces manual field-by-field checking in `cmdVerifyCheckpointResponse` (verify.cjs line 211)
+- [x] **SCHEMA-04**: `checkpointResponseSchema` (Zod) formalizes the agent checkpoint return contract — replaces manual field-by-field checking in `cmdVerifyCheckpointResponse` (verify.cjs line 211)
 - [x] **SCHEMA-05**: `interpretationResultSchema` / `baseSeedSchema` decomposed into composable sub-schemas — the current fat combined blob (interpretation + ambiguity + lockability + audit + route + clarification) is one opaque contract that's hard to extend and test in isolation
 
 ## v3 Requirements (Deferred)
@@ -70,7 +70,7 @@
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | SCHEMA-01 | Phase 15 | Complete |
-| SCHEMA-04 | Phase 15 | Pending |
+| SCHEMA-04 | Phase 15 | Complete |
 | SCHEMA-05 | Phase 15 | Complete |
 | CHECKPOINT-04 | Phase 15 | Complete |
 | CHECKPOINT-01 | Phase 16 | Pending |
