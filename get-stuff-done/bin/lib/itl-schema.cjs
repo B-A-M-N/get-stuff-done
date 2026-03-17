@@ -190,10 +190,35 @@ const verificationSeedSchema = z.object({
   verification_hints: z.array(verificationHintSchema),
 });
 
+const clarificationChoiceSchema = z.object({
+  label: z.string().min(1),
+  description: z.string().min(1),
+});
+
+const clarificationPromptSchema = z.object({
+  finding_type: z.string().min(1),
+  severity: z.enum(['low', 'medium', 'high']),
+  decision_surface: z.string().min(1),
+  why_this_is_needed: z.string().min(1),
+  question: z.string().min(1),
+  choices: z.array(clarificationChoiceSchema).min(2),
+  allow_freeform: z.boolean(),
+});
+
+const clarificationCheckpointSchema = z.object({
+  mode: z.enum(['none', 'recommended', 'required', 'blocking']),
+  resume_allowed: z.boolean(),
+  pause_if_unresolved: z.boolean(),
+  reason: z.string().min(1),
+  unresolved_risk: z.string().min(1),
+  prompts: z.array(clarificationPromptSchema),
+});
+
 const baseSeedSchema = interpretationResultSchema.extend({
   route: z.string().min(1),
   needs_clarification: z.boolean(),
   clarification_questions: z.array(z.string()),
+  clarification: clarificationCheckpointSchema,
 });
 
 const initializationSeedSchema = baseSeedSchema.extend({
@@ -288,6 +313,13 @@ module.exports = {
     initializationSeedSchema,
     discussSeedSchema,
     verificationSeedSchema: verificationSeedSchemaWrapper,
+    clarificationCheckpointSchema,
+    clarificationPromptSchema,
     stringListField,
   },
+  interpretationSchema,
+  ambiguitySchema,
+  lockabilitySchema,
+  clarificationCheckpointSchema,
+  clarificationPromptSchema,
 };
