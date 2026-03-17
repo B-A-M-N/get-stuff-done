@@ -57,22 +57,24 @@ See full archived roadmap: `.planning/milestones/v0.1.0-ROADMAP.md`
 #### Phase 17: Runtime Gate Enforcement
 **Goal**: Any workflow invocation against a project in `clarification_status: blocked` is rejected at runtime — not just documented as a workflow step
 **Depends on**: Phase 16
-**Requirements**: ENFORCE-01, ENFORCE-02, ENFORCE-03, ENFORCE-04
+**Requirements**: ENFORCE-01, ENFORCE-02, ENFORCE-03, ENFORCE-04, ENFORCE-05
 **Success Criteria** (what must be TRUE):
   1. Invoking plan-phase or execute-phase when STATE.md has `clarification_status: blocked` produces a hard rejection with a clear message identifying the blocked state — execution does not proceed
   2. Invoking autonomous when a phase is blocked causes autonomous to halt with an explanation and a resume path — it does not silently skip the blocked phase and continue
   3. `verify checkpoint-response` is a mandatory gate in execute-phase — a wave does not advance if the checkpoint response validation fails
   4. Invoking resume-project when `clarification_status: blocked` routes to the unblock flow rather than to execute/plan — the user is told what is blocking and how to resolve it
+  5. `verify research-contract` is called in plan-phase inline research path after researcher returns — not only in standalone research-phase
 **Plans**: TBD
 
 #### Phase 18: Context Enrichment
 **Goal**: Before escalating any clarification to the user, the system harvests ambient project state and either auto-resolves or narrows the question using that context
 **Depends on**: Phase 17
-**Requirements**: CONTEXT-01, CONTEXT-02, CONTEXT-03
+**Requirements**: CONTEXT-01, CONTEXT-02, CONTEXT-03, CONTEXT-04
 **Success Criteria** (what must be TRUE):
   1. When a clarification is about to be escalated, the system has already checked STATE.md decisions, CONTEXT.md canonical_refs, and PLAN.md for candidates that answer or narrow the question — this harvest happens before the user is prompted
   2. Clarification prompts shown to the user include a summary of what was found in ambient state (pre-answered fields are marked; narrowed choices reflect found context)
   3. `discuss-seed` receives relevant ambient context fields alongside the narrative input — the seed is enriched, not bare
+  4. ITL output (ambiguity score, lockability determination, clarification.mode) is persisted to `{phase_dir}/{phase}-ITL.json` after discuss-phase — plan-phase in a new context window reads this file instead of starting blind
 **Plans**: TBD
 
 #### Phase 19: Workflow Surface Hardening
@@ -89,12 +91,13 @@ See full archived roadmap: `.planning/milestones/v0.1.0-ROADMAP.md`
 #### Phase 20: Scenario and Contract Tests
 **Goal**: The full pause-clarify-blocked-resume-resolve behavioral loop is covered by end-to-end scenario tests, and all execution artifact schemas have contract test coverage
 **Depends on**: Phase 19
-**Requirements**: TEST-01, TEST-02, TEST-03, TEST-04
+**Requirements**: TEST-01, TEST-02, TEST-03, TEST-04, TEST-05
 **Success Criteria** (what must be TRUE):
   1. A test exercises the complete loop: ambiguous input fires clarification, blocked state is written to STATE.md, resume detects blocked, user provides resolution, continuation only proceeds after valid resolution — all assertions pass
   2. Gate behavior tests confirm plan-phase and execute-phase reject invocation when `clarification_status: blocked` — tests fail if either workflow proceeds past the gate
   3. A checkpoint artifact lifecycle test confirms CHECKPOINT.md is written on block, validated on resume, and cleared on resolve — the test covers all three lifecycle transitions
   4. A contract test validates a real SUMMARY.md output against `executionSummarySchema` post-execution — the test fails if SUMMARY.md does not conform to the schema
+  5. The 5 previously untracked test files (checkpoint-contract, checkpoint-validator, state-clarification, verify-context-contract, verify-research-contract) are committed to git and passing in CI on a clean checkout
 **Plans**: TBD
 
 ---

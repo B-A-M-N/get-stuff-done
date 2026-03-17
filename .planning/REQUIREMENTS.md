@@ -11,6 +11,7 @@
 - [ ] **ENFORCE-02**: `verify checkpoint-response` is a mandatory hard gate in execute-phase — wave cannot advance unless it passes
 - [ ] **ENFORCE-03**: `resume-project` routes to unblock flow when `clarification_status: blocked` rather than silently routing to execute/plan
 - [ ] **ENFORCE-04**: `autonomous` checks clarification_status per-phase and halts with explanation when blocked
+- [ ] **ENFORCE-05**: `verify research-contract` called as mandatory gate in `plan-phase` inline research path — not just in standalone `/gsd:research-phase` (audit found it is currently absent from plan-phase critical path)
 
 ### CHECKPOINT — Persistent Checkpoint Artifact
 
@@ -24,6 +25,7 @@
 - [ ] **CONTEXT-01**: Before escalating clarification to user, system harvests STATE.md decisions, CONTEXT.md canonical_refs, and PLAN.md for auto-resolution candidates
 - [ ] **CONTEXT-02**: Clarification prompts include what was found in ambient state (pre-answered or narrowed questions)
 - [ ] **CONTEXT-03**: `discuss-seed` receives relevant ambient context fields alongside the narrative input
+- [ ] **CONTEXT-04**: ITL output (ambiguity score, lockability, clarification.mode) persisted to `{phase_dir}/{phase}-ITL.json` — currently lost when the discuss-phase session ends; plan-phase in a new window starts blind
 
 ### SURFACE — Workflow Surface Hardening
 
@@ -37,6 +39,7 @@
 - [ ] **TEST-02**: Gate behavior tests: plan-phase and execute-phase reject invocation when `clarification_status: blocked`
 - [ ] **TEST-03**: Checkpoint artifact lifecycle test: CHECKPOINT.md written on block, validated on resume, cleared on resolve
 - [ ] **TEST-04**: Execution artifact contract test: SUMMARY.md validated against `executionSummarySchema` post-execution
+- [ ] **TEST-05**: 5 currently untracked test files committed to git (checkpoint-contract, checkpoint-validator, state-clarification, verify-context-contract, verify-research-contract) — invisible to CI on clean checkout
 
 ### SCHEMA — Artifact Schema Hardening
 
@@ -77,9 +80,11 @@
 | ENFORCE-02 | Phase 17 | Pending |
 | ENFORCE-03 | Phase 17 | Pending |
 | ENFORCE-04 | Phase 17 | Pending |
+| ENFORCE-05 | Phase 17 | Pending |
 | CONTEXT-01 | Phase 18 | Pending |
 | CONTEXT-02 | Phase 18 | Pending |
 | CONTEXT-03 | Phase 18 | Pending |
+| CONTEXT-04 | Phase 18 | Pending |
 | SURFACE-01 | Phase 19 | Pending |
 | SURFACE-02 | Phase 19 | Pending |
 | SURFACE-03 | Phase 19 | Pending |
@@ -89,12 +94,13 @@
 | TEST-02 | Phase 20 | Pending |
 | TEST-03 | Phase 20 | Pending |
 | TEST-04 | Phase 20 | Pending |
+| TEST-05 | Phase 20 | Pending |
 
 **Coverage:**
-- v0.2 requirements: 23 total
-- Mapped to phases: 23
+- v0.2 requirements: 26 total
+- Mapped to phases: 26
 - Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-03-17*
-*Last updated: 2026-03-17 — Traceability complete after roadmap creation*
+*Last updated: 2026-03-17 — 3 requirements added from brownfield mapper agents (ENFORCE-05, CONTEXT-04, TEST-05)*
