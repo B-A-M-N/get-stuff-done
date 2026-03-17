@@ -85,10 +85,32 @@ function parseCheckpointResponse(input) {
 // ---------------------------------------------------------------------------
 
 const executionSummarySchema = z.object({
-  phase: z.string().min(1),
-  plan: z.string().min(1),
-  name: z.string().min(1),
-  requirements_completed: z.array(z.string()).optional(),
+  phase: z.union([z.string(), z.number()]),
+  plan: z.union([z.string(), z.number()]),
+  subsystem: z.string().min(1),
+  tags: z.array(z.string()),
+  requires: z.array(z.union([
+    z.string(),
+    z.object({
+      phase: z.string().min(1),
+      provides: z.string().min(1),
+    }),
+  ])).optional(),
+  provides: z.array(z.string()),
+  affects: z.array(z.string()).optional(),
+  'tech-stack': z.object({
+    added: z.array(z.string()),
+    patterns: z.array(z.string()),
+  }).optional(),
+  'key-files': z.object({
+    created: z.array(z.string()),
+    modified: z.array(z.string()),
+  }).optional(),
+  'key-decisions': z.array(z.string()).optional(),
+  'patterns-established': z.array(z.string()).optional(),
+  'requirements-completed': z.array(z.string()).optional(),
+  duration: z.string().min(1),
+  completed: z.string().min(1),
 });
 
 function parseExecutionSummary(input) {
