@@ -136,7 +136,21 @@ Check if CONTEXT.md already exists for this phase:
 PHASE_STATE=$(node "/home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" init phase-op ${PHASE_NUM})
 ```
 
-Parse `has_context` from JSON.
+Parse `has_context` and `clarification_status` from JSON.
+
+**Clarification Gate:**
+```bash
+CLARIFICATION_STATUS=$(printf '%s\n' "$PHASE_STATE" | jq -r '.clarification_status // "none"')
+if [ "$CLARIFICATION_STATUS" == "blocked" ]; then
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo " GSD ► AUTONOMOUS HALTED: BLOCKED STATE"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo ""
+  echo "Phase ${PHASE_NUM} is currently BLOCKED."
+  echo "Unblock with: /gsd:resume-project"
+  exit 1
+fi
+```
 
 **If has_context is true:** Skip discuss — context already gathered. Display:
 
