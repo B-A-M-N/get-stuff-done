@@ -498,6 +498,7 @@ module.exports = {
   buildDiscussPhaseSeed,
   buildVerificationSeed,
   buildClarificationPrompt,
+  persistItlOutput,
   cmdItlInterpret,
   cmdItlInitSeed,
   cmdItlDiscussSeed,

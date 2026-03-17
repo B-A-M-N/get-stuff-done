@@ -65,6 +65,17 @@ gsd_state_version: 1.0
     assert.strictEqual(context.phase_decisions[0], 'Decision 1: Mocked decision for phase 18');
   });
 
+  await t.test('persistItlOutput creates correct JSON file', () => {
+    const { persistItlOutput } = require('../get-stuff-done/bin/lib/itl.cjs');
+    const itlResult = { interpretation: { goals: ['Test goal'] } };
+    const targetPath = persistItlOutput(tmpDir, 18, itlResult);
+    
+    assert.ok(fs.existsSync(targetPath));
+    assert.ok(targetPath.endsWith('18-ITL.json'));
+    const persisted = JSON.parse(fs.readFileSync(targetPath, 'utf-8'));
+    assert.deepStrictEqual(persisted, itlResult);
+  });
+
   await t.test('buildClarificationPrompt uses ambient goals for missing-goal', () => {
     const ambientContext = {
       project_goals: ['Deliver high-quality CLI tool']
