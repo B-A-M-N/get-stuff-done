@@ -1,0 +1,11 @@
+{
+  "name": "@get-stuff-done/itl",
+  "version": "0.1.0",
+  "description": "Standalone Intent Translation Layer package extracted from get-stuff-done.",
+  "main": "index.cjs",
+  "types": "index.d.ts",
+  "license": "MIT",
+  "dependencies": {
+    "zod": "^4.3.6"
+  }
+}

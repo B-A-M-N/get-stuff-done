@@ -19,6 +19,8 @@ Create executable phase prompts (PLAN.md files) for a roadmap phase with integra
 **Default flow:** Research (if needed) → Plan → Verify → Done
 
 **Orchestrator role:** Parse arguments, validate phase, research domain (unless skipped), spawn gsd-planner, verify with gsd-plan-checker, iterate until pass or max iterations, present results.
+
+Narrative-first context from earlier `/dostuff:*` flows should improve planner handoff, but `PLAN.md` and validation remain the actual planning contracts.
 </objective>
 
 <execution_context>

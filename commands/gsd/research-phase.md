@@ -21,6 +21,8 @@ Research how to implement a phase. Spawns gsd-phase-researcher agent with phase 
 **Orchestrator role:** Parse phase, validate against roadmap, check existing research, gather context, spawn researcher agent, present results.
 
 **Why subagent:** Research burns context fast (WebSearch, Context7 queries, source verification). Fresh 200k context for investigation. Main context stays lean for user interaction.
+
+Narrative-first context from earlier `/dostuff:*` flows should improve research direction, but `CONTEXT.md` and `RESEARCH.md` remain the actual workflow contracts.
 </objective>
 
 <context>
@@ -71,6 +73,7 @@ Use paths from INIT (do not inline file contents in orchestrator context):
 - `state_path`
 
 Present summary with phase description and what files the researcher will load.
+If `context_path` exists, treat `Narrative Intake Summary` and `Research Cues` as important research guidance, while keeping `Implementation Decisions` as the authoritative locked choices.
 
 ## 4. Spawn gsd-phase-researcher Agent
 
@@ -101,12 +104,17 @@ Mode: ecosystem
 
 <files_to_read>
 - {requirements_path} (Requirements)
-- {context_path} (Phase context from discuss-phase, if exists)
+- {context_path} (Phase context from discuss-phase, including decisions plus any narrative summary / research cues, if exists)
 - {state_path} (Prior project decisions and blockers)
 </files_to_read>
 
 <additional_context>
 **Phase description:** {phase_description}
+
+If CONTEXT.md includes:
+- `## Implementation Decisions` → treat these as locked user choices
+- `## Research Cues` → use these to prioritize investigation, but do not treat inferred assumptions as settled requirements
+- `### Narrative Intake Summary` → use this to preserve the user’s intent framing during research
 </additional_context>
 
 <downstream_consumer>

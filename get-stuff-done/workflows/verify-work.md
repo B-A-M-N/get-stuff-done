@@ -12,6 +12,12 @@ Claude presents what SHOULD happen. User confirms or describes what's different.
 - Anything else → logged as issue, severity inferred
 
 No Pass/Fail buttons. No severity questions. Just: "Here's what should happen. Does it?"
+
+Narrative-first verification is additive:
+- capture a short testing narrative,
+- interpret it,
+- use that interpretation to frame or prioritize tests,
+- then keep the normal UAT loop and gap pipeline intact.
 </philosophy>
 
 <template>
@@ -90,6 +96,32 @@ ls "$phase_dir"/*-SUMMARY.md 2>/dev/null
 Read each SUMMARY.md to extract testable deliverables.
 </step>
 
+<step name="capture_verification_narrative">
+Capture a short verification narrative before test presentation so UAT starts from interpreted user outcomes, not only extracted summaries.
+
+Ask in plain text:
+```text
+Tell me what you tested, what outcome matters most, or what behavior you want to verify first.
+```
+
+Then run:
+```bash
+VERIFY_SEED=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" itl verify-seed --text "$NARRATIVE" --raw)
+```
+
+Use the returned JSON to capture:
+- `summary` — show this interpretation summary before the first test is presented
+- `needs_clarification`
+- `clarification_questions`
+- `verification_seed.prioritized_checks`
+- `verification_seed.expected_outcomes`
+- `verification_seed.verification_hints`
+
+**If `needs_clarification` is true:** ask only the provided bounded `clarification_questions`, then re-run `itl verify-seed` once with the clarified narrative appended. Do not branch into open-ended discovery here.
+
+Store the final result as internal `<verification_seed>` and continue to `extract_tests`.
+</step>
+
 <step name="extract_tests">
 **Extract testable deliverables from SUMMARY.md:**
 
@@ -109,6 +141,12 @@ Examples:
   → Expected: "Clicking Reply opens inline composer below comment. Submitting shows reply nested under parent with visual indentation."
 
 Skip internal/non-observable items (refactors, type changes, etc.).
+
+Use `<verification_seed>` as an input, not a replacement:
+- Prioritize tests that match `prioritized_checks` or `expected_outcomes`
+- Use the interpretation summary to sharpen the expected wording for those tests
+- Keep every user-confirmed pass/issue/skipped result in normal UAT format
+- Do not let ITL skip tests, auto-pass tests, or bypass gap logging
 
 **Cold-start smoke test injection:**
 
@@ -132,6 +170,11 @@ mkdir -p "$PHASE_DIR"
 ```
 
 Build test list from extracted deliverables.
+
+If `<verification_seed>` exists:
+- Reorder tests so the most relevant interpreted checks appear first
+- Preserve the full test list
+- Add a short verification narrative note near the top of the file if helpful, but do not replace the existing UAT structure
 
 Create file:
 
@@ -187,6 +230,8 @@ Proceed to `present_test`.
 **Present current test to user:**
 
 Read Current Test section from UAT file.
+
+If `<verification_seed>.summary` exists and this is the first presented test in a new session, show the interpretation summary immediately before the checkpoint box so the user can see what Claude thinks matters most in verification.
 
 Display using checkpoint box format:
 

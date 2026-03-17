@@ -5,11 +5,11 @@ Display the complete GSD command reference. Output ONLY the reference content. D
 <reference>
 # GSD Command Reference
 
-**GSD** (Get Shit Done) creates hierarchical project plans optimized for solo agentic development with Claude Code.
+**GSD** (Get Stuff Done) creates hierarchical project plans optimized for solo agentic development with Claude Code.
 
 ## Quick Start
 
-1. `/gsd:new-project` - Initialize project (includes research, requirements, roadmap)
+1. `/dostuff:new-project` - Initialize project with narrative-first intake (includes research, requirements, roadmap)
 2. `/gsd:plan-phase 1` - Create detailed plan for first phase
 3. `/gsd:execute-phase 1` - Execute the phase
 
@@ -24,16 +24,17 @@ npx get-stuff-done-cc@latest
 ## Core Workflow
 
 ```
-/gsd:new-project → /gsd:plan-phase → /gsd:execute-phase → repeat
+/dostuff:new-project → /dostuff:plan-phase → /dostuff:execute-phase → repeat
 ```
 
 ### Project Initialization
 
-**`/gsd:new-project`**
+**`/dostuff:new-project`**
 Initialize new project through unified flow.
 
 One command takes you from idea to ready-for-planning:
-- Deep questioning to understand what you're building
+- Narrative-first intake to understand what you're building
+- ITL interpretation summary before artifact creation
 - Optional domain research (spawns 4 parallel researcher agents)
 - Requirements definition with v1/v2/out-of-scope scoping
 - Roadmap creation with phase breakdown and success criteria
@@ -46,7 +47,7 @@ Creates all `.planning/` artifacts:
 - `ROADMAP.md` — phases mapped to requirements
 - `STATE.md` — project memory
 
-Usage: `/gsd:new-project`
+Usage: `/dostuff:new-project`
 
 **`/gsd:map-codebase`**
 Map an existing codebase for brownfield projects.
@@ -54,28 +55,30 @@ Map an existing codebase for brownfield projects.
 - Analyzes codebase with parallel Explore agents
 - Creates `.planning/codebase/` with 7 focused documents
 - Covers stack, architecture, structure, conventions, testing, integrations, concerns
-- Use before `/gsd:new-project` on existing codebases
+- Use before `/dostuff:new-project` on existing codebases
 
 Usage: `/gsd:map-codebase`
 
 ### Phase Planning
 
-**`/gsd:discuss-phase <number>`**
+**`/dostuff:discuss-phase <number>`**
 Help articulate your vision for a phase before planning.
 
-- Captures how you imagine this phase working
+- Captures how you imagine this phase working in freeform narrative first
+- Shows an ITL interpretation preview before selective deep-dive
 - Creates CONTEXT.md with your vision, essentials, and boundaries
 - Use when you have ideas about how something should look/feel
 - Optional `--batch` asks 2-5 related questions at a time instead of one-by-one
 
-Usage: `/gsd:discuss-phase 2`
-Usage: `/gsd:discuss-phase 2 --batch`
-Usage: `/gsd:discuss-phase 2 --batch=3`
+Usage: `/dostuff:discuss-phase 2`
+Usage: `/dostuff:discuss-phase 2 --batch`
+Usage: `/dostuff:discuss-phase 2 --batch=3`
 
 **`/gsd:research-phase <number>`**
 Comprehensive ecosystem research for niche/complex domains.
 
 - Discovers standard stack, architecture patterns, pitfalls
+- Uses richer CONTEXT guidance from earlier narrative-first discussion when available
 - Creates RESEARCH.md with "how experts build this" knowledge
 - Use for 3D, games, audio, shaders, ML, and other specialized domains
 - Goes beyond "which library" to ecosystem knowledge
@@ -95,6 +98,7 @@ Usage: `/gsd:list-phase-assumptions 3`
 Create detailed execution plan for a specific phase.
 
 - Generates `.planning/phases/XX-phase-name/XX-YY-PLAN.md`
+- Uses richer narrative/context/research handoff when earlier `/dostuff:*` workflows populated it
 - Breaks phase into concrete, actionable tasks
 - Includes verification criteria and success measures
 - Multiple plans per phase supported (XX-01, XX-02, etc.)
@@ -103,6 +107,9 @@ Usage: `/gsd:plan-phase 1`
 Result: Creates `.planning/phases/01-foundation/01-01-PLAN.md`
 
 **PRD Express Path:** Pass `--prd path/to/requirements.md` to skip discuss-phase entirely. Your PRD becomes locked decisions in CONTEXT.md. Useful when you already have clear acceptance criteria.
+
+**Invariant safety:** inferred constraints are not safe to lock as invariants until they pass the adversarial ambiguity gate introduced in Phase 9.
+Current enforcement note: the gate now exists in the ITL/runtime layer, but full workflow-by-workflow consumption is still being audited and tightened. Do not assume every downstream workflow auto-enforces lockability yet.
 
 ### Execution
 
@@ -115,6 +122,31 @@ Execute all plans in a phase.
 - Updates REQUIREMENTS.md, ROADMAP.md, STATE.md
 
 Usage: `/gsd:execute-phase 5`
+
+### Coverage Baseline
+
+The current automated coverage gate is intentionally narrow:
+- `npm run test:coverage` requires dev dependencies, including `c8`, to be installed.
+- It enforces `100%` line coverage for `get-stuff-done/bin/lib/itl*.cjs` and the standalone `packages/itl/**/*.cjs` package surface.
+- It runs the stable direct-test baseline: `tests/itl.test.cjs`, `tests/itl-package.test.cjs`, and `tests/dostuff.test.cjs`.
+- It is meant to validate the stable ITL/lib surface directly, not every subprocess-heavy integration path.
+- Sandbox-sensitive suites that shell out are still useful, but they are not the stable coverage baseline unless they are refactored to run reliably under restriction.
+
+### ITL Runtime Contract
+
+The current ITL runtime now has a stricter internal boundary:
+- canonical ITL payloads are validated through Zod-backed schemas before workflow-facing results are emitted
+- the current deterministic extractor runs through the same provider-agnostic adapter seam concrete providers use
+- supported provider adapters now include Claude, Gemini, Kimi, and OpenAI behind a shared registry
+- default local behavior remains deterministic unless a provider response payload is explicitly supplied or live-provider wiring is added later
+
+### Standalone ITL Package
+
+The ITL is now also exposed as a standalone local package:
+- package path: `packages/itl`
+- primary API: `interpret_narrative(input_text, context_data)`
+- supporting API: `build_provider_request(...)`, `get_supported_providers()`
+- package verification stays offline-friendly through direct fixture tests
 
 ### Smart Router
 
@@ -130,9 +162,19 @@ Usage: `/gsd:do fix the login button`
 Usage: `/gsd:do refactor the auth system`
 Usage: `/gsd:do I want to start a new milestone`
 
+**`/gsd:dostuff <narrative>`**
+Narrative-first entry point for "just help me get started".
+
+- Routes to `/dostuff:new-project` when you're describing something new
+- Routes to `/dostuff:quick` when you're already inside a project and want a concrete change
+- Useful when the user wants a softer front door than choosing a workflow first
+
+Usage: `/gsd:dostuff build me a marketplace for handmade tools`
+Usage: `/gsd:dostuff add CSV export to the admin dashboard`
+
 ### Quick Mode
 
-**`/gsd:quick [--full] [--discuss] [--research]`**
+**`/dostuff:quick [--full] [--discuss] [--research]`**
 Execute small, ad-hoc tasks with GSD guarantees but skip optional agents.
 
 Quick mode uses the same system with a shorter path:
@@ -147,8 +189,8 @@ Flags enable additional quality steps:
 
 Flags are composable: `--discuss --research --full` gives the complete quality pipeline for a single task.
 
-Usage: `/gsd:quick`
-Usage: `/gsd:quick --research --full`
+Usage: `/dostuff:quick`
+Usage: `/dostuff:quick --research --full`
 Result: Creates `.planning/quick/NNN-slug/PLAN.md`, `.planning/quick/NNN-slug/SUMMARY.md`
 
 ### Roadmap Management
@@ -298,15 +340,16 @@ Usage: `/gsd:check-todos api`
 
 ### User Acceptance Testing
 
-**`/gsd:verify-work [phase]`**
+**`/dostuff:verify-work [phase]`**
 Validate built features through conversational UAT.
 
+- Starts with a short verification narrative and ITL interpretation preview
 - Extracts testable deliverables from SUMMARY.md files
 - Presents tests one at a time (yes/no responses)
 - Automatically diagnoses failures and creates fix plans
-- Ready for re-execution if issues found
+- Keeps UAT.md and the normal gaps pipeline intact
 
-Usage: `/gsd:verify-work 3`
+Usage: `/dostuff:verify-work 3`
 
 ### Milestone Auditing
 

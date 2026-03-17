@@ -140,6 +140,7 @@ const milestone = require('./lib/milestone.cjs');
 const commands = require('./lib/commands.cjs');
 const init = require('./lib/init.cjs');
 const frontmatter = require('./lib/frontmatter.cjs');
+const itl = require('./lib/itl.cjs');
 const profilePipeline = require('./lib/profile-pipeline.cjs');
 const profileOutput = require('./lib/profile-output.cjs');
 
@@ -175,7 +176,7 @@ async function main() {
   const command = args[0];
 
   if (!command) {
-    error('Usage: gsd-tools <command> [args] [--raw] [--cwd <path>]\nCommands: state, resolve-model, find-phase, commit, verify-summary, verify, frontmatter, template, generate-slug, current-timestamp, list-todos, verify-path-exists, config-ensure-section, init');
+    error('Usage: gsd-tools <command> [args] [--raw] [--cwd <path>]\nCommands: state, resolve-model, find-phase, commit, verify-summary, verify, frontmatter, template, generate-slug, current-timestamp, list-todos, verify-path-exists, config-ensure-section, init, itl');
   }
 
   switch (command) {
@@ -595,6 +596,55 @@ async function main() {
       const fieldsIndex = args.indexOf('--fields');
       const fields = fieldsIndex !== -1 ? args[fieldsIndex + 1].split(',') : null;
       commands.cmdSummaryExtract(cwd, summaryPath, fields, raw);
+      break;
+    }
+
+    case 'itl': {
+      const subcommand = args[1];
+      const providerIndex = args.indexOf('--provider');
+      const responseJsonIndex = args.indexOf('--provider-response-json');
+      const responseFileIndex = args.indexOf('--provider-response-file');
+      const provider = providerIndex !== -1 ? args[providerIndex + 1] : null;
+      const providerResponse = responseJsonIndex !== -1
+        ? JSON.parse(args[responseJsonIndex + 1])
+        : responseFileIndex !== -1
+          ? JSON.parse(fs.readFileSync(args[responseFileIndex + 1], 'utf8'))
+          : undefined;
+      if (subcommand === 'interpret') {
+        const textIndex = args.indexOf('--text');
+        const projectInitializedIndex = args.indexOf('--project-initialized');
+        const text = textIndex !== -1
+          ? args[textIndex + 1]
+          : args.slice(2).filter(arg => !arg.startsWith('--')).join(' ');
+        itl.cmdItlInterpret(cwd, {
+          text,
+          provider,
+          provider_response: providerResponse,
+          project_initialized: projectInitializedIndex !== -1 ? args[projectInitializedIndex + 1] : null,
+        }, raw);
+      } else if (subcommand === 'init-seed') {
+        const textIndex = args.indexOf('--text');
+        const text = textIndex !== -1
+          ? args[textIndex + 1]
+          : args.slice(2).filter(arg => !arg.startsWith('--')).join(' ');
+        itl.cmdItlInitSeed(cwd, { text, provider, provider_response: providerResponse }, raw);
+      } else if (subcommand === 'discuss-seed') {
+        const textIndex = args.indexOf('--text');
+        const text = textIndex !== -1
+          ? args[textIndex + 1]
+          : args.slice(2).filter(arg => !arg.startsWith('--')).join(' ');
+        itl.cmdItlDiscussSeed(cwd, { text, provider, provider_response: providerResponse }, raw);
+      } else if (subcommand === 'verify-seed') {
+        const textIndex = args.indexOf('--text');
+        const text = textIndex !== -1
+          ? args[textIndex + 1]
+          : args.slice(2).filter(arg => !arg.startsWith('--')).join(' ');
+        itl.cmdItlVerifySeed(cwd, { text, provider, provider_response: providerResponse }, raw);
+      } else if (subcommand === 'latest') {
+        itl.cmdItlLatest(cwd, raw);
+      } else {
+        error('Unknown itl subcommand. Available: interpret, init-seed, discuss-seed, verify-seed, latest');
+      }
       break;
     }
 

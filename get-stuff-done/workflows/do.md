@@ -41,7 +41,7 @@ Evaluate `$ARGUMENTS` against these routing rules. Apply the **first matching** 
 | Mapping or analyzing an existing codebase | `/gsd:map-codebase` | Codebase discovery |
 | A bug, error, crash, failure, or something broken | `/gsd:debug` | Needs systematic investigation |
 | Exploring, researching, comparing, or "how does X work" | `/gsd:research-phase` | Domain research before planning |
-| Discussing vision, "how should X look", brainstorming | `/gsd:discuss-phase` | Needs context gathering |
+| Discussing vision, "how should X look", brainstorming | `/dostuff:discuss-phase` | Needs context gathering |
 | A complex task: refactoring, migration, multi-file architecture, system redesign | `/gsd:add-phase` | Needs a full phase with plan/build cycle |
 | Planning a specific phase or "plan phase N" | `/gsd:plan-phase` | Direct planning request |
 | Executing a phase or "build phase N", "run phase N" | `/gsd:execute-phase` | Direct execution request |

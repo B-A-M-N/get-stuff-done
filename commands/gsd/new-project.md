@@ -1,6 +1,6 @@
 ---
 name: gsd:new-project
-description: Initialize a new project with deep context gathering and PROJECT.md
+description: Initialize a new project with narrative-first intake, PROJECT.md, and roadmap scaffolding
 argument-hint: "[--auto]"
 allowed-tools:
   - Read
@@ -11,11 +11,11 @@ allowed-tools:
 ---
 <context>
 **Flags:**
-- `--auto` — Automatic mode. After config questions, runs research → requirements → roadmap without further interaction. Expects idea document via @ reference.
+- `--auto` — Automatic mode. After config questions, interprets the provided document as the project narrative, then runs research → requirements → roadmap without further interaction.
 </context>
 
 <objective>
-Initialize a new project through unified flow: questioning → research (optional) → requirements → roadmap.
+Initialize a new project through unified flow: narrative intake → research (optional) → requirements → roadmap.
 
 **Creates:**
 - `.planning/PROJECT.md` — project context
@@ -25,7 +25,12 @@ Initialize a new project through unified flow: questioning → research (optiona
 - `.planning/ROADMAP.md` — phase structure
 - `.planning/STATE.md` — project memory
 
-**After this command:** Run `/gsd:plan-phase 1` to start execution.
+Behavior:
+- Starts with freeform narrative intake instead of a rigid front-loaded questionnaire
+- Uses ITL interpretation before writing artifacts
+- Shows an interpretation summary and only asks bounded clarification when ambiguity is too high
+
+**After this command:** Run `/dostuff:plan-phase 1` to start execution on the installed fork surface.
 </objective>
 
 <execution_context>

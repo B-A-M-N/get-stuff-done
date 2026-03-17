@@ -2,58 +2,33 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-16)
+See: .planning/PROJECT.md (updated 2026-03-17)
 
-**Core value:** Provider-agnostic "Intent Translation Layer" that adapts user narrative into structured GSD inputs.
-**Current focus:** Phase 1: Foundational Rebrand & Fixes
+**Core value:** Provider-aware narrative interpretation without weakening GSD planning rigor.
+**Current focus:** Awaiting next milestone definition
 
 ## Current Position
 
-Phase: 1 of 13 (Foundational Rebrand & Fixes)
-Plan: 0 of 0 in current phase
-Status: Ready to plan
-Last activity: 2026-03-16 — Project initialization and roadmap creation.
+Milestone: `v0.1.0`
+Status: Archived
+Last activity: 2026-03-17 — Archived the completed ITL milestone and prepared the project for a fresh milestone definition.
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [████████████] 100%
 
 ## Performance Metrics
 
-**Velocity:**
-- Total plans completed: 0
-- Average duration: 0 min
-- Total execution time: 0.0 hours
+- Total plans completed in v0.1.0: `29`
+- Total phases completed in v0.1.0: `14`
+- Coverage gate: `100%` line coverage on the scoped ITL runtime and standalone package surfaces
 
-**By Phase:**
+## Current Guidance
 
-| Phase | Plans | Total | Avg/Plan |
-|-------|-------|-------|----------|
-| - | - | - | - |
-
-**Recent Trend:**
-- Last 5 plans: N/A
-- Trend: Stable
-
-*Updated after each plan completion*
-
-## Accumulated Context
-
-### Decisions
-
-Decisions are logged in PROJECT.md Key Decisions table.
-Recent decisions affecting current work:
-
-- [Init]: Standardized on a 13-phase roadmap across 3 milestones to handle core ITL, hardening, and extraction.
-
-### Pending Todos
-
-None yet.
-
-### Blockers/Concerns
-
-None yet.
+- No active roadmap is open.
+- No active requirements file is open.
+- Start the next version with `gsd:new-milestone "<name>"`.
 
 ## Session Continuity
 
-Last session: 2026-03-16 14:00
-Stopped at: Roadmap and State initialization complete.
+Last session: 2026-03-17 00:00
+Stopped at: v0.1.0 archived; ready for next milestone creation.
 Resume file: None

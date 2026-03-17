@@ -14,9 +14,9 @@
 
 ## Core Workflow Commands
 
-### `/gsd:new-project`
+### `/dostuff:new-project`
 
-Initialize a new project with deep context gathering.
+Initialize a new project with narrative-first intake and ITL-backed interpretation.
 
 | Flag | Description |
 |------|-------------|
@@ -26,13 +26,13 @@ Initialize a new project with deep context gathering.
 **Produces:** `PROJECT.md`, `REQUIREMENTS.md`, `ROADMAP.md`, `STATE.md`, `config.json`, `research/`
 
 ```bash
-/gsd:new-project                    # Interactive mode
-/gsd:new-project --auto @prd.md     # Auto-extract from PRD
+/dostuff:new-project                    # Interactive mode
+/dostuff:new-project --auto @prd.md     # Auto-extract from PRD
 ```
 
 ---
 
-### `/gsd:discuss-phase`
+### `/dostuff:discuss-phase`
 
 Capture implementation decisions before planning.
 
@@ -47,11 +47,12 @@ Capture implementation decisions before planning.
 
 **Prerequisites:** `.planning/ROADMAP.md` exists
 **Produces:** `{phase}-CONTEXT.md`
+**Behavior:** narrative-first intake, ITL interpretation preview, bounded clarification, then selective gray-area discussion
 
 ```bash
-/gsd:discuss-phase 1                # Interactive discussion for phase 1
-/gsd:discuss-phase 3 --auto         # Auto-select defaults for phase 3
-/gsd:discuss-phase --batch          # Batch mode for current phase
+/dostuff:discuss-phase 1                # Interactive discussion for phase 1
+/dostuff:discuss-phase 3 --auto         # Auto-select defaults for phase 3
+/dostuff:discuss-phase --batch          # Batch mode for current phase
 ```
 
 ---
@@ -73,6 +74,24 @@ Generate UI design contract for frontend phases.
 
 ---
 
+### `/gsd:research-phase`
+
+Comprehensive ecosystem research for niche/complex domains.
+
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `N` | No | Phase number (defaults to current phase) |
+
+**Prerequisites:** `.planning/ROADMAP.md` exists
+**Produces:** `{phase}-RESEARCH.md`
+**Behavior:** consumes richer CONTEXT guidance from narrative-first discuss flows when available, while keeping RESEARCH.md as the output contract
+
+```bash
+/gsd:research-phase 3
+```
+
+---
+
 ### `/gsd:plan-phase`
 
 Research, plan, and verify a phase.
@@ -89,6 +108,10 @@ Research, plan, and verify a phase.
 
 **Prerequisites:** `.planning/ROADMAP.md` exists
 **Produces:** `{phase}-RESEARCH.md`, `{phase}-{N}-PLAN.md`, `{phase}-VALIDATION.md`
+**Behavior:** consumes richer CONTEXT and research guidance when available, while keeping PLAN.md and validation as the planning contracts
+
+Invariant safety note: inferred constraints remain guidance until they pass the adversarial ambiguity gate; they are not automatically promoted to locked invariants.
+Audit note: the adversarial gate now exists in the ITL layer, but full downstream workflow enforcement is not claimed unless a workflow explicitly consumes that result.
 
 ```bash
 /gsd:plan-phase 1                   # Research + plan + verify phase 1
@@ -113,9 +136,41 @@ Execute all plans in a phase with wave-based parallelization.
 /gsd:execute-phase 1                # Execute phase 1
 ```
 
+Coverage baseline note:
+- `npm run test:coverage` depends on dev dependencies being installed, including `c8`.
+- The enforced gate is currently scoped to `get-stuff-done/bin/lib/itl*.cjs` plus `packages/itl/**/*.cjs` at `100%` line coverage.
+- The stable coverage run uses the direct test files `tests/itl.test.cjs`, `tests/itl-package.test.cjs`, and `tests/dostuff.test.cjs`.
+- That baseline is intentionally narrower than the full test suite because some subprocess-heavy install/E2E paths remain sandbox-sensitive.
+- Those broader suites are still valuable regression checks, but they are not implied by the stable coverage gate unless explicitly refactored into it.
+
+Canonical ITL note:
+- ITL runtime payloads now pass through Zod-backed canonical validation before seed or interpretation results are emitted.
+- The current deterministic extractor is already routed through the provider registry and adapter seam introduced in Phase 12.
+- Supported provider adapters now include Claude, Gemini, Kimi, and OpenAI.
+- Default local development remains deterministic; live provider calls are not required for the normal test path.
+- The extracted standalone package lives at `packages/itl` and exposes `interpret_narrative(input_text, context_data)` as the primary public API.
+
 ---
 
-### `/gsd:verify-work`
+### `/gsd:dostuff`
+
+Narrative-first entry point that routes to either project initialization or a quick task.
+
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `text` | No | Freeform description of what you want to build or change |
+
+**Prerequisites:** None
+**Routes to:** `/dostuff:new-project` or `/dostuff:quick`
+
+```bash
+/gsd:dostuff build a marketplace for handmade goods
+/gsd:dostuff add CSV export to the reporting page
+```
+
+---
+
+### `/dostuff:verify-work`
 
 User acceptance testing with auto-diagnosis.
 
@@ -125,9 +180,10 @@ User acceptance testing with auto-diagnosis.
 
 **Prerequisites:** Phase has been executed
 **Produces:** `{phase}-UAT.md`, fix plans if issues found
+**Behavior:** narrative-first verification intake, ITL interpretation preview, bounded clarification, then standard user-confirmed UAT and gap logging
 
 ```bash
-/gsd:verify-work 1                  # UAT for phase 1
+/dostuff:verify-work 1                  # UAT for phase 1
 ```
 
 ---
@@ -312,7 +368,7 @@ Show all commands and usage guide.
 
 ## Utility Commands
 
-### `/gsd:quick`
+### `/dostuff:quick`
 
 Execute ad-hoc task with GSD guarantees.
 
@@ -325,10 +381,10 @@ Execute ad-hoc task with GSD guarantees.
 Flags are composable.
 
 ```bash
-/gsd:quick                          # Basic quick task
-/gsd:quick --discuss --research     # Discussion + research + planning
-/gsd:quick --full                   # With plan checking and verification
-/gsd:quick --discuss --research --full  # All optional stages
+/dostuff:quick                          # Basic quick task
+/dostuff:quick --discuss --research     # Discussion + research + planning
+/dostuff:quick --full                   # With plan checking and verification
+/dostuff:quick --discuss --research --full  # All optional stages
 ```
 
 ### `/gsd:autonomous`

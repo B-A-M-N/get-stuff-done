@@ -188,6 +188,28 @@ Node.js CLI utility (`gsd-tools.cjs`) with 11 domain modules:
 | `commands.cjs` | Misc commands (slug, timestamp, todos, scaffolding, stats) |
 | `model-profiles.cjs` | Model profile resolution table |
 
+### ITL Canonical Layer
+
+The narrative-first ITL runtime now has two internal boundaries before provider work begins:
+- `itl-schema.cjs` defines Zod-backed canonical contracts for interpretation, ambiguity, lockability, audit records, and workflow seed payloads.
+- `itl-adapters.cjs` defines the provider-agnostic adapter seam used to prepare narrative input and normalize provider-style output into that canonical schema.
+
+Current status:
+- the default adapter is still the internal deterministic heuristic extractor
+- workflow-facing commands continue to expose the same `/dostuff:*` behavior
+- concrete provider adapters now exist for Claude, Gemini, Kimi, and OpenAI
+- live provider execution remains optional; the default local path can still use deterministic fallback behavior
+
+### Standalone ITL Package
+
+The ITL is also extracted as a standalone package boundary under `packages/itl`.
+
+Package contract:
+- primary API: `interpret_narrative(input_text, context_data)`
+- supporting utilities: provider request building and provider enumeration
+- TypeScript declarations ship with the package entrypoint
+- package verification is direct and offline-friendly, separate from workflow markdown
+
 ---
 
 ## Agent Model
@@ -331,7 +353,7 @@ UI-SPEC.md (per phase) ───────────────────
 
 ```
 ~/.claude/                          # Claude Code (global install)
-├── commands/gsd/*.md               # 37 slash commands
+├── commands/gsd/*.md               # 40 slash commands
 ├── get-stuff-done/
 │   ├── bin/gsd-tools.cjs           # CLI utility
 │   ├── bin/lib/*.cjs               # 11 domain modules
@@ -364,7 +386,7 @@ Equivalent paths for other runtimes:
 ├── STATE.md                # Living memory: position, decisions, blockers, metrics
 ├── config.json             # Workflow configuration
 ├── MILESTONES.md           # Completed milestone archive
-├── research/               # Domain research from /gsd:new-project
+├── research/               # Domain research from /dostuff:new-project
 │   ├── SUMMARY.md
 │   ├── STACK.md
 │   ├── FEATURES.md

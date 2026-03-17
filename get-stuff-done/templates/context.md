@@ -50,9 +50,33 @@ Template for `.planning/phases/XX-name/{phase_num}-CONTEXT.md` - captures implem
 
 [Any particular references, examples, or "I want it like X" moments from discussion. Product references, specific behaviors, interaction patterns.]
 
+[Optional narrative-intake summary:
+- 1-3 bullets summarizing the user’s narrative in plain language
+- Main interpretation themes that shaped discussion
+- Clarified points if ambiguity required bounded follow-up]
+
 [If none: "No specific requirements — open to standard approaches"]
 
 </specifics>
+
+<research_cues>
+## Research Cues
+
+### Interpreted Assumptions
+- [Inferred assumption that could guide research]
+- [Another inferred assumption]
+
+### Open Questions For Research
+- [Unknown that research should investigate]
+- [Another unresolved question]
+
+### Emphasis For Research
+- [Goal, constraint, or risk that research should weight heavily]
+- [Another high-priority cue]
+
+[Important: these are downstream research cues, not locked implementation decisions. Keep them concise and clearly distinct from the decisions section.]
+
+</research_cues>
 
 <canonical_refs>
 ## Canonical References

@@ -20,10 +20,11 @@ Extract implementation decisions that downstream agents need — researcher and 
 **How it works:**
 1. Load prior context (PROJECT.md, REQUIREMENTS.md, STATE.md, prior CONTEXT.md files)
 2. Scout codebase for reusable assets and patterns
-3. Analyze phase — skip gray areas already decided in prior phases
-4. Present remaining gray areas — user selects which to discuss
-5. Deep-dive each selected area until satisfied
-6. Create CONTEXT.md with decisions that guide research and planning
+3. Capture a short freeform phase narrative and run ITL interpretation
+4. Analyze phase — skip gray areas already decided in prior phases
+5. Present remaining gray areas — user selects which to discuss
+6. Deep-dive each selected area until satisfied
+7. Create CONTEXT.md with decisions that guide research and planning
 
 **Output:** `{phase_num}-CONTEXT.md` — decisions clear enough that downstream agents can act without asking the user again
 </objective>
@@ -44,10 +45,11 @@ Context files are resolved in-workflow using `init phase-op` and roadmap/state t
 2. Check if CONTEXT.md exists (offer update/view/skip if yes)
 3. **Load prior context** — Read PROJECT.md, REQUIREMENTS.md, STATE.md, and all prior CONTEXT.md files
 4. **Scout codebase** — Find reusable assets, patterns, and integration points
-5. **Analyze phase** — Check prior decisions, skip already-decided areas, generate remaining gray areas
-6. **Present gray areas** — Multi-select: which to discuss? Annotate with prior decisions + code context
-7. **Deep-dive each area** — 4 questions per area, code-informed options, Context7 for library choices
-8. **Write CONTEXT.md** — Sections match areas discussed + code_context section
+5. **Interpret phase narrative** — Capture how the user imagines the phase working, show an interpretation summary, and ask bounded clarification only when ambiguity is high
+6. **Analyze phase** — Check prior decisions, skip already-decided areas, generate remaining gray areas using the interpreted intent
+7. **Present gray areas** — Multi-select: which to discuss? Annotate with prior decisions + code context
+8. **Deep-dive each area** — 4 questions per area, code-informed options, Context7 for library choices
+9. **Write CONTEXT.md** — Sections match areas discussed + code_context section
 9. Offer next steps (research or plan)
 
 **CRITICAL: Scope guardrail**
@@ -78,6 +80,8 @@ Generate 3-4 **phase-specific** gray areas, not generic categories.
 - Architecture choices
 - Performance concerns
 - Scope expansion
+
+**Installed surface:** when this fork is installed, this flow is exposed to users as `/dostuff:discuss-phase`.
 </process>
 
 <success_criteria>

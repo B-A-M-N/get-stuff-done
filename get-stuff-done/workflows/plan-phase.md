@@ -160,6 +160,11 @@ Check `context_path` from init JSON.
 
 If `context_path` is not null, display: `Using phase context from: ${context_path}`
 
+If `context_path` exists, interpret it in layers:
+- `Implementation Decisions` are locked user choices.
+- `Narrative Intake Summary` preserves user framing and emphasis.
+- `Research Cues` are inferred planning guidance that may shape sequencing, verification focus, and task structure, but are not locked requirements.
+
 **If `context_path` is null (no CONTEXT.md exists):**
 
 Use AskUserQuestion:
@@ -402,6 +407,12 @@ Planner prompt:
 </files_to_read>
 
 **Phase requirement IDs (every ID MUST appear in a plan's `requirements` field):** {phase_req_ids}
+
+Treat upstream context carefully:
+- `Implementation Decisions` in CONTEXT.md are locked choices and must be honored.
+- `Research Cues`, narrative summaries, assumptions, and open questions are planning guidance only.
+- Use inferred guidance to shape task structure, sequencing, and verification depth, but do not silently convert it into hard scope or acceptance criteria unless explicit requirements or decisions support it.
+- If CONTEXT.md came from PRD Express Path or is sparse, fall back gracefully to the sections that exist rather than assuming narrative-first fields are present.
 
 **Project instructions:** Read ./CLAUDE.md if exists — follow project-specific guidelines
 **Project skills:** Check .claude/skills/ or .agents/skills/ directory (if either exists) — read SKILL.md files, plans should account for project skill rules

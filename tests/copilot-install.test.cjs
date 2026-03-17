@@ -622,10 +622,10 @@ describe('copyCommandsAsCopilotSkills', () => {
       assert.ok(fs.existsSync(path.join(tempDir, 'gsd-help')), 'gsd-help folder exists');
       assert.ok(fs.existsSync(path.join(tempDir, 'gsd-progress')), 'gsd-progress folder exists');
 
-      // Count gsd-* directories — should be 31
+      // Count gsd-* directories
       const dirs = fs.readdirSync(tempDir, { withFileTypes: true })
         .filter(e => e.isDirectory() && e.name.startsWith('gsd-'));
-      assert.strictEqual(dirs.length, 39, `expected 39 skill folders, got ${dirs.length}`);
+      assert.strictEqual(dirs.length, 40, `expected 40 skill folders, got ${dirs.length}`);
     } finally {
       fs.rmSync(tempDir, { recursive: true });
     }
@@ -972,27 +972,27 @@ describe('Copilot uninstall skill removal', () => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  test('identifies gsd-* skill directories for removal', () => {
+  test('identifies dostuff-* skill directories for removal', () => {
     // Create Copilot-like skills directory structure
     const skillsDir = path.join(tmpDir, 'skills');
-    fs.mkdirSync(path.join(skillsDir, 'gsd-foo'), { recursive: true });
-    fs.writeFileSync(path.join(skillsDir, 'gsd-foo', 'SKILL.md'), '# Foo');
-    fs.mkdirSync(path.join(skillsDir, 'gsd-bar'), { recursive: true });
-    fs.writeFileSync(path.join(skillsDir, 'gsd-bar', 'SKILL.md'), '# Bar');
+    fs.mkdirSync(path.join(skillsDir, 'dostuff-foo'), { recursive: true });
+    fs.writeFileSync(path.join(skillsDir, 'dostuff-foo', 'SKILL.md'), '# Foo');
+    fs.mkdirSync(path.join(skillsDir, 'dostuff-bar'), { recursive: true });
+    fs.writeFileSync(path.join(skillsDir, 'dostuff-bar', 'SKILL.md'), '# Bar');
     fs.mkdirSync(path.join(skillsDir, 'custom-skill'), { recursive: true });
     fs.writeFileSync(path.join(skillsDir, 'custom-skill', 'SKILL.md'), '# Custom');
 
-    // Test the pattern: read skills, filter gsd-* entries
+    // Test the pattern: read skills, filter dostuff-* entries
     const entries = fs.readdirSync(skillsDir, { withFileTypes: true });
     const gsdSkills = entries
-      .filter(e => e.isDirectory() && e.name.startsWith('gsd-'))
+      .filter(e => e.isDirectory() && e.name.startsWith('dostuff-'))
       .map(e => e.name);
     const nonGsdSkills = entries
-      .filter(e => e.isDirectory() && !e.name.startsWith('gsd-'))
+      .filter(e => e.isDirectory() && !e.name.startsWith('dostuff-'))
       .map(e => e.name);
 
-    assert.deepStrictEqual(gsdSkills.sort(), ['gsd-bar', 'gsd-foo'], 'identifies gsd-* skills');
-    assert.deepStrictEqual(nonGsdSkills, ['custom-skill'], 'preserves non-gsd skills');
+    assert.deepStrictEqual(gsdSkills.sort(), ['dostuff-bar', 'dostuff-foo'], 'identifies dostuff-* skills');
+    assert.deepStrictEqual(nonGsdSkills, ['custom-skill'], 'preserves non-dostuff skills');
   });
 
   test('cleans GSD section from copilot-instructions.md on uninstall', () => {
@@ -1035,37 +1035,38 @@ describe('Copilot manifest and patches fixes', () => {
   });
 
   test('writeManifest hashes skills for Copilot runtime', () => {
-    // Create minimal get-stuff-done dir (required by writeManifest)
-    const gsdDir = path.join(tmpDir, 'get-stuff-done', 'bin');
+    // Create minimal fork engine dir (required by writeManifest)
+    const gsdDir = path.join(tmpDir, 'dostuff', 'get-stuff-done', 'bin');
     fs.mkdirSync(gsdDir, { recursive: true });
     fs.writeFileSync(path.join(gsdDir, 'verify.cjs'), '// verify stub');
 
     // Create Copilot skills directory
-    const skillDir = path.join(tmpDir, 'skills', 'gsd-test');
+    const skillDir = path.join(tmpDir, 'skills', 'dostuff-test');
     fs.mkdirSync(skillDir, { recursive: true });
     fs.writeFileSync(path.join(skillDir, 'SKILL.md'), '# Test Skill\n\nA test skill.');
 
     const manifest = writeManifest(tmpDir, 'copilot');
 
     // Check manifest file was written
-    const manifestPath = path.join(tmpDir, 'gsd-file-manifest.json');
+    const manifestPath = path.join(tmpDir, 'dostuff-file-manifest.json');
     assert.ok(fs.existsSync(manifestPath), 'manifest file created');
 
     // Read and verify skills are hashed
     const data = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
-    const skillKey = 'skills/gsd-test/SKILL.md';
+    const skillKey = 'skills/dostuff-test/SKILL.md';
     assert.ok(data.files[skillKey], 'skill file hashed in manifest');
     assert.ok(typeof data.files[skillKey] === 'string', 'hash is a string');
     assert.ok(data.files[skillKey].length === 64, 'hash is SHA-256 (64 hex chars)');
+    assert.ok(data.files['dostuff/get-stuff-done/bin/verify.cjs'], 'engine file hashed under fork root');
   });
 
-  test('reportLocalPatches shows /gsd-reapply-patches for Copilot', () => {
+  test('reportLocalPatches shows /dostuff-reapply-patches for Copilot', () => {
     // Create patches directory with metadata
-    const patchesDir = path.join(tmpDir, 'gsd-local-patches');
+    const patchesDir = path.join(tmpDir, 'dostuff-local-patches');
     fs.mkdirSync(patchesDir, { recursive: true });
     fs.writeFileSync(path.join(patchesDir, 'backup-meta.json'), JSON.stringify({
       from_version: '1.0',
-      files: ['skills/gsd-test/SKILL.md']
+      files: ['skills/dostuff-test/SKILL.md']
     }));
 
     // Capture console output
@@ -1078,20 +1079,20 @@ describe('Copilot manifest and patches fixes', () => {
 
       assert.ok(result.length > 0, 'returns patched files list');
       const output = logs.join('\n');
-      assert.ok(output.includes('/gsd-reapply-patches'), 'uses dash format for Copilot');
-      assert.ok(!output.includes('/gsd:reapply-patches'), 'does not use colon format');
+      assert.ok(output.includes('/dostuff-reapply-patches'), 'uses dash format for Copilot');
+      assert.ok(!output.includes('/dostuff:reapply-patches'), 'does not use colon format');
     } finally {
       console.log = originalLog;
     }
   });
 
-  test('reportLocalPatches shows /gsd:reapply-patches for Claude (unchanged)', () => {
+  test('reportLocalPatches shows /dostuff:reapply-patches for Claude', () => {
     // Create patches directory with metadata
-    const patchesDir = path.join(tmpDir, 'gsd-local-patches');
+    const patchesDir = path.join(tmpDir, 'dostuff-local-patches');
     fs.mkdirSync(patchesDir, { recursive: true });
     fs.writeFileSync(path.join(patchesDir, 'backup-meta.json'), JSON.stringify({
       from_version: '1.0',
-      files: ['get-stuff-done/bin/verify.cjs']
+      files: ['dostuff/get-stuff-done/bin/verify.cjs']
     }));
 
     // Capture console output
@@ -1104,7 +1105,7 @@ describe('Copilot manifest and patches fixes', () => {
 
       assert.ok(result.length > 0, 'returns patched files list');
       const output = logs.join('\n');
-      assert.ok(output.includes('/gsd:reapply-patches'), 'uses colon format for Claude');
+      assert.ok(output.includes('/dostuff:reapply-patches'), 'uses colon format for Claude');
     } finally {
       console.log = originalLog;
     }
@@ -1119,7 +1120,7 @@ const { execFileSync } = require('child_process');
 const crypto = require('crypto');
 
 const INSTALL_PATH = path.join(__dirname, '..', 'bin', 'install.js');
-const EXPECTED_SKILLS = 39;
+const EXPECTED_SKILLS = 40;
 const EXPECTED_AGENTS = 16;
 
 function runCopilotInstall(cwd) {
@@ -1159,7 +1160,7 @@ describe('E2E: Copilot full install verification', () => {
   test('installs expected number of skill directories', () => {
     const skillsDir = path.join(tmpDir, '.github', 'skills');
     const entries = fs.readdirSync(skillsDir, { withFileTypes: true });
-    const gsdSkills = entries.filter(e => e.isDirectory() && e.name.startsWith('gsd-'));
+    const gsdSkills = entries.filter(e => e.isDirectory() && e.name.startsWith('dostuff-'));
     assert.strictEqual(gsdSkills.length, EXPECTED_SKILLS,
       `Expected ${EXPECTED_SKILLS} skill directories, got ${gsdSkills.length}`);
   });
@@ -1167,7 +1168,7 @@ describe('E2E: Copilot full install verification', () => {
   test('each skill directory contains SKILL.md', () => {
     const skillsDir = path.join(tmpDir, '.github', 'skills');
     const entries = fs.readdirSync(skillsDir, { withFileTypes: true });
-    const gsdSkills = entries.filter(e => e.isDirectory() && e.name.startsWith('gsd-'));
+    const gsdSkills = entries.filter(e => e.isDirectory() && e.name.startsWith('dostuff-'));
     for (const skill of gsdSkills) {
       const skillMdPath = path.join(skillsDir, skill.name, 'SKILL.md');
       assert.ok(fs.existsSync(skillMdPath),
@@ -1178,7 +1179,7 @@ describe('E2E: Copilot full install verification', () => {
   test('installs expected number of agent files', () => {
     const agentsDir = path.join(tmpDir, '.github', 'agents');
     const files = fs.readdirSync(agentsDir);
-    const gsdAgents = files.filter(f => f.startsWith('gsd-') && f.endsWith('.agent.md'));
+    const gsdAgents = files.filter(f => f.startsWith('dostuff-') && f.endsWith('.agent.md'));
     assert.strictEqual(gsdAgents.length, EXPECTED_AGENTS,
       `Expected ${EXPECTED_AGENTS} agent files, got ${gsdAgents.length}`);
   });
@@ -1186,41 +1187,41 @@ describe('E2E: Copilot full install verification', () => {
   test('installs all expected agent files', () => {
     const agentsDir = path.join(tmpDir, '.github', 'agents');
     const files = fs.readdirSync(agentsDir);
-    const gsdAgents = files.filter(f => f.startsWith('gsd-') && f.endsWith('.agent.md')).sort();
+    const gsdAgents = files.filter(f => f.startsWith('dostuff-') && f.endsWith('.agent.md')).sort();
     const expected = [
-      'gsd-codebase-mapper.agent.md',
-      'gsd-debugger.agent.md',
-      'gsd-executor.agent.md',
-      'gsd-integration-checker.agent.md',
-      'gsd-nyquist-auditor.agent.md',
-      'gsd-phase-researcher.agent.md',
-      'gsd-plan-checker.agent.md',
-      'gsd-planner.agent.md',
-      'gsd-project-researcher.agent.md',
-      'gsd-research-synthesizer.agent.md',
-      'gsd-roadmapper.agent.md',
-      'gsd-ui-auditor.agent.md',
-      'gsd-ui-checker.agent.md',
-      'gsd-ui-researcher.agent.md',
-      'gsd-user-profiler.agent.md',
-      'gsd-verifier.agent.md',
+      'dostuff-codebase-mapper.agent.md',
+      'dostuff-debugger.agent.md',
+      'dostuff-executor.agent.md',
+      'dostuff-integration-checker.agent.md',
+      'dostuff-nyquist-auditor.agent.md',
+      'dostuff-phase-researcher.agent.md',
+      'dostuff-plan-checker.agent.md',
+      'dostuff-planner.agent.md',
+      'dostuff-project-researcher.agent.md',
+      'dostuff-research-synthesizer.agent.md',
+      'dostuff-roadmapper.agent.md',
+      'dostuff-ui-auditor.agent.md',
+      'dostuff-ui-checker.agent.md',
+      'dostuff-ui-researcher.agent.md',
+      'dostuff-user-profiler.agent.md',
+      'dostuff-verifier.agent.md',
     ].sort();
     assert.deepStrictEqual(gsdAgents, expected);
   });
 
-  test('generates copilot-instructions.md with GSD markers', () => {
+  test('generates copilot-instructions.md with dostuff markers', () => {
     const instrPath = path.join(tmpDir, '.github', 'copilot-instructions.md');
     assert.ok(fs.existsSync(instrPath), 'copilot-instructions.md should exist');
     const content = fs.readFileSync(instrPath, 'utf-8');
-    assert.ok(content.includes('<!-- GSD Configuration'),
-      'Should contain GSD Configuration open marker');
-    assert.ok(content.includes('<!-- /GSD Configuration -->'),
-      'Should contain GSD Configuration close marker');
+    assert.ok(content.includes('<!-- DOSTUFF Configuration'),
+      'Should contain DOSTUFF Configuration open marker');
+    assert.ok(content.includes('<!-- /DOSTUFF Configuration -->'),
+      'Should contain DOSTUFF Configuration close marker');
   });
 
   test('creates manifest with correct structure', () => {
-    const manifestPath = path.join(tmpDir, '.github', 'gsd-file-manifest.json');
-    assert.ok(fs.existsSync(manifestPath), 'gsd-file-manifest.json should exist');
+    const manifestPath = path.join(tmpDir, '.github', 'dostuff-file-manifest.json');
+    assert.ok(fs.existsSync(manifestPath), 'dostuff-file-manifest.json should exist');
     const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
     assert.ok(manifest.version, 'manifest should have version');
     assert.ok(manifest.timestamp, 'manifest should have timestamp');
@@ -1231,24 +1232,24 @@ describe('E2E: Copilot full install verification', () => {
   });
 
   test('manifest contains expected file categories', () => {
-    const manifestPath = path.join(tmpDir, '.github', 'gsd-file-manifest.json');
+    const manifestPath = path.join(tmpDir, '.github', 'dostuff-file-manifest.json');
     const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
     const keys = Object.keys(manifest.files);
 
     const skillEntries = keys.filter(k => k.startsWith('skills/'));
     const agentEntries = keys.filter(k => k.startsWith('agents/'));
-    const engineEntries = keys.filter(k => k.startsWith('get-stuff-done/'));
+    const engineEntries = keys.filter(k => k.startsWith('dostuff/get-stuff-done/'));
 
     assert.strictEqual(skillEntries.length, EXPECTED_SKILLS,
       `Expected ${EXPECTED_SKILLS} skill manifest entries, got ${skillEntries.length}`);
     assert.strictEqual(agentEntries.length, EXPECTED_AGENTS,
       `Expected ${EXPECTED_AGENTS} agent manifest entries, got ${agentEntries.length}`);
     assert.ok(engineEntries.length > 0,
-      'Should have get-stuff-done/ engine manifest entries');
+      'Should have fork engine manifest entries');
   });
 
   test('manifest SHA256 hashes match actual file contents', () => {
-    const manifestPath = path.join(tmpDir, '.github', 'gsd-file-manifest.json');
+    const manifestPath = path.join(tmpDir, '.github', 'dostuff-file-manifest.json');
     const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
     const githubDir = path.join(tmpDir, '.github');
 
@@ -1264,7 +1265,7 @@ describe('E2E: Copilot full install verification', () => {
   });
 
   test('engine directory contains required subdirectories and files', () => {
-    const engineDir = path.join(tmpDir, '.github', 'get-stuff-done');
+    const engineDir = path.join(tmpDir, '.github', 'dostuff', 'get-stuff-done');
     const requiredDirs = ['bin', 'references', 'templates', 'workflows'];
     const requiredFiles = ['CHANGELOG.md', 'VERSION'];
 
@@ -1295,9 +1296,9 @@ describe('E2E: Copilot uninstall verification', () => {
   });
 
   test('removes engine directory', () => {
-    const engineDir = path.join(tmpDir, '.github', 'get-stuff-done');
+    const engineDir = path.join(tmpDir, '.github', 'dostuff');
     assert.ok(!fs.existsSync(engineDir),
-      'get-stuff-done directory should not exist after uninstall');
+      'dostuff install directory should not exist after uninstall');
   });
 
   test('removes copilot-instructions.md', () => {
@@ -1306,23 +1307,23 @@ describe('E2E: Copilot uninstall verification', () => {
       'copilot-instructions.md should not exist after uninstall');
   });
 
-  test('removes all GSD skill directories', () => {
+  test('removes all dostuff skill directories', () => {
     const skillsDir = path.join(tmpDir, '.github', 'skills');
     if (fs.existsSync(skillsDir)) {
       const entries = fs.readdirSync(skillsDir, { withFileTypes: true });
-      const gsdSkills = entries.filter(e => e.isDirectory() && e.name.startsWith('gsd-'));
+      const gsdSkills = entries.filter(e => e.isDirectory() && e.name.startsWith('dostuff-'));
       assert.strictEqual(gsdSkills.length, 0,
-        `Expected 0 GSD skill directories after uninstall, found: ${gsdSkills.map(e => e.name).join(', ')}`);
+        `Expected 0 dostuff skill directories after uninstall, found: ${gsdSkills.map(e => e.name).join(', ')}`);
     }
   });
 
-  test('removes all GSD agent files', () => {
+  test('removes all dostuff agent files', () => {
     const agentsDir = path.join(tmpDir, '.github', 'agents');
     if (fs.existsSync(agentsDir)) {
       const files = fs.readdirSync(agentsDir);
-      const gsdAgents = files.filter(f => f.startsWith('gsd-') && f.endsWith('.agent.md'));
+      const gsdAgents = files.filter(f => f.startsWith('dostuff-') && f.endsWith('.agent.md'));
       assert.strictEqual(gsdAgents.length, 0,
-        `Expected 0 GSD agent files after uninstall, found: ${gsdAgents.join(', ')}`);
+        `Expected 0 dostuff agent files after uninstall, found: ${gsdAgents.join(', ')}`);
     }
   });
 

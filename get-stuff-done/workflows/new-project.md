@@ -1,5 +1,5 @@
 <purpose>
-Initialize a new project through unified flow: questioning, research (optional), requirements, roadmap. This is the most leveraged moment in any project — deep questioning here means better plans, better execution, better outcomes. One workflow takes you from idea to ready-for-planning.
+Initialize a new project through unified flow: narrative intake, research (optional), requirements, roadmap. This is the most leveraged moment in any project — strong intent capture here means better plans, better execution, better outcomes. One workflow takes you from idea to ready-for-planning.
 </purpose>
 
 <required_reading>
@@ -13,7 +13,7 @@ Check if `--auto` flag is present in $ARGUMENTS.
 
 **If auto mode:**
 - Skip brownfield mapping offer (assume greenfield)
-- Skip deep questioning (extract context from provided document)
+- Skip interactive questioning (interpret the provided document as the project narrative)
 - Config: YOLO mode is implicit (skip that question), but ask granularity/git/agents FIRST (Step 2a)
 - After config: run Steps 6-9 automatically with smart defaults:
   - Research: Always yes
@@ -202,67 +202,72 @@ node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" config-set workflow._auto_
 
 Proceed to Step 4 (skip Steps 3 and 5).
 
-## 3. Deep Questioning
+## 3. Narrative Intake and Interpretation
 
-**If auto mode:** Skip (already handled in Step 2a). Extract project context from provided document instead and proceed to Step 4.
+Use one interpretation path for both interactive and auto mode.
 
 **Display stage banner:**
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- GSD ► QUESTIONING
+ GSD ► NARRATIVE INTAKE
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
-**Open the conversation:**
+**If not auto mode, open the conversation:**
 
 Ask inline (freeform, NOT AskUserQuestion):
 
-"What do you want to build?"
+Tell me what you're trying to build. Include the outcome you want, important constraints, and what success looks like.
 
-Wait for their response. This gives you the context needed to ask intelligent follow-up questions.
+Wait for their response and treat it as the source narrative.
 
-**Follow the thread:**
+**If auto mode:**
+- Use the provided document or pasted text as the source narrative
+- Do not ask the user to restate it
 
-Based on what they said, ask follow-up questions that dig into their response. Use AskUserQuestion with options that probe what they mentioned — interpretations, clarifications, concrete examples.
+Treat the resulting text as `NARRATIVE` for the remaining steps.
 
-Keep following threads. Each answer opens new threads to explore. Ask about:
-- What excited them
-- What problem sparked this
-- What they mean by vague terms
-- What it would actually look like
-- What's already decided
+**Run ITL initialization interpretation:**
 
-Consult `questioning.md` for techniques:
-- Challenge vagueness
-- Make abstract concrete
-- Surface assumptions
-- Find edges
-- Reveal motivation
+```bash
+SEED=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" itl init-seed --text "$NARRATIVE")
+if [[ "$SEED" == @file:* ]]; then SEED=$(cat "${SEED#@file:}"); fi
+```
 
-**Check context (background, not out loud):**
+Parse JSON for:
+- `summary`
+- `ambiguity.severity`
+- `needs_clarification`
+- `clarification_questions`
+- `project_seed`
+- `requirements_seed`
+- `audit.db_path`
 
-As you go, mentally check the context checklist from `questioning.md`. If gaps remain, weave questions naturally. Don't suddenly switch to checklist mode.
+Display the interpretation summary before writing files.
 
-**Decision gate:**
+If `needs_clarification` is true:
+- Ask one bounded clarification round using up to the first two `clarification_questions`
+- Merge the clarification answer into the narrative
+- Re-run `itl init-seed`
 
-When you could write a clear PROJECT.md, use AskUserQuestion:
-
-- header: "Ready?"
-- question: "I think I understand what you're after. Ready to create PROJECT.md?"
-- options:
-  - "Create PROJECT.md" — Let's move forward
-  - "Keep exploring" — I want to share more / ask me more
-
-If "Keep exploring" — ask what they want to add, or identify gaps and probe naturally.
-
-Loop until "Create PROJECT.md" selected.
+If ambiguity severity is `low` or `medium`, proceed with the interpreted seed instead of falling back to the old broad questioning loop.
 
 ## 4. Write PROJECT.md
 
-**If auto mode:** Synthesize from provided document. No "Ready?" gate was shown — proceed directly to commit.
+Synthesize `.planning/PROJECT.md` from the confirmed interpretation seed rather than a freehand questioning transcript.
 
-Synthesize all context into `.planning/PROJECT.md` using the template from `templates/project.md`.
+Use:
+- `project_seed.goals`
+- `project_seed.constraints`
+- `project_seed.preferences`
+- `project_seed.out_of_scope`
+- `project_seed.success_criteria`
+- `project_seed.risks`
+- `project_seed.open_questions`
+- `project_seed.assumptions`
+
+Preserve the existing template structure from `templates/project.md`.
 
 **For greenfield projects:**
 
@@ -318,7 +323,7 @@ Infer Validated requirements from existing code:
 
 **Key Decisions:**
 
-Initialize with any decisions made during questioning:
+Initialize with any decisions surfaced by the narrative and bounded clarification step:
 
 ```markdown
 ## Key Decisions
@@ -753,7 +758,7 @@ Display stage banner:
 
 **Load context:**
 
-Read PROJECT.md and extract:
+Read PROJECT.md and the initialization interpretation seed, then extract:
 - Core value (the ONE thing that must work)
 - Stated constraints (budget, timeline, tech limitations)
 - Any explicit scope boundaries
@@ -837,6 +842,8 @@ Cross-check requirements against Core Value from PROJECT.md. If gaps detected, s
 **Generate REQUIREMENTS.md:**
 
 Create `.planning/REQUIREMENTS.md` with:
+
+Use `requirements_seed.active` as the default starting point for Active requirements before adding table stakes or splitting v1/v2 scope.
 - v1 Requirements grouped by category (checkboxes, REQ-IDs)
 - v2 Requirements (deferred)
 - Out of Scope (explicit exclusions with reasoning)
@@ -861,6 +868,7 @@ Reject vague requirements. Push for specificity:
 Show every requirement (not counts) for user confirmation:
 
 ```
+
 ## v1 Requirements
 
 ### Authentication

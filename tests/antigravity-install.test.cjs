@@ -383,15 +383,15 @@ describe('writeManifest (Antigravity)', () => {
   beforeEach(() => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gsd-manifest-ag-'));
     // Create minimal structure
-    const skillsDir = path.join(tmpDir, 'skills', 'gsd-help');
+    const skillsDir = path.join(tmpDir, 'skills', 'dostuff-help');
     fs.mkdirSync(skillsDir, { recursive: true });
-    fs.writeFileSync(path.join(skillsDir, 'SKILL.md'), '---\nname: gsd-help\ndescription: Help\n---\n');
-    const gsdDir = path.join(tmpDir, 'get-stuff-done');
+    fs.writeFileSync(path.join(skillsDir, 'SKILL.md'), '---\nname: dostuff-help\ndescription: Help\n---\n');
+    const gsdDir = path.join(tmpDir, 'dostuff', 'get-stuff-done');
     fs.mkdirSync(gsdDir, { recursive: true });
     fs.writeFileSync(path.join(gsdDir, 'VERSION'), '1.0.0');
     const agentsDir = path.join(tmpDir, 'agents');
     fs.mkdirSync(agentsDir, { recursive: true });
-    fs.writeFileSync(path.join(agentsDir, 'gsd-executor.md'), '---\nname: gsd-executor\n---\n');
+    fs.writeFileSync(path.join(agentsDir, 'dostuff-executor.md'), '---\nname: dostuff-executor\n---\n');
   });
 
   afterEach(() => {
@@ -400,7 +400,7 @@ describe('writeManifest (Antigravity)', () => {
 
   test('writes manifest JSON file', () => {
     writeManifest(tmpDir, 'antigravity');
-    const manifestPath = path.join(tmpDir, 'gsd-file-manifest.json');
+    const manifestPath = path.join(tmpDir, 'dostuff-file-manifest.json');
     assert.ok(fs.existsSync(manifestPath), 'manifest file should exist');
     const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
     assert.ok(manifest.version, 'should have version');
@@ -409,14 +409,14 @@ describe('writeManifest (Antigravity)', () => {
 
   test('manifest includes skills in skills/ directory', () => {
     writeManifest(tmpDir, 'antigravity');
-    const manifest = JSON.parse(fs.readFileSync(path.join(tmpDir, 'gsd-file-manifest.json'), 'utf8'));
+    const manifest = JSON.parse(fs.readFileSync(path.join(tmpDir, 'dostuff-file-manifest.json'), 'utf8'));
     const skillFiles = Object.keys(manifest.files).filter(f => f.startsWith('skills/'));
     assert.ok(skillFiles.length > 0, 'should have skill files in manifest');
   });
 
   test('manifest includes agent files', () => {
     writeManifest(tmpDir, 'antigravity');
-    const manifest = JSON.parse(fs.readFileSync(path.join(tmpDir, 'gsd-file-manifest.json'), 'utf8'));
+    const manifest = JSON.parse(fs.readFileSync(path.join(tmpDir, 'dostuff-file-manifest.json'), 'utf8'));
     const agentFiles = Object.keys(manifest.files).filter(f => f.startsWith('agents/'));
     assert.ok(agentFiles.length > 0, 'should have agent files in manifest');
   });

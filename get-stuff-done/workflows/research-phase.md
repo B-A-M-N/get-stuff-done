@@ -39,6 +39,10 @@ if [[ "$INIT" == @file:* ]]; then INIT=$(cat "${INIT#@file:}"); fi
 # Extract: phase_dir, padded_phase, phase_number, state_path, requirements_path, context_path
 ```
 
+If `context_path` exists, use it in two layers:
+- `Implementation Decisions` are locked user choices.
+- `Narrative Intake Summary` and `Research Cues` are research guidance that should shape investigation without overriding explicit decisions.
+
 ## Step 4: Spawn Researcher
 
 ```
@@ -48,13 +52,18 @@ Research implementation approach for Phase {phase}: {name}
 </objective>
 
 <files_to_read>
-- {context_path} (USER DECISIONS from /gsd:discuss-phase)
+- {context_path} (USER DECISIONS plus narrative summary / research cues from /gsd:discuss-phase)
 - {requirements_path} (Project requirements)
 - {state_path} (Project decisions and history)
 </files_to_read>
 
 <additional_context>
 Phase description: {description}
+
+Treat CONTEXT.md carefully:
+- `Implementation Decisions` are explicit user choices
+- `Research Cues` are inferred guidance, not locked requirements
+- `Narrative Intake Summary` preserves user framing and emphasis
 </additional_context>
 
 <output>

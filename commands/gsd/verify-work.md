@@ -35,4 +35,6 @@ Context files are resolved inside the workflow (`init verify-work`) and delegate
 <process>
 Execute the verify-work workflow from @~/.claude/get-stuff-done/workflows/verify-work.md end-to-end.
 Preserve all workflow gates (session management, test presentation, diagnosis, fix planning, routing).
+
+Installed surface: when this fork is installed, this flow is exposed to users as `/dostuff:verify-work`.
 </process>

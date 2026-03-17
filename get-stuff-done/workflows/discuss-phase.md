@@ -138,6 +138,7 @@ Exit workflow.
 
 **Auto mode** — If `--auto` is present in ARGUMENTS:
 - In `check_existing`: auto-select "Skip" (if context exists) or continue without prompting (if no context/plans)
+- In `capture_narrative`: use the phase goal as the narrative seed, run `itl discuss-seed`, and auto-answer at most one clarification round if `needs_clarification` is true
 - In `present_gray_areas`: auto-select ALL gray areas without asking the user
 - In `discuss_areas`: for each discussion question, choose the recommended option (first option, or the one marked "recommended") without using AskUserQuestion
 - Log each auto-selected choice inline so the user can review decisions in the context file
@@ -284,8 +285,44 @@ From the scan, identify:
 Store as internal `<codebase_context>` for use in analyze_phase and present_gray_areas. This is NOT written to a file — it's used within this session only.
 </step>
 
+<step name="capture_narrative">
+Capture a short narrative before analysis so discussion starts from interpreted intent, not generic categories.
+
+Ask in plain text:
+```text
+Tell me how you imagine Phase [X] working. Focus on the outcome, the feel, and anything that absolutely must or must not happen.
+```
+
+Then run:
+```bash
+SEED=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" itl discuss-seed --text "$NARRATIVE" --raw)
+```
+
+Use the returned JSON to capture:
+- `summary` — show this interpretation summary before any gray-area selection, but do not treat it as a substitute for phase analysis
+- `needs_clarification`
+- `clarification_questions`
+- `discussion_seed.gray_area_hints`
+- `discussion_seed.deferred_ideas`
+
+**If `needs_clarification` is true:** ask only the provided bounded `clarification_questions`, then re-run `itl discuss-seed` once with the clarified narrative appended. Do not branch into open-ended discovery here. This clarification narrows the input to `analyze_phase`; it does not replace `analyze_phase`.
+
+**If `--auto`:**
+- Use the roadmap phase goal as the initial narrative seed
+- Log the generated narrative and any clarification answers inline
+- Re-run `itl discuss-seed` once if clarification is requested
+
+Store the final result as internal `<discussion_seed>` and continue to `analyze_phase`, which still performs the real gray-area identification and scope filtering.
+</step>
+
 <step name="analyze_phase">
-Analyze the phase to identify gray areas worth discussing. **Use both `prior_decisions` and `codebase_context` to ground the analysis.**
+Analyze the phase to identify gray areas worth discussing. **Use `prior_decisions`, `codebase_context`, and `discussion_seed` to ground the analysis.**
+
+`capture_narrative` is an input-gathering step only. `analyze_phase` remains the source of truth for:
+- deciding which ambiguities are worth surfacing
+- filtering out issues already settled by prior context
+- applying the phase boundary and deferred-idea guardrail
+- turning the narrative plus code context into discussion-worthy gray areas
 
 **Read the phase description from ROADMAP.md and determine:**
 
@@ -305,9 +342,11 @@ Analyze the phase to identify gray areas worth discussing. **Use both `prior_dec
    - These are **pre-answered** — don't re-ask unless this phase has conflicting needs
    - Note applicable prior decisions for use in presentation
 
-3. **Gray areas by category** — For each relevant category (UI, UX, Behavior, Empty States, Content), identify 1-2 specific ambiguities that would change implementation. **Annotate with code context where relevant** (e.g., "You already have a Card component" or "No existing pattern for this").
+3. **Interpretation preview** — Carry forward the ITL summary and the seeded `gray_area_hints` so the user sees what Claude thinks the phase narrative means before choosing discussion areas.
 
-4. **Skip assessment** — If no meaningful gray areas exist (pure infrastructure, clear-cut implementation, or all already decided in prior phases), the phase may not need discussion.
+4. **Gray areas by category** — For each relevant category, identify 1-2 specific ambiguities that would change implementation. Use the seeded `gray_area_hints` first, then fill remaining gaps from roadmap domain analysis. **Annotate with code context where relevant** (e.g., "You already have a Card component" or "No existing pattern for this").
+
+5. **Skip assessment** — If no meaningful gray areas exist (pure infrastructure, clear-cut implementation, or all already decided in prior phases), the phase may not need discussion.
 
 **Output your analysis internally, then present to user.**
 
@@ -326,12 +365,15 @@ Gray areas:
 </step>
 
 <step name="present_gray_areas">
-Present the domain boundary, prior decisions, and gray areas to user.
+Present the domain boundary, interpretation preview, prior decisions, and gray areas to user.
 
-**First, state the boundary and any prior decisions that apply:**
+**First, state the boundary, show the interpretation summary, and then any prior decisions that apply:**
 ```
 Phase [X]: [Name]
 Domain: [What this phase delivers — from your analysis]
+
+## Interpretation Preview
+[Paste `summary` from `<discussion_seed>`]
 
 We'll clarify HOW to implement this.
 (New capabilities belong in other phases.)
@@ -499,7 +541,7 @@ I'll note it as a deferred idea.
 Back to [current area]: [return to current question]"
 ```
 
-Track deferred ideas internally.
+Track deferred ideas internally. New-capability suggestions become deferred ideas; they do not change the current phase scope.
 </step>
 
 <step name="write_context">
@@ -586,9 +628,31 @@ Every entry needs a full relative path — not just a name.]
 
 [Any particular references, examples, or "I want it like X" moments from discussion]
 
+### Narrative Intake Summary
+- Capture the final narrative in 1-3 bullets
+- Note the interpretation summary themes that shaped gray-area selection
+- If bounded clarification was needed, record the clarified points briefly
+
 [If none: "No specific requirements — open to standard approaches"]
 
 </specifics>
+
+<research_cues>
+## Research Cues
+
+### Interpreted Assumptions
+- Capture assumptions inferred from the narrative that may help research
+- Keep them clearly labeled as inferred, not user-confirmed decisions
+
+### Open Questions For Research
+- Capture unresolved unknowns that research should investigate
+- Keep these concise and prescriptive enough for downstream agents to act on
+
+### Emphasis For Research
+- Note which goals, constraints, or risks seem most important to investigate first
+- Summarize in 1-3 bullets, not raw ITL payloads
+
+</research_cues>
 
 <deferred>
 ## Deferred Ideas
@@ -721,7 +785,7 @@ This keeps the auto-advance chain flat — discuss, plan, and execute all run at
 
   Auto-advance pipeline finished: discuss → plan → execute
 
-  Next: /gsd:discuss-phase ${NEXT_PHASE} --auto
+  Next: /dostuff:discuss-phase ${NEXT_PHASE} --auto
   <sub>/clear first → fresh context window</sub>
   ```
 - **PLANNING COMPLETE** → Planning done, execution didn't complete:
