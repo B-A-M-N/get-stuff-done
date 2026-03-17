@@ -129,8 +129,8 @@ test('checkpointArtifactSchema validates well-formed CHECKPOINT.md frontmatter',
 test('checkpointArtifactSchema rejects CHECKPOINT.md missing required fields', () => {
   const result = checkpointArtifactSchema.safeParse({});
   assert.strictEqual(result.success, false);
-  assert.ok(result.error.errors.length > 0);
-  const paths = result.error.errors.map(e => e.path.join('.'));
+  assert.ok(result.error.issues.length > 0);
+  const paths = result.error.issues.map(e => e.path.join('.'));
   assert.ok(paths.includes('status'), 'status should be in error paths');
   assert.ok(paths.includes('type'), 'type should be in error paths');
 });
