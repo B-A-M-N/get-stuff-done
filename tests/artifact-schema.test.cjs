@@ -93,7 +93,7 @@ test('checkpointResponseSchema: rejects vague why_blocked', () => {
 
   const r = checkpointResponseSchema.safeParse(text);
   assert.strictEqual(r.success, false);
-  const msgs = r.error.errors.map(e => e.message);
+  const msgs = r.error.issues.map(e => e.message);
   assert.ok(msgs.some(m => m.includes('why_blocked is too vague')), `why_blocked vague missing in: ${JSON.stringify(msgs)}`);
   assert.ok(msgs.some(m => m.includes('what_is_uncertain is too vague')), `what_is_uncertain vague missing in: ${JSON.stringify(msgs)}`);
   assert.ok(msgs.some(m => m.includes('allow_freeform must be true or false')), `allow_freeform error missing in: ${JSON.stringify(msgs)}`);
@@ -105,7 +105,7 @@ test('checkpointResponseSchema: produces Missing checkpoint field error for abse
   const text = 'status: checkpoint';
   const r = checkpointResponseSchema.safeParse(text);
   assert.strictEqual(r.success, false);
-  const msgs = r.error.errors.map(e => e.message);
+  const msgs = r.error.issues.map(e => e.message);
   assert.ok(msgs.some(m => m.includes('Missing checkpoint field: choices')), `Missing choices: ${JSON.stringify(msgs)}`);
   assert.ok(msgs.some(m => m.includes('Missing checkpoint field: why_blocked')), `Missing why_blocked: ${JSON.stringify(msgs)}`);
 });
@@ -122,7 +122,7 @@ test('checkpointResponseSchema: rejects invalid status', () => {
 
   const r = checkpointResponseSchema.safeParse(text);
   assert.strictEqual(r.success, false);
-  const msgs = r.error.errors.map(e => e.message);
+  const msgs = r.error.issues.map(e => e.message);
   assert.ok(msgs.some(m => m.includes('Invalid checkpoint status:')), `Invalid status error missing in: ${JSON.stringify(msgs)}`);
 });
 
