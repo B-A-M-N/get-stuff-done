@@ -159,7 +159,34 @@ Display banner:
 ◆ Surfacing gray areas for: ${DESCRIPTION}
 ```
 
-**4.5a. Identify gray areas**
+**4.5a. Narrative clarification checkpoint**
+
+Before generating gray areas, interpret the quick-task narrative:
+
+```bash
+QUICK_SEED=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" itl discuss-seed --text "$DESCRIPTION" --raw)
+```
+
+Capture:
+- `summary`
+- `clarification.mode`
+- `clarification.reason`
+- `clarification.prompts`
+- `discussion_seed.gray_area_hints`
+
+Show the interpretation summary before asking any discussion questions.
+
+If `clarification.mode` is `recommended`, `required`, or `blocking`:
+- explain why clarification is being raised using `clarification.reason`
+- ask the bounded `clarification.prompts` with concrete choices plus freeform fallback
+- update STATE continuity so unresolved quick-task ambiguity is visible on resume (`Clarification Status`, `Clarification Rounds`, `Last Clarification Reason`, `Resume Requires User Input`)
+- re-run `itl discuss-seed` after each clarification round
+- keep asking while the checkpoint remains `required` or `blocking`
+- if the user stops while the checkpoint is still `required` or `blocking`, record the blocked clarification checkpoint in STATE.md, stop quick discussion, and wait instead of planning from guesswork
+
+Only continue once the quick-task narrative is safe enough to discuss.
+
+**4.5b. Identify gray areas**
 
 Analyze `$DESCRIPTION` to identify 2-4 gray areas — implementation decisions that would change the outcome and that the user should weigh in on.
 
@@ -172,7 +199,9 @@ Use the domain-aware heuristic to generate phase-specific (not generic) gray are
 
 Each gray area should be a concrete decision point, not a vague category. Example: "Loading behavior" not "UX".
 
-**4.5b. Present gray areas**
+Use `discussion_seed.gray_area_hints` first, then fill remaining gaps from the task description.
+
+**4.5c. Present gray areas**
 
 ```
 AskUserQuestion(
@@ -190,7 +219,7 @@ AskUserQuestion(
 
 If user selects "All clear" → skip to Step 5 (no CONTEXT.md written).
 
-**4.5c. Discuss selected areas**
+**4.5d. Discuss selected areas**
 
 For each selected area, ask 1-2 focused questions via AskUserQuestion:
 
@@ -212,12 +241,13 @@ Rules:
 - Options must be concrete choices, not abstract categories
 - Highlight recommended choice where you have a clear opinion
 - If user selects "Other" with freeform text, switch to plain text follow-up (per questioning.md freeform rule)
+- Include "You decide" only for implementation-style preferences, never for scope, contradiction, or blocker resolution
 - If user selects "You decide", capture as Claude's Discretion in CONTEXT.md
 - Max 2 questions per area — this is lightweight, not a deep dive
 
 Collect all decisions into `$DECISIONS`.
 
-**4.5d. Write CONTEXT.md**
+**4.5e. Write CONTEXT.md**
 
 Write `${QUICK_DIR}/${quick_id}-CONTEXT.md` using the standard context template structure:
 
@@ -252,10 +282,31 @@ ${areas_where_user_said_you_decide_or_areas_not_discussed}
 ## Specific Ideas
 
 ${any_specific_references_or_examples_from_discussion}
+${short_narrative_summary_from_itl_if_helpful}
 
 [If none: "No specific requirements — open to standard approaches"]
 
 </specifics>
+
+<research_cues>
+## Research Cues
+
+### Invariant Safety
+- Confirmed user decisions belong only in `Implementation Decisions`
+- Inferred assumptions stay guidance-only until explicitly confirmed or adversarially validated
+- Any unresolved quick-task ambiguity must remain visible instead of being silently hardened into scope
+
+### Unresolved Ambiguities
+- Record any non-blocking ambiguity that remains after quick discussion
+- State why it remains unresolved
+- State what planner/executor must not infer from it
+
+### Open Questions For Research
+${unresolved_but_non_blocking_unknowns_from_discussion_or_itl}
+
+[If none: "None — quick-task ambiguity was resolved enough for planning"]
+
+</research_cues>
 
 <canonical_refs>
 ## Canonical References

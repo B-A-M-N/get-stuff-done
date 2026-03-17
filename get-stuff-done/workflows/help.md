@@ -99,6 +99,7 @@ Create detailed execution plan for a specific phase.
 
 - Generates `.planning/phases/XX-phase-name/XX-YY-PLAN.md`
 - Uses richer narrative/context/research handoff when earlier `/dostuff:*` workflows populated it
+- Runs a context-contract gate before the broader plan checker so unresolved ambiguity cannot silently harden into scope
 - Breaks phase into concrete, actionable tasks
 - Includes verification criteria and success measures
 - Multiple plans per phase supported (XX-01, XX-02, etc.)
@@ -183,7 +184,7 @@ Quick mode uses the same system with a shorter path:
 - Updates STATE.md tracking (not ROADMAP.md)
 
 Flags enable additional quality steps:
-- `--discuss` — Lightweight discussion to surface gray areas before planning
+- `--discuss` — Lightweight discussion to surface gray areas before planning, with clarification checkpoints when the task description is still too ambiguous
 - `--research` — Focused research agent investigates approaches before planning
 - `--full` — Adds plan-checking (max 2 iterations) and post-execution verification
 
@@ -269,6 +270,7 @@ Usage: `/gsd:progress`
 Resume work from previous session with full context restoration.
 
 - Reads STATE.md for project context
+- Surfaces active clarification checkpoints when work is paused on ambiguity
 - Shows current position and recent progress
 - Offers next actions based on project state
 
@@ -278,7 +280,7 @@ Usage: `/gsd:resume-work`
 Create context handoff when pausing work mid-phase.
 
 - Creates .continue-here file with current state
-- Updates STATE.md session continuity section
+- Updates STATE.md session continuity and clarification continuity sections
 - Captures in-progress work context
 
 Usage: `/gsd:pause-work`

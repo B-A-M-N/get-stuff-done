@@ -17,6 +17,8 @@ Run the narrative through the ITL command surface:
 Capture:
 - normalized interpretation
 - ambiguity result
+- lockability result
+- clarification checkpoint
 - summary markdown
 - audit record path
 </step>
@@ -27,16 +29,23 @@ Show the interpretation summary before routing.
 Display:
 - suggested route
 - ambiguity severity
+- clarification mode and reason
 - goals / constraints / success criteria / unknowns
+- whether inferred constraints are lockable or guidance-only
 - audit record location
 </step>
 
 <step name="ambiguity_gate">
-If ambiguity severity is `high`, do not silently route.
+If the clarification checkpoint is `recommended`, `required`, or `blocking`, surface it before routing.
 
-Ask the user to clarify or confirm direction first.
+- Explain why the route is being paused or questioned using the clarification reason.
+- Present the bounded clarification prompts with concrete choices plus a freeform option.
+- Record the active clarification checkpoint in STATE.md so routing pauses and resume conditions are visible across sessions.
+- Re-run `itl interpret` after each clarification round.
+- Keep asking while the checkpoint remains `required` or `blocking`.
+- If the user stops while the checkpoint is still `required` or `blocking`, stop and wait instead of auto-routing.
 
-If ambiguity severity is `low` or `medium`, continue to routing.
+Only continue to routing when clarification is no longer required for safe dispatch.
 </step>
 
 <step name="route">
@@ -46,7 +55,7 @@ Choose the route using these rules in order, using the ITL output as the primary
 2. If the interpretation route hint is `new-project`, route to `/dostuff:new-project`.
 3. Otherwise route to `/dostuff:quick`.
 
-If ambiguity remains unresolved, prefer asking for clarification over auto-routing.
+If ambiguity remains unresolved or inferred constraints are still guidance-only in a way that affects route safety, prefer clarification over auto-routing.
 </step>
 
 <step name="display_route">

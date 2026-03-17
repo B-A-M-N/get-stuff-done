@@ -238,20 +238,30 @@ if [[ "$SEED" == @file:* ]]; then SEED=$(cat "${SEED#@file:}"); fi
 Parse JSON for:
 - `summary`
 - `ambiguity.severity`
-- `needs_clarification`
-- `clarification_questions`
+- `clarification.mode`
+- `clarification.reason`
+- `clarification.resume_allowed`
+- `clarification.pause_if_unresolved`
+- `clarification.prompts`
 - `project_seed`
 - `requirements_seed`
 - `audit.db_path`
 
 Display the interpretation summary before writing files.
 
-If `needs_clarification` is true:
-- Ask one bounded clarification round using up to the first two `clarification_questions`
-- Merge the clarification answer into the narrative
-- Re-run `itl init-seed`
+If `clarification.mode` is `required` or `blocking`:
+- Tell the user exactly why clarification is needed using `clarification.reason`
+- Enter a clarification loop:
+  - present the next bounded `clarification.prompts`
+  - for each prompt, explain `why_this_is_needed`, present the concrete `choices`, and remind the user they can pick one of the choices or provide their own wording
+  - update STATE continuity to reflect the active checkpoint: `Clarification Status` (`pending` while the loop is active, `blocked` if the run must stop), `Clarification Rounds`, `Last Clarification Reason`, and `Resume Requires User Input`
+  - merge the clarification answer into the narrative
+  - re-run `itl init-seed`
+  - if the re-run still returns `clarification.mode` of `required` or `blocking`, ask the next bounded clarification checkpoint instead of inferring past it
+- Exit the loop only when `clarification.mode` becomes `none`, or when the user explicitly says to stop and leave the ambiguity unresolved
+- If the user stops while `clarification.mode` is still `required` or `blocking`, stop before writing files, explain the remaining ambiguity, record the blocked clarification state in STATE.md, and wait instead of guessing
 
-If ambiguity severity is `low` or `medium`, proceed with the interpreted seed instead of falling back to the old broad questioning loop.
+If `clarification.mode` is `none`, proceed with the interpreted seed instead of falling back to the old broad questioning loop.
 
 ## 4. Write PROJECT.md
 

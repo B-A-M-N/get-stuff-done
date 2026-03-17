@@ -80,6 +80,7 @@ Use this instead of manually reading/parsing ROADMAP.md.
 
 - Use `current_phase` and `next_phase` from `$ROADMAP`
 - Note `paused_at` if work was paused (from `$STATE`)
+- Note any clarification checkpoint state from `$STATE.clarification`
 - Count pending todos: use `init todos` or `list-todos`
 - Check for active debug sessions: `ls .planning/debug/*.md 2>/dev/null | grep -v resolved | wc -l`
   </step>
@@ -108,6 +109,12 @@ Present:
 Phase [N] of [total]: [phase-name]
 Plan [M] of [phase-total]: [status]
 CONTEXT: [✓ if has_context | - if not]
+
+If `$STATE.clarification.status` is `pending`, `deferred`, or `blocked`, show:
+- Clarification: [status]
+- Reason: [last_reason]
+- Rounds: [rounds]
+- Resume requires user input: [true/false]
 
 ## Key Decisions Made
 - [extract from $STATE.decisions[]]

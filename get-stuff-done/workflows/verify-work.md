@@ -111,13 +111,26 @@ VERIFY_SEED=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" itl verify-s
 
 Use the returned JSON to capture:
 - `summary` — show this interpretation summary before the first test is presented
-- `needs_clarification`
-- `clarification_questions`
+- `clarification.mode`
+- `clarification.reason`
+- `clarification.resume_allowed`
+- `clarification.pause_if_unresolved`
+- `clarification.prompts`
 - `verification_seed.prioritized_checks`
 - `verification_seed.expected_outcomes`
 - `verification_seed.verification_hints`
 
-**If `needs_clarification` is true:** ask only the provided bounded `clarification_questions`, then re-run `itl verify-seed` once with the clarified narrative appended. Do not branch into open-ended discovery here.
+**If `clarification.mode` is `required` or `blocking`:**
+- explain why verification is being paused using `clarification.reason`
+- ask only the provided bounded `clarification.prompts`
+- for each prompt, show `why_this_is_needed`, 2-3 concrete choices, and remind the user they can answer in their own words instead
+- update STATE continuity for the active checkpoint: `Clarification Status`, `Clarification Rounds`, `Last Clarification Reason`, and `Resume Requires User Input`
+- re-run `itl verify-seed` after each clarification round and keep looping while the result is still `required` or `blocking`
+- if the user stops while the result is still `required` or `blocking`, stop before extracting tests, record the blocked clarification state in STATE.md, and wait for clarification instead of guessing what to verify
+
+**If `clarification.mode` is `recommended`:**
+- surface the ambiguity explicitly in the interpretation preview
+- let it sharpen the expected wording, but do not let it skip or auto-pass tests
 
 Store the final result as internal `<verification_seed>` and continue to `extract_tests`.
 </step>
@@ -394,7 +407,7 @@ Spawning parallel debug agents to investigate each issue.
 ```
 
 - Load diagnose-issues workflow
-- Follow @~/.claude/get-stuff-done/workflows/diagnose-issues.md
+- Follow @~/.claude/get-stuff-done/workflows/lib/diagnose-issues.md
 - Spawn parallel debug agents for each issue
 - Collect root causes
 - Update UAT.md with root causes
