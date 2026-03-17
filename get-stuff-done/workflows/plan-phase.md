@@ -31,6 +31,13 @@ if [ "$CLARIFICATION_STATUS" == "blocked" ]; then
   echo "Run /gsd:resume-project to address the blocker."
   exit 1
 fi
+
+PHASE_DIR=$(printf '%s\n' "$INIT" | jq -r '.phase_dir // empty')
+PADDED_PHASE=$(printf '%s\n' "$INIT" | jq -r '.padded_phase // empty')
+ITL_JSON="${PHASE_DIR}/${PADDED_PHASE}-ITL.json"
+if [ -f "$ITL_JSON" ]; then
+  echo "Using persistent ITL interpretation from: $ITL_JSON"
+fi
 ```
 
 **If `planning_exists` is false:** Error — run `/gsd:new-project` first.
@@ -383,6 +390,8 @@ RESEARCH_PATH=$(printf '%s\n' "$INIT" | jq -r '.research_path // empty')
 VERIFICATION_PATH=$(printf '%s\n' "$INIT" | jq -r '.verification_path // empty')
 UAT_PATH=$(printf '%s\n' "$INIT" | jq -r '.uat_path // empty')
 CONTEXT_PATH=$(printf '%s\n' "$INIT" | jq -r '.context_path // empty')
+ITL_PATH="${PHASE_DIR}/${PADDED_PHASE}-ITL.json"
+if [ ! -f "$ITL_PATH" ]; then ITL_PATH=""; fi
 ```
 
 ## 7.5. Verify Nyquist Artifacts
@@ -431,6 +440,7 @@ Planner prompt:
 - {roadmap_path} (Roadmap)
 - {requirements_path} (Requirements)
 - {context_path} (USER DECISIONS from /gsd:discuss-phase)
+- {itl_path} (ITL interpretation - if exists)
 - {research_path} (Technical Research)
 - {verification_path} (Verification Gaps - if --gaps)
 - {uat_path} (UAT Gaps - if --gaps)
