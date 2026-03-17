@@ -114,7 +114,7 @@ Plans:
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 15. Schema Foundation | 4/4 | Complete   | 2026-03-17 | - |
+| 15. Schema Foundation | 4/4 | Complete    | 2026-03-17 | - |
 | 16. Checkpoint Artifact Lifecycle | v0.2.0 | 0/TBD | Not started | - |
 | 17. Runtime Gate Enforcement | v0.2.0 | 0/TBD | Not started | - |
 | 18. Context Enrichment | v0.2.0 | 0/TBD | Not started | - |
