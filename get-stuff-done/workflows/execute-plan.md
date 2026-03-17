@@ -309,7 +309,58 @@ See ~/.claude/get-stuff-done/references/checkpoints.md for details.
 <step name="checkpoint_return_for_orchestrator">
 When spawned via Task and hitting checkpoint: return structured state (cannot interact with user directly).
 
+**Before returning checkpoint state, write CHECKPOINT.md to the phase directory:**
+
+Write `{phase_dir}/CHECKPOINT.md` using the Write tool with the following YAML frontmatter + markdown body. Populate all fields from the checkpoint payload:
+
+```
+---
+status: pending
+type: {checkpoint_type}
+why_blocked: "{why_blocked}"
+what_is_uncertain: "{what_is_uncertain}"
+choices: "{choices}"
+allow_freeform: {allow_freeform}
+resume_condition: "{resume_condition}"
+resolved_at: ~
+---
+
+## Checkpoint Details
+
+**Type:** {checkpoint_type}
+**Blocked at:** Task {task_number} — {task_name}
+
+[Human-readable summary of what caused the block and what the user needs to do]
+```
+
+Then commit the artifact:
+```bash
+node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" commit \
+  "chore({phase}-checkpoint): write checkpoint artifact [task {task_number}]" \
+  --files "{phase_dir}/CHECKPOINT.md"
+```
+
+Note: If a CHECKPOINT.md already exists in this phase directory, overwrite it — one active checkpoint per phase at a time; prior checkpoints are preserved in git history.
+
 **Required return:** 1) Completed Tasks table (hashes + files) 2) Current Task (what's blocking) 3) Checkpoint Details (user-facing content) 4) Awaiting (what's needed from user)
+
+Checkpoint return MUST also include:
+- `status`: `checkpoint` or `blocked`
+- `why_blocked`: exact reason the agent cannot continue safely
+- `what_is_uncertain`: unresolved ambiguity, decision, or verification gap
+- `choices`: concrete options when a decision is needed; otherwise empty
+- `allow_freeform`: whether the user may answer outside the listed choices
+- `resume_condition`: what user response or human action lets execution continue
+
+If a subagent cannot name the blocker, uncertainty, and resume condition, it has not produced a valid checkpoint.
+
+Before presenting a subagent checkpoint to the user, validate the checkpoint payload with:
+
+```bash
+node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" verify checkpoint-response "$CHECKPOINT_FILE"
+```
+
+If validation fails, treat the subagent return as malformed and send it back for correction instead of paraphrasing it optimistically.
 
 Orchestrator parses → presents to user → spawns fresh continuation with your completed tasks state. You will NOT be resumed. In main context: use checkpoint_protocol above.
 </step>
