@@ -6,6 +6,22 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 const { loadConfig, resolveModelInternal, findPhaseInternal, getRoadmapPhaseInternal, pathExistsInternal, generateSlugInternal, getMilestoneInfo, getMilestonePhaseFilter, stripShippedMilestones, normalizePhaseName, toPosixPath, output, error } = require('./core.cjs');
+const { extractFrontmatter } = require('./frontmatter.cjs');
+
+/**
+ * Extract clarification_status from STATE.md frontmatter.
+ */
+function getClarificationStatus(cwd) {
+  const statePath = path.join(cwd, '.planning', 'STATE.md');
+  if (!fs.existsSync(statePath)) return 'none';
+  try {
+    const content = fs.readFileSync(statePath, 'utf-8');
+    const fm = extractFrontmatter(content);
+    return fm.clarification_status || 'none';
+  } catch {
+    return 'none';
+  }
+}
 
 function cmdInitExecutePhase(cwd, phase, raw) {
   if (!phase) {
@@ -67,6 +83,9 @@ function cmdInitExecutePhase(cwd, phase, raw) {
     milestone_name: milestone.name,
     milestone_slug: generateSlugInternal(milestone.name),
 
+    // State info
+    clarification_status: getClarificationStatus(cwd),
+
     // File existence
     state_exists: pathExistsInternal(cwd, '.planning/STATE.md'),
     roadmap_exists: pathExistsInternal(cwd, '.planning/ROADMAP.md'),
@@ -121,6 +140,9 @@ function cmdInitPlanPhase(cwd, phase, raw) {
     has_context: phaseInfo?.has_context || false,
     has_plans: (phaseInfo?.plans?.length || 0) > 0,
     plan_count: phaseInfo?.plans?.length || 0,
+
+    // State info
+    clarification_status: getClarificationStatus(cwd),
 
     // Environment
     planning_exists: pathExistsInternal(cwd, '.planning'),
@@ -315,6 +337,9 @@ function cmdInitResume(cwd, raw) {
     roadmap_exists: pathExistsInternal(cwd, '.planning/ROADMAP.md'),
     project_exists: pathExistsInternal(cwd, '.planning/PROJECT.md'),
     planning_exists: pathExistsInternal(cwd, '.planning'),
+
+    // State info
+    clarification_status: getClarificationStatus(cwd),
 
     // File paths
     state_path: '.planning/STATE.md',
@@ -564,6 +589,9 @@ function cmdInitMilestoneOp(cwd, raw) {
     milestone_version: milestone.version,
     milestone_name: milestone.name,
     milestone_slug: generateSlugInternal(milestone.name),
+
+    // State info
+    clarification_status: getClarificationStatus(cwd),
 
     // Phase counts
     phase_count: phaseCount,
