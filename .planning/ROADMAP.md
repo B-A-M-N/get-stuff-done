@@ -42,7 +42,12 @@ See full archived roadmap: `.planning/milestones/v0.1.0-ROADMAP.md`
   2. `checkpointResponseSchema` replaces manual field-by-field checking in `cmdVerifyCheckpointResponse` — a missing required field causes schema validation to throw, not silently pass
   3. `interpretationResultSchema` / `baseSeedSchema` are decomposed into independently testable sub-schemas — each sub-schema can be imported and tested in isolation without pulling the full combined blob
   4. All new schemas have passing unit tests that cover valid shape, missing required fields, and invalid field types
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 15-01-PLAN.md — Create artifact-schema.cjs with checkpointArtifactSchema, checkpointResponseSchema, executionSummarySchema
+- [ ] 15-02-PLAN.md — Add individual named exports to itl-schema.cjs (SCHEMA-05 additive decomposition)
+- [ ] 15-03-PLAN.md — Wire checkpointResponseSchema into verify.cjs and add unit tests for all new schemas
 
 #### Phase 16: Checkpoint Artifact Lifecycle
 **Goal**: CHECKPOINT.md is written on every blocking checkpoint, re-read and validated by resume-project, and its lifecycle state is tracked in STATE.md
@@ -108,7 +113,7 @@ See full archived roadmap: `.planning/milestones/v0.1.0-ROADMAP.md`
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 15. Schema Foundation | v0.2.0 | 0/TBD | Not started | - |
+| 15. Schema Foundation | v0.2.0 | 0/3 | Not started | - |
 | 16. Checkpoint Artifact Lifecycle | v0.2.0 | 0/TBD | Not started | - |
 | 17. Runtime Gate Enforcement | v0.2.0 | 0/TBD | Not started | - |
 | 18. Context Enrichment | v0.2.0 | 0/TBD | Not started | - |
