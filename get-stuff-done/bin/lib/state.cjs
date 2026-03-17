@@ -497,20 +497,34 @@ function parseStateSnapshot(content) {
   const progressPercent = progressRaw ? parseInt(progressRaw.replace('%', ''), 10) : null;
   const clarificationRounds = clarificationRoundsRaw ? parseInt(clarificationRoundsRaw, 10) : null;
 
-  // Extract decisions table
+  // Extract decisions (table or list)
   const decisions = [];
-  const decisionsMatch = content.match(/##\s*Decisions Made[\s\S]*?\n\|[^\n]+\n\|[-|\s]+\n([\s\S]*?)(?=\n##|\n$|$)/i);
-  if (decisionsMatch) {
-    const tableBody = decisionsMatch[1];
-    const rows = tableBody.trim().split('\n').filter(r => r.includes('|'));
-    for (const row of rows) {
-      const cells = row.split('|').map(c => c.trim()).filter(Boolean);
-      if (cells.length >= 3) {
-        decisions.push({
-          phase: cells[0],
-          summary: cells[1],
-          rationale: cells[2],
-        });
+  const decisionsSectionMatch = content.match(/##\s*Decisions\s*\n([\s\S]*?)(?=\n##|\n$|$)/i);
+  if (decisionsSectionMatch) {
+    const sectionBody = decisionsSectionMatch[1].trim();
+    if (sectionBody.includes('|')) {
+      const rows = sectionBody.split('\n').filter(r => r.includes('|'));
+      for (const row of rows) {
+        const cells = row.split('|').map(c => c.trim()).filter(Boolean);
+        if (cells.length >= 2) {
+          decisions.push({
+            phase: cells[0],
+            summary: cells[1],
+            rationale: cells[2] || '',
+          });
+        }
+      }
+    } else {
+      const items = sectionBody.match(/^-\s+\[Phase\s+([^\]]+)\]:\s+(.+)$/gm) || [];
+      for (const item of items) {
+        const m = item.match(/^-\s+\[Phase\s+([^\]]+)\]:\s+([^\u2014]+)(?:\s+\u2014\s+(.+))?$/);
+        if (m) {
+          decisions.push({
+            phase: m[1],
+            summary: m[2].trim(),
+            rationale: m[3] ? m[3].trim() : '',
+          });
+        }
       }
     }
   }
@@ -589,6 +603,82 @@ function cmdStateSnapshot(cwd, raw) {
   const result = parseStateSnapshot(content);
 
   output(result, raw);
+}
+
+/**
+ * Harvest ambient project context from STATE, PROJECT, REQUIREMENTS, and phase CONTEXT files.
+ * Used to enrich ITL seeds before clarification escalation.
+ */
+function harvestAmbientContext(cwd, phaseNumber) {
+  const planningDir = path.join(cwd, '.planning');
+  const context = {
+    decisions: [],
+    project_goals: [],
+    constraints: [],
+    active_requirements: [],
+    phase_decisions: [],
+  };
+
+  // 1. STATE.md Decisions
+  const statePath = path.join(planningDir, 'STATE.md');
+  if (fs.existsSync(statePath)) {
+    const stateContent = fs.readFileSync(statePath, 'utf-8');
+    const snapshot = parseStateSnapshot(stateContent);
+    context.decisions = snapshot.decisions || [];
+  }
+
+  // 2. PROJECT.md Goals & Constraints
+  const projectPath = path.join(planningDir, 'PROJECT.md');
+  if (fs.existsSync(projectPath)) {
+    const projectContent = fs.readFileSync(projectPath, 'utf-8');
+    const goalsMatch = projectContent.match(/##\s*Goals\s*\n([\s\S]*?)(?=\n##|$)/i);
+    if (goalsMatch) {
+      context.project_goals = goalsMatch[1].match(/^-\s+(.+)$/gm)?.map(s => s.replace(/^-\s+/, '').trim()) || [];
+    }
+    const constraintsMatch = projectContent.match(/##\s*(?:Constraints|Non-negotiables)\s*\n([\s\S]*?)(?=\n##|$)/i);
+    if (constraintsMatch) {
+      context.constraints = constraintsMatch[1].match(/^-\s+(.+)$/gm)?.map(s => s.replace(/^-\s+/, '').trim()) || [];
+    }
+  }
+
+  // 3. REQUIREMENTS.md Active Requirements
+  const reqPath = path.join(planningDir, 'REQUIREMENTS.md');
+  if (fs.existsSync(reqPath)) {
+    const reqContent = fs.readFileSync(reqPath, 'utf-8');
+    const activeMatch = reqContent.match(/##\s*v[\d.]+\s+Requirements\s*\n([\s\S]*?)(?=\n##|$)/i);
+    if (activeMatch) {
+      context.active_requirements = activeMatch[1].match(/^-\s+\[ \]\s+\*\*([A-Z0-9-]+)\*\*:\s*(.+)$/gm)?.map(s => {
+        const m = s.match(/^\s*-\s+\[ \]\s+\*\*([A-Z0-9-]+)\*\*:\s*(.+)$/);
+        return m ? { id: m[1], text: m[2].trim() } : null;
+      }).filter(Boolean) || [];
+    }
+  }
+
+  // 4. Phase-specific CONTEXT.md
+  if (phaseNumber) {
+    const paddedPhase = String(phaseNumber).padStart(2, '0');
+    const phasesDir = path.join(planningDir, 'phases');
+    if (fs.existsSync(phasesDir)) {
+      const phaseDir = fs.readdirSync(phasesDir).find(d => d.startsWith(paddedPhase));
+      if (phaseDir) {
+        const phaseContextPath = path.join(phasesDir, phaseDir, 'CONTEXT.md');
+        if (fs.existsSync(phaseContextPath)) {
+          const phaseContent = fs.readFileSync(phaseContextPath, 'utf-8');
+          const decisionsMatch = phaseContent.match(/##\s*Decisions\s*\n([\s\S]*?)(?=\n##|$)/i);
+          if (decisionsMatch) {
+            context.phase_decisions = decisionsMatch[1].match(/^-\s+(.+)$/gm)?.map(s => s.replace(/^-\s+/, '').trim()) || [];
+          }
+        }
+      }
+    }
+  }
+
+  return context;
+}
+
+function cmdStateHarvestContext(cwd, phaseNumber, raw) {
+  const result = harvestAmbientContext(cwd, phaseNumber);
+  output(result, raw, JSON.stringify(result, null, 2));
 }
 
 // ─── State Frontmatter Sync ──────────────────────────────────────────────────
@@ -874,6 +964,7 @@ function cmdStateBeginPhase(cwd, phaseNumber, phaseName, planCount, raw) {
 module.exports = {
   stateExtractField,
   stateReplaceField,
+  harvestAmbientContext,
   writeStateMd,
   cmdStateLoad,
   cmdStateGet,
@@ -890,6 +981,7 @@ module.exports = {
   cmdStateJson,
   cmdStateBeginPhase,
   cmdStateCheckpoint,
+  cmdStateHarvestContext,
   parseStateSnapshot,
   buildStateFrontmatter,
 };
