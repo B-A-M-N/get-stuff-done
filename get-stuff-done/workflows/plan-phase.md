@@ -15,13 +15,23 @@ Read all files referenced by the invoking prompt's execution_context before star
 Load all context in one call (paths only to minimize orchestrator context):
 
 ```bash
-INIT=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" init plan-phase "$PHASE")
+INIT=$(node "/home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" init plan-phase "$PHASE")
 if [[ "$INIT" == @file:* ]]; then INIT=$(cat "${INIT#@file:}"); fi
 ```
 
 Parse JSON for: `researcher_model`, `planner_model`, `checker_model`, `research_enabled`, `plan_checker_enabled`, `nyquist_validation_enabled`, `commit_docs`, `phase_found`, `phase_dir`, `phase_number`, `phase_name`, `phase_slug`, `padded_phase`, `has_research`, `has_context`, `has_plans`, `plan_count`, `planning_exists`, `roadmap_exists`, `phase_req_ids`.
 
 **File paths (for <files_to_read> blocks):** `state_path`, `roadmap_path`, `requirements_path`, `context_path`, `research_path`, `verification_path`, `uat_path`. These are null if files don't exist.
+
+**Clarification Gate:**
+```bash
+CLARIFICATION_STATUS=$(printf '%s\n' "$INIT" | jq -r '.clarification_status // "none"')
+if [ "$CLARIFICATION_STATUS" == "blocked" ]; then
+  echo "ERROR: Project is currently BLOCKED due to unresolved clarification."
+  echo "Run /gsd:resume-project to address the blocker."
+  exit 1
+fi
+```
 
 **If `planning_exists` is false:** Error — run `/gsd:new-project` first.
 
@@ -43,7 +53,7 @@ mkdir -p ".planning/phases/${padded_phase}-${phase_slug}"
 ## 3. Validate Phase
 
 ```bash
-PHASE_INFO=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" roadmap get-phase "${PHASE}")
+PHASE_INFO=$(node "/home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" roadmap get-phase "${PHASE}")
 ```
 
 **If `found` is false:** Error with available phases. **If `found` is true:** Extract `phase_number`, `phase_name`, `goal` from JSON.
@@ -145,7 +155,7 @@ Use full relative paths. Group by topic area.]
 
 5. Commit:
 ```bash
-node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" commit "docs(${padded_phase}): generate context from PRD" --files "${phase_dir}/${padded_phase}-CONTEXT.md"
+node "/home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" commit "docs(${padded_phase}): generate context from PRD" --files "${phase_dir}/${padded_phase}-CONTEXT.md"
 ```
 
 6. Set `context_content` to the generated CONTEXT.md content and continue to step 5 (Handle Research).
@@ -164,6 +174,8 @@ If `context_path` exists, interpret it in layers:
 - `Implementation Decisions` are locked user choices.
 - `Narrative Intake Summary` preserves user framing and emphasis.
 - `Research Cues` are inferred planning guidance that may shape sequencing, verification focus, and task structure, but are not locked requirements.
+- `Invariant Safety` means unresolved or non-lockable inferences must stay visible as assumptions/open questions unless they were explicitly confirmed.
+- `Unresolved Ambiguities` are explicit no-assumption zones; the planner may contain or defer around them, but must not turn them into hard scope.
 
 **If `context_path` is null (no CONTEXT.md exists):**
 
@@ -218,7 +230,7 @@ Display banner:
 ### Spawn gsd-phase-researcher
 
 ```bash
-PHASE_DESC=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" roadmap get-phase "${PHASE}" | jq -r '.section')
+PHASE_DESC=$(node "/home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" roadmap get-phase "${PHASE}" | jq -r '.section')
 ```
 
 Research prompt:
@@ -297,8 +309,8 @@ test -f "${PHASE_DIR}/${PADDED_PHASE}-VALIDATION.md" && echo "VALIDATION_CREATED
 > Skip if `workflow.ui_phase` is explicitly `false` AND `workflow.ui_safety_gate` is explicitly `false` in `.planning/config.json`. If keys are absent, treat as enabled.
 
 ```bash
-UI_PHASE_CFG=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" config-get workflow.ui_phase 2>/dev/null || echo "true")
-UI_GATE_CFG=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" config-get workflow.ui_safety_gate 2>/dev/null || echo "true")
+UI_PHASE_CFG=$(node "/home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" config-get workflow.ui_phase 2>/dev/null || echo "true")
+UI_GATE_CFG=$(node "/home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" config-get workflow.ui_safety_gate 2>/dev/null || echo "true")
 ```
 
 **If both are `false`:** Skip to step 6.
@@ -306,7 +318,7 @@ UI_GATE_CFG=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" config-get w
 Check if phase has frontend indicators:
 
 ```bash
-PHASE_SECTION=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" roadmap get-phase "${PHASE}" 2>/dev/null)
+PHASE_SECTION=$(node "/home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" roadmap get-phase "${PHASE}" 2>/dev/null)
 echo "$PHASE_SECTION" | grep -iE "UI|interface|frontend|component|layout|page|screen|view|form|dashboard|widget" > /dev/null 2>&1
 HAS_UI=$?
 ```
@@ -372,7 +384,7 @@ VALIDATION_EXISTS=$(ls "${PHASE_DIR}"/*-VALIDATION.md 2>/dev/null | head -1)
 If missing and Nyquist is still enabled/applicable — ask user:
 1. Re-run: `/gsd:plan-phase {PHASE} --research`
 2. Disable Nyquist with the exact command:
-   `node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" config-set workflow.nyquist_validation false`
+   `node "/home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" config-set workflow.nyquist_validation false`
 3. Continue anyway (plans fail Dimension 8)
 
 Proceed to Step 8 only if user selects 2 or 3.
@@ -411,6 +423,8 @@ Planner prompt:
 Treat upstream context carefully:
 - `Implementation Decisions` in CONTEXT.md are locked choices and must be honored.
 - `Research Cues`, narrative summaries, assumptions, and open questions are planning guidance only.
+- `Invariant Safety` rules override any temptation to promote guidance into hard scope: if it was not explicitly confirmed or adversarially validated, do not convert it into acceptance criteria, must-haves, or locked invariants.
+- `Unresolved Ambiguities` must either remain explicit as assumptions/deferred items in the plan or trigger a pause; they must never disappear through silent inference.
 - Use inferred guidance to shape task structure, sequencing, and verification depth, but do not silently convert it into hard scope or acceptance criteria unless explicit requirements or decisions support it.
 - If CONTEXT.md came from PRD Express Path or is sparse, fall back gracefully to the sections that exist rather than assuming narrative-first fields are present.
 
@@ -479,9 +493,35 @@ Task(
 
 ## 9. Handle Planner Return
 
-- **`## PLANNING COMPLETE`:** Display plan count. If `--skip-verify` or `plan_checker_enabled` is false (from init): skip to step 13. Otherwise: step 10.
+- **`## PLANNING COMPLETE`:** Display plan count. Continue to step 9.5 for context-contract verification before any broader plan checking.
 - **`## CHECKPOINT REACHED`:** Present to user, get response, spawn continuation (step 12)
 - **`## PLANNING INCONCLUSIVE`:** Show attempts, offer: Add context / Retry / Manual
+
+## 9.5. Verify Context Contract
+
+Skip if `context_path` is null.
+
+For each generated plan, run:
+
+```bash
+node "/home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" verify context-contract "$CONTEXT_PATH" --plan "$PLAN_FILE"
+```
+
+Rules:
+- If the result is `valid`, continue.
+- If the result is `invalid`, stop and send the issues back to the planner before spawning `gsd-plan-checker`.
+- Treat these as hard failures:
+  - unresolved ambiguity disappeared through silent inference
+  - interpreted assumptions or unresolved ambiguities were promoted into locked scope without assumption/defer/pause markers
+
+If any plan fails this check:
+- show the issues clearly
+- revise the affected plans before continuing
+- do not skip this gate unless the user explicitly chooses to proceed with known contract violations
+
+If all plans pass:
+- If `--skip-verify` or `plan_checker_enabled` is false (from init): skip to step 13.
+- Otherwise: continue to step 10.
 
 ## 10. Spawn gsd-plan-checker Agent
 
@@ -594,13 +634,13 @@ Check for auto-advance trigger:
 2. **Sync chain flag with intent** — if user invoked manually (no `--auto`), clear the ephemeral chain flag from any previous interrupted `--auto` chain. This does NOT touch `workflow.auto_advance` (the user's persistent settings preference):
    ```bash
    if [[ ! "$ARGUMENTS" =~ --auto ]]; then
-     node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" config-set workflow._auto_chain_active false 2>/dev/null
+     node "/home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" config-set workflow._auto_chain_active false 2>/dev/null
    fi
    ```
 3. Read both the chain flag and user preference:
    ```bash
-   AUTO_CHAIN=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" config-get workflow._auto_chain_active 2>/dev/null || echo "false")
-   AUTO_CFG=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" config-get workflow.auto_advance 2>/dev/null || echo "false")
+   AUTO_CHAIN=$(node "/home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" config-get workflow._auto_chain_active 2>/dev/null || echo "false")
+   AUTO_CFG=$(node "/home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" config-get workflow.auto_advance 2>/dev/null || echo "false")
    ```
 
 **If `--auto` flag present OR `AUTO_CHAIN` is true OR `AUTO_CFG` is true:**
