@@ -43,6 +43,8 @@
 - [ ] **SCHEMA-01**: `checkpointArtifactSchema` (Zod) — canonical shape for persisted CHECKPOINT.md (status, type, why_blocked, what_is_uncertain, choices, allow_freeform, resume_condition, resolved_at)
 - [ ] **SCHEMA-02**: `executionSummarySchema` (Zod) — canonical shape for SUMMARY.md (one_liner, work_completed, key_files, verification, requirements_completed)
 - [ ] **SCHEMA-03**: `cmdVerifySummary` upgraded to validate against `executionSummarySchema` (currently only checks file count)
+- [ ] **SCHEMA-04**: `checkpointResponseSchema` (Zod) formalizes the agent checkpoint return contract — replaces manual field-by-field checking in `cmdVerifyCheckpointResponse` (verify.cjs line 211)
+- [ ] **SCHEMA-05**: `interpretationResultSchema` / `baseSeedSchema` decomposed into composable sub-schemas — the current fat combined blob (interpretation + ambiguity + lockability + audit + route + clarification) is one opaque contract that's hard to extend and test in isolation
 
 ## v3 Requirements (Deferred)
 
@@ -64,33 +66,35 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| ENFORCE-01 | TBD | Pending |
-| ENFORCE-02 | TBD | Pending |
-| ENFORCE-03 | TBD | Pending |
-| ENFORCE-04 | TBD | Pending |
-| CHECKPOINT-01 | TBD | Pending |
-| CHECKPOINT-02 | TBD | Pending |
-| CHECKPOINT-03 | TBD | Pending |
-| CHECKPOINT-04 | TBD | Pending |
-| CONTEXT-01 | TBD | Pending |
-| CONTEXT-02 | TBD | Pending |
-| CONTEXT-03 | TBD | Pending |
-| SURFACE-01 | TBD | Pending |
-| SURFACE-02 | TBD | Pending |
-| SURFACE-03 | TBD | Pending |
-| TEST-01 | TBD | Pending |
-| TEST-02 | TBD | Pending |
-| TEST-03 | TBD | Pending |
-| TEST-04 | TBD | Pending |
-| SCHEMA-01 | TBD | Pending |
-| SCHEMA-02 | TBD | Pending |
-| SCHEMA-03 | TBD | Pending |
+| SCHEMA-01 | Phase 15 | Pending |
+| SCHEMA-04 | Phase 15 | Pending |
+| SCHEMA-05 | Phase 15 | Pending |
+| CHECKPOINT-04 | Phase 15 | Pending |
+| CHECKPOINT-01 | Phase 16 | Pending |
+| CHECKPOINT-02 | Phase 16 | Pending |
+| CHECKPOINT-03 | Phase 16 | Pending |
+| ENFORCE-01 | Phase 17 | Pending |
+| ENFORCE-02 | Phase 17 | Pending |
+| ENFORCE-03 | Phase 17 | Pending |
+| ENFORCE-04 | Phase 17 | Pending |
+| CONTEXT-01 | Phase 18 | Pending |
+| CONTEXT-02 | Phase 18 | Pending |
+| CONTEXT-03 | Phase 18 | Pending |
+| SURFACE-01 | Phase 19 | Pending |
+| SURFACE-02 | Phase 19 | Pending |
+| SURFACE-03 | Phase 19 | Pending |
+| SCHEMA-02 | Phase 19 | Pending |
+| SCHEMA-03 | Phase 19 | Pending |
+| TEST-01 | Phase 20 | Pending |
+| TEST-02 | Phase 20 | Pending |
+| TEST-03 | Phase 20 | Pending |
+| TEST-04 | Phase 20 | Pending |
 
 **Coverage:**
-- v0.2 requirements: 21 total
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 21 ⚠️
+- v0.2 requirements: 23 total
+- Mapped to phases: 23
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-03-17*
-*Last updated: 2026-03-17 after initial definition*
+*Last updated: 2026-03-17 — Traceability complete after roadmap creation*
