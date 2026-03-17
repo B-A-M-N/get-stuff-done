@@ -16,12 +16,18 @@ Delivered in `v0.1.0`:
 
 Provider-aware narrative interpretation that improves the user interaction layer without weakening GSD planning rigor.
 
-## Next Milestone Goals
+## Current Milestone: v0.2.0 Orchestration Integrity
 
-No next milestone is defined yet.
+**Goal:** Harden the enforcement model from workflow-described to runtime-bound — add a persistent checkpoint artifact, mandatory gate checks, pre-flight context enrichment, schema contracts for execution artifacts, and full end-to-end scenario tests.
 
-Recommended next step:
-- run `gsd:new-milestone "<name>"` to define the next version scope, requirements, and roadmap
+**Target features:**
+- Runtime gate enforcement (blocked clarification state prevents plan/execute/autonomous)
+- Persistent CHECKPOINT.md artifact written, re-read, and audited across resume boundaries
+- Pre-flight context enrichment: ambient state harvested before escalating clarification to user
+- Workflow surface hardening (research-phase, validate-phase, autonomous get blocked-state awareness)
+- Orphaned workflow reconciliation (diagnose-issues, discovery-phase, node-repair, transition, verify-phase)
+- End-to-end behavioral scenario tests for pause→clarify→blocked→resume→resolve loop
+- Zod schemas for CHECKPOINT.md and SUMMARY.md artifacts; cmdVerifySummary upgraded to contract validation
 
 ## Archived Context
 
@@ -43,4 +49,4 @@ The ITL must adapt user input into the existing engines’ expected structures. 
 </details>
 
 ---
-*Last updated: 2026-03-17 after v0.1.0 milestone*
+*Last updated: 2026-03-17 after v0.2.0 milestone start*
