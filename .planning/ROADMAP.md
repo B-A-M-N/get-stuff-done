@@ -26,7 +26,7 @@ See full archived roadmap: `.planning/milestones/v0.1.0-ROADMAP.md`
 
 - [x] **Phase 15: Schema Foundation** - Zod schemas for checkpoint response, checkpoint artifact, and ITL sub-schema decomposition (completed 2026-03-17)
 - [x] **Phase 16: Checkpoint Artifact Lifecycle** - CHECKPOINT.md written, re-read, validated, and tracked across resume boundaries (completed 2026-03-17)
-- [ ] **Phase 17: Runtime Gate Enforcement** - Blocked-state gates in plan-phase, execute-phase, autonomous, and resume-project
+- [x] **Phase 17: Runtime Gate Enforcement** - Blocked-state gates in plan-phase, execute-phase, autonomous, and resume-project (completed 2026-03-17)
 - [ ] **Phase 18: Context Enrichment** - Pre-flight ambient state harvest before clarification escalation
 - [ ] **Phase 19: Workflow Surface Hardening** - research-phase, validate-phase, autonomous blocked-state gates; SUMMARY.md schema contract; orphaned workflow reconciliation
 - [ ] **Phase 20: Scenario and Contract Tests** - Full behavioral loop tests and artifact contract validation
@@ -65,6 +65,7 @@ Plans:
 - [x] 16-02-PLAN.md — Create tests/checkpoint-lifecycle.test.cjs scaffold with failing stubs for all lifecycle behaviors (Wave 0 Nyquist compliance)
 - [x] 16-03-PLAN.md — Add CHECKPOINT.md write step to execute-plan.md and awaiting-response/resolved transitions to execute-phase.md (CHECKPOINT-01 + CHECKPOINT-03)
 - [x] 16-04-PLAN.md — Add checkpoint artifact validation + routing to resume-project.md; implement passing tests for schema/state/parse behaviors (CHECKPOINT-02)
+- [x] **Phase 17: Runtime Gate Enforcement** - Blocked-state gates in plan-phase, execute-phase, autonomous, and resume-project (completed 2026-03-17)
 
 #### Phase 17: Runtime Gate Enforcement
 **Goal**: Any workflow invocation against a project in `clarification_status: blocked` is rejected at runtime — not just documented as a workflow step
@@ -76,8 +77,9 @@ Plans:
   3. `verify checkpoint-response` is a mandatory gate in execute-phase — a wave does not advance if the checkpoint response validation fails
   4. Invoking resume-project when `clarification_status: blocked` routes to the unblock flow rather than to execute/plan — the user is told what is blocking and how to resolve it
   5. `verify research-contract` is called in plan-phase inline research path after researcher returns — not only in standalone research-phase
-**Plans**: TBD
-
+  **Plans**:
+  - [x] 17-01-PLAN.md — Add clarification_status to init JSON; implement entry gates in plan-phase, execute-phase, and autonomous
+  - [x] 17-02-PLAN.md — Hard validation gates for research-contract and checkpoint-response; status-aware resume routing (ENFORCE-02/03/05)
 #### Phase 18: Context Enrichment
 **Goal**: Before escalating any clarification to the user, the system harvests ambient project state and either auto-resolves or narrows the question using that context
 **Depends on**: Phase 17
@@ -122,7 +124,7 @@ Plans:
 |-------|-----------|----------------|--------|-----------|
 | 15. Schema Foundation | 4/4 | Complete    | 2026-03-17 | - |
 | 16. Checkpoint Artifact Lifecycle | 4/4 | Complete    | 2026-03-17 | - |
-| 17. Runtime Gate Enforcement | v0.2.0 | 0/TBD | Not started | - |
+| 17. Runtime Gate Enforcement | 2/2 | Complete    | 2026-03-17 | - |
 | 18. Context Enrichment | v0.2.0 | 0/TBD | Not started | - |
 | 19. Workflow Surface Hardening | v0.2.0 | 0/TBD | Not started | - |
 | 20. Scenario and Contract Tests | v0.2.0 | 0/TBD | Not started | - |
