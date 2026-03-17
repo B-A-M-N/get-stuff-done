@@ -17,18 +17,18 @@ created: 2026-03-17
 
 | Property | Value |
 |----------|-------|
-| **Framework** | jest (Node.js) |
-| **Config file** | package.json (jest config) |
-| **Quick run command** | `node --experimental-vm-modules node_modules/.bin/jest --testPathPattern="checkpoint"` |
-| **Full suite command** | `node --experimental-vm-modules node_modules/.bin/jest` |
+| **Framework** | node:test (Node.js built-in test runner) |
+| **Config file** | none — uses `node --test` directly |
+| **Quick run command** | `node --test tests/checkpoint-lifecycle.test.cjs` |
+| **Full suite command** | `node --test tests/*.test.cjs` |
 | **Estimated runtime** | ~15 seconds |
 
 ---
 
 ## Sampling Rate
 
-- **After every task commit:** Run `node --experimental-vm-modules node_modules/.bin/jest --testPathPattern="checkpoint"`
-- **After every plan wave:** Run `node --experimental-vm-modules node_modules/.bin/jest`
+- **After every task commit:** Run `node --test tests/checkpoint-lifecycle.test.cjs`
+- **After every plan wave:** Run `node --test tests/*.test.cjs`
 - **Before `/gsd:verify-work`:** Full suite must be green
 - **Max feedback latency:** 30 seconds
 
@@ -38,12 +38,13 @@ created: 2026-03-17
 
 | Task ID | Plan | Wave | Requirement | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|-----------|-------------------|-------------|--------|
-| 16-01-01 | 01 | 1 | CHECKPOINT-01 | unit | `node --experimental-vm-modules node_modules/.bin/jest --testPathPattern="checkpoint-contract"` | ❌ W0 | ⬜ pending |
-| 16-01-02 | 01 | 1 | CHECKPOINT-01 | integration | `node --experimental-vm-modules node_modules/.bin/jest --testPathPattern="checkpoint-contract"` | ❌ W0 | ⬜ pending |
-| 16-02-01 | 02 | 2 | CHECKPOINT-02 | unit | `node --experimental-vm-modules node_modules/.bin/jest --testPathPattern="state"` | ✅ | ⬜ pending |
-| 16-02-02 | 02 | 2 | CHECKPOINT-02 | integration | `node --experimental-vm-modules node_modules/.bin/jest --testPathPattern="state"` | ✅ | ⬜ pending |
-| 16-03-01 | 03 | 3 | CHECKPOINT-03 | integration | `node --experimental-vm-modules node_modules/.bin/jest --testPathPattern="dostuff"` | ✅ | ⬜ pending |
-| 16-03-02 | 03 | 3 | CHECKPOINT-03 | integration | `node --experimental-vm-modules node_modules/.bin/jest --testPathPattern="dostuff"` | ✅ | ⬜ pending |
+| 16-01-T1 | 01 | 1 | CHECKPOINT-03 | unit | `node -e "const s = require('./get-stuff-done/bin/lib/state.cjs'); console.log(typeof s.cmdStateCheckpoint)"` | ✅ | ⬜ pending |
+| 16-01-T2 | 01 | 1 | CHECKPOINT-03 | integration | `node get-stuff-done/bin/gsd-tools.cjs state checkpoint --status pending --path ".planning/phases/16-checkpoint-artifact-lifecycle/CHECKPOINT.md" 2>&1` | ✅ | ⬜ pending |
+| 16-02-T1 | 02 | 1 | CHECKPOINT-01 | unit | `node --test tests/checkpoint-lifecycle.test.cjs 2>&1 \| grep -E "(FAIL\|fail\|Error\|TODO)" \| head -10` | ❌ W0 | ⬜ pending |
+| 16-03-T1 | 03 | 2 | CHECKPOINT-01 | grep | `grep -n "CHECKPOINT.md" get-stuff-done/workflows/execute-plan.md \| head -10` | ✅ | ⬜ pending |
+| 16-03-T2 | 03 | 2 | CHECKPOINT-03 | grep | `grep -n "awaiting-response\|resolved_at\|state checkpoint" get-stuff-done/workflows/execute-phase.md \| head -15` | ✅ | ⬜ pending |
+| 16-04-T1 | 04 | 2 | CHECKPOINT-02 | grep | `grep -n "check_checkpoint_artifact\|checkpointArtifactSchema\|CHECKPOINT AWAITING\|CHECKPOINT FILE" get-stuff-done/workflows/resume-project.md \| head -15` | ✅ | ⬜ pending |
+| 16-04-T2 | 04 | 2 | CHECKPOINT-01/02/03 | integration | `node --test tests/checkpoint-lifecycle.test.cjs 2>&1 \| tail -20` | ❌ W0 | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -51,11 +52,9 @@ created: 2026-03-17
 
 ## Wave 0 Requirements
 
-- [ ] `tests/checkpoint-contract.test.cjs` — stubs for CHECKPOINT-01 (executor writes CHECKPOINT.md, validates required fields)
-- [ ] Existing `tests/state.test.cjs` — extended for CHECKPOINT-02 (lifecycle state transitions)
-- [ ] Existing `tests/dostuff.test.cjs` — extended for CHECKPOINT-03 (resume-project reads/validates CHECKPOINT.md)
+- [ ] `tests/checkpoint-lifecycle.test.cjs` — stubs for CHECKPOINT-01/02/03 (created by plan 16-02)
 
-*If none: "Existing infrastructure covers all phase requirements."*
+*Wave 0 is plan 16-02 (wave 1). Plan 16-04 task 2 depends on this file existing.*
 
 ---
 
