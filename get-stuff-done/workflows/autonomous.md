@@ -28,10 +28,20 @@ fi
 Bootstrap via milestone-level init:
 
 ```bash
-INIT=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" init milestone-op)
+INIT=$(node "/home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" init milestone-op)
 ```
 
-Parse JSON for: `milestone_version`, `milestone_name`, `phase_count`, `completed_phases`, `roadmap_exists`, `state_exists`, `commit_docs`.
+Parse JSON for: `milestone_version`, `milestone_name`, `phase_count`, `completed_phases`, `roadmap_exists`, `state_exists`, `commit_docs`, `clarification_status`.
+
+**Clarification Gate:**
+```bash
+CLARIFICATION_STATUS=$(printf '%s\n' "$INIT" | jq -r '.clarification_status // "none"')
+if [ "$CLARIFICATION_STATUS" == "blocked" ]; then
+  echo "ERROR: Project is currently BLOCKED due to unresolved clarification."
+  echo "Run /gsd:resume-project to address the blocker."
+  exit 1
+fi
+```
 
 **If `roadmap_exists` is false:** Error — "No ROADMAP.md found. Run `/gsd:new-milestone` first."
 **If `state_exists` is false:** Error — "No STATE.md found. Run `/gsd:new-milestone` first."
@@ -58,7 +68,7 @@ If `FROM_PHASE` is set, display: `Starting from phase ${FROM_PHASE}`
 Run phase discovery:
 
 ```bash
-ROADMAP=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" roadmap analyze)
+ROADMAP=$(node "/home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" roadmap analyze)
 ```
 
 Parse the JSON `phases` array.
@@ -97,7 +107,7 @@ Exit cleanly.
 **Fetch details for each phase:**
 
 ```bash
-DETAIL=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" roadmap get-phase ${PHASE_NUM})
+DETAIL=$(node "/home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" roadmap get-phase ${PHASE_NUM})
 ```
 
 Extract `phase_name`, `goal`, `success_criteria` from each. Store for use in execute_phase and transition messages.
@@ -123,7 +133,7 @@ Where N = current phase number (from the ROADMAP, e.g., 6), T = total milestone 
 Check if CONTEXT.md already exists for this phase:
 
 ```bash
-PHASE_STATE=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" init phase-op ${PHASE_NUM})
+PHASE_STATE=$(node "/home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" init phase-op ${PHASE_NUM})
 ```
 
 Parse `has_context` from JSON.
@@ -141,7 +151,7 @@ Proceed to 3b.
 After smart_discuss completes, verify context was written:
 
 ```bash
-PHASE_STATE=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" init phase-op ${PHASE_NUM})
+PHASE_STATE=$(node "/home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" init phase-op ${PHASE_NUM})
 ```
 
 Check `has_context`. If false → go to handle_blocker: "Smart discuss for phase ${PHASE_NUM} did not produce CONTEXT.md."
@@ -171,7 +181,7 @@ VERIFY_STATUS=$(grep "^status:" "${PHASE_DIR}"/*-VERIFICATION.md 2>/dev/null | h
 Where `PHASE_DIR` comes from the `init phase-op` call already made in step 3a. If the variable is not in scope, re-fetch:
 
 ```bash
-PHASE_STATE=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" init phase-op ${PHASE_NUM})
+PHASE_STATE=$(node "/home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" init phase-op ${PHASE_NUM})
 ```
 
 Parse `phase_dir` from the JSON.
@@ -265,7 +275,7 @@ Run smart discuss for the current phase. Proposes grey area answers in batch tab
 **Inputs:** `PHASE_NUM` from execute_phase. Run init to get phase paths:
 
 ```bash
-PHASE_STATE=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" init phase-op ${PHASE_NUM})
+PHASE_STATE=$(node "/home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" init phase-op ${PHASE_NUM})
 ```
 
 Parse from JSON: `phase_dir`, `phase_slug`, `padded_phase`, `phase_name`.
@@ -354,7 +364,7 @@ Read the 3-5 most relevant files to understand existing patterns.
 **Get phase details:**
 
 ```bash
-DETAIL=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" roadmap get-phase ${PHASE_NUM})
+DETAIL=$(node "/home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" roadmap get-phase ${PHASE_NUM})
 ```
 
 Extract `goal`, `requirements`, `success_criteria` from the JSON response.
@@ -526,7 +536,7 @@ Write the file.
 **Commit:**
 
 ```bash
-node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" commit "docs(${PADDED_PHASE}): smart discuss context" --files "${phase_dir}/${padded_phase}-CONTEXT.md"
+node "/home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" commit "docs(${PADDED_PHASE}): smart discuss context" --files "${phase_dir}/${padded_phase}-CONTEXT.md"
 ```
 
 Display confirmation:
@@ -545,7 +555,7 @@ Decisions captured: {count} across {area_count} areas
 After each phase completes, re-read ROADMAP.md to catch phases inserted mid-execution (decimal phases like 5.1):
 
 ```bash
-ROADMAP=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" roadmap analyze)
+ROADMAP=$(node "/home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" roadmap analyze)
 ```
 
 Re-filter incomplete phases using the same logic as discover_phases:
