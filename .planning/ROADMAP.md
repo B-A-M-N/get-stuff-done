@@ -58,7 +58,13 @@ Plans:
   1. When a blocking checkpoint fires, a CHECKPOINT.md file exists in the phase directory containing all required fields (status, type, why_blocked, what_is_uncertain, choices, allow_freeform, resume_condition)
   2. When resume-project runs, it reads CHECKPOINT.md and validates it against `checkpointArtifactSchema` before routing — an invalid or missing artifact causes resume to surface an error rather than silently routing to execute/plan
   3. STATE.md reflects the checkpoint lifecycle state (`pending` / `awaiting-response` / `resolved`) and that state transitions correctly as the checkpoint progresses
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+- [ ] 16-01-PLAN.md — Add state checkpoint subcommand to state.cjs + gsd-tools.cjs; extend buildStateFrontmatter with checkpoint fields; add Checkpoint Status/Path to STATE.md template (CHECKPOINT-03)
+- [ ] 16-02-PLAN.md — Create tests/checkpoint-lifecycle.test.cjs scaffold with failing stubs for all lifecycle behaviors (Wave 0 Nyquist compliance)
+- [ ] 16-03-PLAN.md — Add CHECKPOINT.md write step to execute-plan.md and awaiting-response/resolved transitions to execute-phase.md (CHECKPOINT-01 + CHECKPOINT-03)
+- [ ] 16-04-PLAN.md — Add checkpoint artifact validation + routing to resume-project.md; implement passing tests for schema/state/parse behaviors (CHECKPOINT-02)
 
 #### Phase 17: Runtime Gate Enforcement
 **Goal**: Any workflow invocation against a project in `clarification_status: blocked` is rejected at runtime — not just documented as a workflow step
@@ -115,7 +121,7 @@ Plans:
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 15. Schema Foundation | 4/4 | Complete    | 2026-03-17 | - |
-| 16. Checkpoint Artifact Lifecycle | v0.2.0 | 0/TBD | Not started | - |
+| 16. Checkpoint Artifact Lifecycle | v0.2.0 | 0/4 | Not started | - |
 | 17. Runtime Gate Enforcement | v0.2.0 | 0/TBD | Not started | - |
 | 18. Context Enrichment | v0.2.0 | 0/TBD | Not started | - |
 | 19. Workflow Surface Hardening | v0.2.0 | 0/TBD | Not started | - |
