@@ -85,6 +85,12 @@
  *   verify commits <h1> [h2] ...      Batch verify commit hashes
  *   verify artifacts <plan-file>       Check must_haves.artifacts
  *   verify key-links <plan-file>       Check must_haves.key_links
+ *   verify context-contract <context-file> [--plan <plan-file>]
+ *                                      Check unresolved ambiguity / guidance-only carry-forward rules
+ *   verify research-contract <context-file> --research <research-file>
+ *                                      Check unresolved ambiguity / guidance-only carry-forward rules in research output
+ *   verify checkpoint-response <file>
+ *                                      Validate checkpoint return structure for orchestrator handoff
  *
  * Template Fill:
  *   template fill summary --phase N    Create pre-filled SUMMARY.md
@@ -241,9 +247,24 @@ async function main() {
       } else if (subcommand === 'record-session') {
         const stoppedIdx = args.indexOf('--stopped-at');
         const resumeIdx = args.indexOf('--resume-file');
+        const clarificationStatusIdx = args.indexOf('--clarification-status');
+        const clarificationRoundsIdx = args.indexOf('--clarification-rounds');
+        const clarificationReasonIdx = args.indexOf('--clarification-reason');
+        const resumeRequiresInputIdx = args.indexOf('--resume-requires-user-input');
         state.cmdStateRecordSession(cwd, {
           stopped_at: stoppedIdx !== -1 ? args[stoppedIdx + 1] : null,
           resume_file: resumeIdx !== -1 ? args[resumeIdx + 1] : 'None',
+          clarification_status: clarificationStatusIdx !== -1 ? args[clarificationStatusIdx + 1] : null,
+          clarification_rounds: clarificationRoundsIdx !== -1 ? args[clarificationRoundsIdx + 1] : null,
+          last_clarification_reason: clarificationReasonIdx !== -1 ? args[clarificationReasonIdx + 1] : null,
+          resume_requires_user_input: resumeRequiresInputIdx !== -1 ? args[resumeRequiresInputIdx + 1] : null,
+        }, raw);
+      } else if (subcommand === 'checkpoint') {
+        const statusIdx = args.indexOf('--status');
+        const pathIdx = args.indexOf('--path');
+        state.cmdStateCheckpoint(cwd, {
+          status: statusIdx !== -1 ? args[statusIdx + 1] : null,
+          checkpointPath: pathIdx !== -1 ? args[pathIdx + 1] : null,
         }, raw);
       } else if (subcommand === 'begin-phase') {
         const phaseIdx = args.indexOf('--phase');
@@ -356,8 +377,16 @@ async function main() {
         verify.cmdVerifyArtifacts(cwd, args[2], raw);
       } else if (subcommand === 'key-links') {
         verify.cmdVerifyKeyLinks(cwd, args[2], raw);
+      } else if (subcommand === 'context-contract') {
+        const planIdx = args.indexOf('--plan');
+        verify.cmdVerifyContextContract(cwd, args[2], planIdx !== -1 ? args[planIdx + 1] : null, raw);
+      } else if (subcommand === 'research-contract') {
+        const researchIdx = args.indexOf('--research');
+        verify.cmdVerifyResearchContract(cwd, args[2], researchIdx !== -1 ? args[researchIdx + 1] : null, raw);
+      } else if (subcommand === 'checkpoint-response') {
+        verify.cmdVerifyCheckpointResponse(cwd, args[2], raw);
       } else {
-        error('Unknown verify subcommand. Available: plan-structure, phase-completeness, references, commits, artifacts, key-links');
+        error('Unknown verify subcommand. Available: plan-structure, phase-completeness, references, commits, artifacts, key-links, context-contract, research-contract, checkpoint-response');
       }
       break;
     }

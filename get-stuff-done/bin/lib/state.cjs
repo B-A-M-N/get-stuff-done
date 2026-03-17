@@ -196,11 +196,11 @@ function stateExtractField(content, fieldName) {
 function stateReplaceField(content, fieldName, newValue) {
   const escaped = fieldName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   // Try **Field:** bold format first, then plain Field: format
-  const boldPattern = new RegExp(`(\\*\\*${escaped}:\\*\\*\\s*)(.*)`, 'i');
+  const boldPattern = new RegExp(`(\\*\\*${escaped}:\\*\\*[ \\t]*)(.*)`, 'i');
   if (boldPattern.test(content)) {
     return content.replace(boldPattern, (_match, prefix) => `${prefix}${newValue}`);
   }
-  const plainPattern = new RegExp(`(^${escaped}:\\s*)(.*)`, 'im');
+  const plainPattern = new RegExp(`(^${escaped}:[ \\t]*)(.*)`, 'im');
   if (plainPattern.test(content)) {
     return content.replace(plainPattern, (_match, prefix) => `${prefix}${newValue}`);
   }

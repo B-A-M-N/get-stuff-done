@@ -4,13 +4,15 @@ milestone: v0.1
 milestone_name: milestone
 status: planning
 stopped_at: Phase 16 context gathered
-last_updated: "2026-03-17T13:29:28.470Z"
+checkpoint_status: pending
+checkpoint_path: .planning/phases/16-checkpoint-artifact-lifecycle/CHECKPOINT.md
+last_updated: "2026-03-17T15:55:11.642Z"
 last_activity: 2026-03-17 — Roadmap created; 23 requirements mapped across 6 phases (15-20).
 progress:
   total_phases: 6
   completed_phases: 1
-  total_plans: 4
-  completed_plans: 4
+  total_plans: 8
+  completed_plans: 5
   percent: 0
 ---
 
@@ -52,6 +54,7 @@ Progress: [░░░░░░░░░░░░] 0%
 | Phase 15-schema-foundation P01 | 9min | 1 tasks | 2 files |
 | Phase 15-schema-foundation P03 | 6min | 2 tasks | 3 files |
 | Phase 15-schema-foundation P04 | 2min | 2 tasks | 2 files |
+| Phase 16 P02 | 5min | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -75,6 +78,7 @@ Progress: [░░░░░░░░░░░░] 0%
 ### Decisions
 
 for v0.2.0.
+
 - [Phase 15-schema-foundation]: itl-schema.cjs: additive named exports only — 5 sub-schemas accessible as top-level exports and via schemas.{}; clarificationPromptSchema added to schemas.{} namespace for consistency
 - [Phase 15-schema-foundation]: Zod v4 uses error option (not required_error/errorMap) for custom field messages — schema updated to v4 API
 - [Phase 15-schema-foundation]: checkpointResponseSchema uses z.preprocess(parseKeyValueText) to coerce raw agent key:value text into object before Zod validation
@@ -92,3 +96,5 @@ None.
 Last session: 2026-03-17T13:29:28.468Z
 Stopped at: Phase 16 context gathered
 Resume file: .planning/phases/16-checkpoint-artifact-lifecycle/16-CONTEXT.md
+Checkpoint Status: pending
+Checkpoint Path: .planning/phases/16-checkpoint-artifact-lifecycle/CHECKPOINT.md

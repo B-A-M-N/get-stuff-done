@@ -71,6 +71,12 @@ None yet.
 Last session: [YYYY-MM-DD HH:MM]
 Stopped at: [Description of last completed action]
 Resume file: [Path to .continue-here*.md if exists, otherwise "None"]
+Checkpoint Status:
+Checkpoint Path:
+Clarification Status: [none / pending / resolved / deferred / blocked]
+Clarification Rounds: [0]
+Last Clarification Reason: [Why clarification is currently needed, otherwise "None"]
+Resume Requires User Input: [true / false]
 ```
 
 <purpose>
@@ -160,6 +166,10 @@ Enables instant resumption:
 - When was last session
 - What was last completed
 - Is there a .continue-here file to resume from
+- Whether work is paused on clarification
+- How many clarification rounds already happened
+- Why the last clarification checkpoint was raised
+- Whether resuming requires fresh user input before the agent can continue
 
 </sections>
 
