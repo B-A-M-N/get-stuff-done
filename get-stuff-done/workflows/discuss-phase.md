@@ -138,7 +138,7 @@ Exit workflow.
 
 **Auto mode** — If `--auto` is present in ARGUMENTS:
 - In `check_existing`: auto-select "Skip" (if context exists) or continue without prompting (if no context/plans)
-- In `capture_narrative`: use the phase goal as the narrative seed, run `itl discuss-seed`, and auto-answer at most one clarification round if `needs_clarification` is true
+- In `capture_narrative`: use the phase goal as the narrative seed, run `itl discuss-seed`, and only auto-continue if clarification never becomes `blocking`
 - In `present_gray_areas`: auto-select ALL gray areas without asking the user
 - In `discuss_areas`: for each discussion question, choose the recommended option (first option, or the one marked "recommended") without using AskUserQuestion
 - Log each auto-selected choice inline so the user can review decisions in the context file
@@ -295,22 +295,45 @@ Tell me how you imagine Phase [X] working. Focus on the outcome, the feel, and a
 
 Then run:
 ```bash
-SEED=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" itl discuss-seed --text "$NARRATIVE" --raw)
+AMBIENT_CONTEXT=$(node "$HOME/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" state harvest-context --phase "${PHASE}" --raw)
+SEED=$(node "$HOME/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" itl discuss-seed --text "$NARRATIVE" --ambient-context "$AMBIENT_CONTEXT" --phase "${PHASE}")
 ```
 
 Use the returned JSON to capture:
 - `summary` — show this interpretation summary before any gray-area selection, but do not treat it as a substitute for phase analysis
-- `needs_clarification`
-- `clarification_questions`
+- `clarification.mode`
+- `clarification.reason`
+- `clarification.resume_allowed`
+- `clarification.pause_if_unresolved`
+- `clarification.prompts`
 - `discussion_seed.gray_area_hints`
 - `discussion_seed.deferred_ideas`
 
-**If `needs_clarification` is true:** ask only the provided bounded `clarification_questions`, then re-run `itl discuss-seed` once with the clarified narrative appended. Do not branch into open-ended discovery here. This clarification narrows the input to `analyze_phase`; it does not replace `analyze_phase`.
+**If `clarification.mode` is `recommended`, `required`, or `blocking`:**
+- tell the user why clarification is being raised using `clarification.reason`
+- ask only the provided bounded `clarification.prompts`
+- for each prompt, show `why_this_is_needed`, 2-3 concrete choices, and remind the user they can answer with their own words
+- update STATE continuity while the checkpoint is active: set `Clarification Status`, increment `Clarification Rounds`, record `Last Clarification Reason`, and set `Resume Requires User Input` when the discussion cannot safely continue alone
+- re-run `itl discuss-seed` after each clarification round and keep looping while the result is still `blocking`
+
+**If repeated clarification still returns `clarification.mode` of `blocking`:**
+- stop before `analyze_phase`
+- explain that the phase boundary is still too uncertain to discuss safely
+- record the blocked clarification checkpoint in STATE.md before pausing
+- wait for more clarification instead of guessing
+
+**If the re-run returns `clarification.mode` of `recommended` or `required`:**
+- carry the remaining ambiguity forward into `analyze_phase`
+- make the unresolved point visible in the interpretation preview and gray-area selection
+- do not silently resolve it by inference
+
+This clarification narrows the input to `analyze_phase`; it does not replace `analyze_phase`.
 
 **If `--auto`:**
 - Use the roadmap phase goal as the initial narrative seed
 - Log the generated narrative and any clarification answers inline
-- Re-run `itl discuss-seed` once if clarification is requested
+- Re-run `itl discuss-seed` after each clarification round while the checkpoint is not `blocking`
+- If the checkpoint becomes or remains `blocking`, stop auto mode, explain why the phase cannot be safely auto-resolved, and wait for explicit user clarification instead of picking defaults
 
 Store the final result as internal `<discussion_seed>` and continue to `analyze_phase`, which still performs the real gray-area identification and scope filtering.
 </step>
@@ -462,7 +485,7 @@ Each answer (or answer set, in batch mode) should reveal the next question or ne
 ```
 [auto] [Area] — Q: "[question text]" → Selected: "[chosen option]" (recommended default)
 ```
-After all areas are auto-resolved, skip the "Explore more gray areas" prompt and proceed directly to write_context.
+Auto mode may only do this after the narrative clarification checkpoint is no longer `blocking`. After all areas are auto-resolved, skip the "Explore more gray areas" prompt and proceed directly to write_context.
 
 **Interactive mode (no `--auto`):**
 
@@ -639,6 +662,16 @@ Every entry needs a full relative path — not just a name.]
 
 <research_cues>
 ## Research Cues
+
+### Invariant Safety
+- Confirmed user decisions belong only in `Implementation Decisions`
+- Inferred assumptions stay guidance-only until they pass the adversarial ambiguity gate
+- Unresolved ambiguity must remain visible instead of being rewritten into locked scope
+
+### Unresolved Ambiguities
+- Record any ambiguity that remains after discussion
+- State why it remains unresolved
+- State what downstream agents must not assume because of it
 
 ### Interpreted Assumptions
 - Capture assumptions inferred from the narrative that may help research
