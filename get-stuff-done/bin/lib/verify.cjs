@@ -219,7 +219,7 @@ function cmdVerifyCheckpointResponse(cwd, filePath, raw) {
   if (result.success) {
     output({ valid: true, errors: [], fields: result.data }, raw, 'valid');
   } else {
-    const errors = result.error.errors.map(e => e.message);
+    const errors = result.error.issues.map(e => e.message);
     output({ valid: false, errors, fields: {} }, raw, 'invalid');
   }
 }
