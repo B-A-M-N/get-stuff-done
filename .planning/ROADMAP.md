@@ -27,8 +27,8 @@ See full archived roadmap: `.planning/milestones/v0.1.0-ROADMAP.md`
 - [x] **Phase 15: Schema Foundation** - Zod schemas for checkpoint response, checkpoint artifact, and ITL sub-schema decomposition (completed 2026-03-17)
 - [x] **Phase 16: Checkpoint Artifact Lifecycle** - CHECKPOINT.md written, re-read, validated, and tracked across resume boundaries (completed 2026-03-17)
 - [x] **Phase 17: Runtime Gate Enforcement** - Blocked-state gates in plan-phase, execute-phase, autonomous, and resume-project (completed 2026-03-17)
-- [ ] **Phase 18: Context Enrichment** - Pre-flight ambient state harvest before clarification escalation
-- [ ] **Phase 19: Workflow Surface Hardening** - research-phase, validate-phase, autonomous blocked-state gates; SUMMARY.md schema contract; orphaned workflow reconciliation
+- [x] **Phase 18: Context Enrichment** - Pre-flight ambient state harvest before clarification escalation (completed 2026-03-17)
+- [x] **Phase 19: Workflow Surface Hardening** - research-phase, validate-phase, autonomous blocked-state gates; SUMMARY.md schema contract; orphaned workflow reconciliation (completed 2026-03-17)
 - [ ] **Phase 20: Scenario and Contract Tests** - Full behavioral loop tests and artifact contract validation
 
 ### Phase Details
@@ -37,81 +37,80 @@ See full archived roadmap: `.planning/milestones/v0.1.0-ROADMAP.md`
 **Goal**: Canonical Zod schemas exist for all v0.2.0 execution artifacts and the ITL contract is decomposed into composable sub-schemas
 **Depends on**: v0.1.0 (complete)
 **Requirements**: SCHEMA-01, SCHEMA-04, SCHEMA-05, CHECKPOINT-04
-**Success Criteria** (what must be TRUE):
-  1. `checkpointArtifactSchema` is importable from the schema layer and validates a well-formed CHECKPOINT.md payload without error
-  2. `checkpointResponseSchema` replaces manual field-by-field checking in `cmdVerifyCheckpointResponse` — a missing required field causes schema validation to throw, not silently pass
-  3. `interpretationResultSchema` / `baseSeedSchema` are decomposed into independently testable sub-schemas — each sub-schema can be imported and tested in isolation without pulling the full combined blob
-  4. All new schemas have passing unit tests that cover valid shape, missing required fields, and invalid field types
-**Plans**: 4 plans
-
-Plans:
-- [ ] 15-01-PLAN.md — Create artifact-schema.cjs with checkpointArtifactSchema, checkpointResponseSchema, executionSummarySchema
-- [ ] 15-02-PLAN.md — Add individual named exports to itl-schema.cjs (SCHEMA-05 additive decomposition)
-- [ ] 15-03-PLAN.md — Wire checkpointResponseSchema into verify.cjs and add unit tests for all new schemas
-- [ ] 15-04-PLAN.md — Fix Zod v3-to-v4 API bugs in verify.cjs and checkpoint-validator.test.cjs (gap closure)
+**Success Criteria**:
+  1. `checkpointArtifactSchema` is importable and validates CHECKPOINT.md
+  2. `checkpointResponseSchema` replaces manual field checking in `cmdVerifyCheckpointResponse`
+  3. `interpretationResultSchema` / `baseSeedSchema` are decomposed into sub-schemas
+  4. All new schemas have passing unit tests
+**Plans**:
+- [x] 15-01-PLAN.md — Create artifact-schema.cjs with schemas
+- [x] 15-02-PLAN.md — Add individual named exports to itl-schema.cjs
+- [x] 15-03-PLAN.md — Wire checkpointResponseSchema into verify.cjs
+- [x] 15-04-PLAN.md — Fix Zod v3-to-v4 API bugs (gap closure)
 
 #### Phase 16: Checkpoint Artifact Lifecycle
 **Goal**: CHECKPOINT.md is written on every blocking checkpoint, re-read and validated by resume-project, and its lifecycle state is tracked in STATE.md
 **Depends on**: Phase 15
 **Requirements**: CHECKPOINT-01, CHECKPOINT-02, CHECKPOINT-03
-**Success Criteria** (what must be TRUE):
-  1. When a blocking checkpoint fires, a CHECKPOINT.md file exists in the phase directory containing all required fields (status, type, why_blocked, what_is_uncertain, choices, allow_freeform, resume_condition)
-  2. When resume-project runs, it reads CHECKPOINT.md and validates it against `checkpointArtifactSchema` before routing — an invalid or missing artifact causes resume to surface an error rather than silently routing to execute/plan
-  3. STATE.md reflects the checkpoint lifecycle state (`pending` / `awaiting-response` / `resolved`) and that state transitions correctly as the checkpoint progresses
-**Plans**: 4 plans
-
-Plans:
-- [x] 16-01-PLAN.md — Add state checkpoint subcommand to state.cjs + gsd-tools.cjs; extend buildStateFrontmatter with checkpoint fields; add Checkpoint Status/Path to STATE.md template (CHECKPOINT-03)
-- [x] 16-02-PLAN.md — Create tests/checkpoint-lifecycle.test.cjs scaffold with failing stubs for all lifecycle behaviors (Wave 0 Nyquist compliance)
-- [x] 16-03-PLAN.md — Add CHECKPOINT.md write step to execute-plan.md and awaiting-response/resolved transitions to execute-phase.md (CHECKPOINT-01 + CHECKPOINT-03)
-- [x] 16-04-PLAN.md — Add checkpoint artifact validation + routing to resume-project.md; implement passing tests for schema/state/parse behaviors (CHECKPOINT-02)
-- [x] **Phase 17: Runtime Gate Enforcement** - Blocked-state gates in plan-phase, execute-phase, autonomous, and resume-project (completed 2026-03-17)
+**Success Criteria**:
+  1. CHECKPOINT.md exists on block with all required fields
+  2. resume-project validates CHECKPOINT.md on resume
+  3. STATE.md reflects checkpoint lifecycle state correctly
+**Plans**:
+- [x] 16-01-PLAN.md — Add state checkpoint CLI and frontmatter fields
+- [x] 16-02-PLAN.md — Create tests/checkpoint-lifecycle.test.cjs scaffold
+- [x] 16-03-PLAN.md — Add CHECKPOINT.md write step to workflows
+- [x] 16-04-PLAN.md — Add checkpoint validation and routing to resume-project
 
 #### Phase 17: Runtime Gate Enforcement
-**Goal**: Any workflow invocation against a project in `clarification_status: blocked` is rejected at runtime — not just documented as a workflow step
+**Goal**: Any workflow invocation against a project in `clarification_status: blocked` is rejected at runtime
 **Depends on**: Phase 16
 **Requirements**: ENFORCE-01, ENFORCE-02, ENFORCE-03, ENFORCE-04, ENFORCE-05
-**Success Criteria** (what must be TRUE):
-  1. Invoking plan-phase or execute-phase when STATE.md has `clarification_status: blocked` produces a hard rejection with a clear message identifying the blocked state — execution does not proceed
-  2. Invoking autonomous when a phase is blocked causes autonomous to halt with an explanation and a resume path — it does not silently skip the blocked phase and continue
-  3. `verify checkpoint-response` is a mandatory gate in execute-phase — a wave does not advance if the checkpoint response validation fails
-  4. Invoking resume-project when `clarification_status: blocked` routes to the unblock flow rather than to execute/plan — the user is told what is blocking and how to resolve it
-  5. `verify research-contract` is called in plan-phase inline research path after researcher returns — not only in standalone research-phase
-  **Plans**:
-  - [x] 17-01-PLAN.md — Add clarification_status to init JSON; implement entry gates in plan-phase, execute-phase, and autonomous
-  - [x] 17-02-PLAN.md — Hard validation gates for research-contract and checkpoint-response; status-aware resume routing (ENFORCE-02/03/05)
+**Success Criteria**:
+  1. Invoking plan/execute when blocked produces a hard rejection
+  2. Autonomous halts with explanation when blocked
+  3. `verify checkpoint-response` is a mandatory gate in execute-phase
+  4. resume-project routes to unblock flow when blocked
+  5. `verify research-contract` is a mandatory gate in plan-phase
+**Plans**:
+- [x] 17-01-PLAN.md — Add clarification_status to init; implement workflow entry gates
+- [x] 17-02-PLAN.md — Hard validation gates and status-aware resume routing
+
 #### Phase 18: Context Enrichment
-**Goal**: Before escalating any clarification to the user, the system harvests ambient project state and either auto-resolves or narrows the question using that context
+**Goal**: Before escalating clarification, the system harvests ambient project state to auto-resolve or narrow questions
 **Depends on**: Phase 17
 **Requirements**: CONTEXT-01, CONTEXT-02, CONTEXT-03, CONTEXT-04
-**Success Criteria** (what must be TRUE):
-  1. When a clarification is about to be escalated, the system has already checked STATE.md decisions, CONTEXT.md canonical_refs, and PLAN.md for candidates that answer or narrow the question — this harvest happens before the user is prompted
-  2. Clarification prompts shown to the user include a summary of what was found in ambient state (pre-answered fields are marked; narrowed choices reflect found context)
-  3. `discuss-seed` receives relevant ambient context fields alongside the narrative input — the seed is enriched, not bare
-  4. ITL output (ambiguity score, lockability determination, clarification.mode) is persisted to `{phase_dir}/{phase}-ITL.json` after discuss-phase — plan-phase in a new context window reads this file instead of starting blind
-**Plans**: TBD
+**Success Criteria**:
+  1. System harvests STATE/CONTEXT/PLAN before user is prompted
+  2. Clarification prompts include summary of ambient state
+  3. `discuss-seed` receives relevant ambient context fields
+  4. ITL output is persisted to `{phase_dir}/{phase}-ITL.json`
+**Plans**:
+- [x] 18-01-PLAN.md — Ambient context harvesting and ITL persistence logic
+- [x] 18-02-PLAN.md — Workflow integration for discuss-phase and plan-phase
 
 #### Phase 19: Workflow Surface Hardening
-**Goal**: All remaining workflow surfaces with blocked-state exposure get gate checks; SUMMARY.md has a validated schema contract; orphaned workflow files are resolved
+**Goal**: All remaining workflow surfaces get gate checks; SUMMARY.md has a validated schema contract; orphaned workflows resolved
 **Depends on**: Phase 18
 **Requirements**: SURFACE-01, SURFACE-02, SURFACE-03, SCHEMA-02, SCHEMA-03
-**Success Criteria** (what must be TRUE):
-  1. Invoking research-phase or validate-phase when `clarification_status: blocked` produces a blocked-state rejection at entry — neither workflow proceeds past the gate
-  2. `autonomous` halts with a clear explanation and resume path when it encounters a per-phase blocked state — the user is told which phase is blocked and what step resolves it
-  3. `executionSummarySchema` exists and `cmdVerifySummary` validates SUMMARY.md against it — a SUMMARY.md missing required fields or containing invalid types fails verification rather than passing silently
-  4. Orphaned workflow files (diagnose-issues, discovery-phase, node-repair, transition, verify-phase) are either wired to commands/gsd/ or removed with a changelog entry — no dangling unreachable workflow files remain
-**Plans**: TBD
+**Success Criteria**:
+  1. research-phase and validate-phase get blocked-state gates
+  2. autonomous halts with explanation per phase
+  3. cmdVerifySummary validates against executionSummarySchema
+  4. Orphaned workflows moved to lib/ or removed
+**Plans**:
+- [ ] 19-01-PLAN.md — Gates, lib extraction, and SUMMARY.md schema enforcement
 
 #### Phase 20: Scenario and Contract Tests
-**Goal**: The full pause-clarify-blocked-resume-resolve behavioral loop is covered by end-to-end scenario tests, and all execution artifact schemas have contract test coverage
+**Goal**: Full pause-clarify-blocked-resume-resolve behavioral loop covered by end-to-end tests
 **Depends on**: Phase 19
 **Requirements**: TEST-01, TEST-02, TEST-03, TEST-04, TEST-05
-**Success Criteria** (what must be TRUE):
-  1. A test exercises the complete loop: ambiguous input fires clarification, blocked state is written to STATE.md, resume detects blocked, user provides resolution, continuation only proceeds after valid resolution — all assertions pass
-  2. Gate behavior tests confirm plan-phase and execute-phase reject invocation when `clarification_status: blocked` — tests fail if either workflow proceeds past the gate
-  3. A checkpoint artifact lifecycle test confirms CHECKPOINT.md is written on block, validated on resume, and cleared on resolve — the test covers all three lifecycle transitions
-  4. A contract test validates a real SUMMARY.md output against `executionSummarySchema` post-execution — the test fails if SUMMARY.md does not conform to the schema
-  5. The 5 previously untracked test files (checkpoint-contract, checkpoint-validator, state-clarification, verify-context-contract, verify-research-contract) are committed to git and passing in CI on a clean checkout
+**Success Criteria**:
+  1. Test exercises complete clarification loop
+  2. Gate behavior tests confirm rejection when blocked
+  3. Checkpoint lifecycle test covers all transitions
+  4. Contract test validates SUMMARY.md against schema
+  5. Untracked test files committed and passing
 **Plans**: TBD
 
 ---
@@ -125,6 +124,6 @@ Plans:
 | 15. Schema Foundation | 4/4 | Complete    | 2026-03-17 | - |
 | 16. Checkpoint Artifact Lifecycle | 4/4 | Complete    | 2026-03-17 | - |
 | 17. Runtime Gate Enforcement | 2/2 | Complete    | 2026-03-17 | - |
-| 18. Context Enrichment | v0.2.0 | 0/TBD | Not started | - |
-| 19. Workflow Surface Hardening | v0.2.0 | 0/TBD | Not started | - |
+| 18. Context Enrichment | 2/2 | Complete    | 2026-03-17 | - |
+| 19. Workflow Surface Hardening | 1/1 | Complete    | 2026-03-17 | - |
 | 20. Scenario and Contract Tests | v0.2.0 | 0/TBD | Not started | - |
