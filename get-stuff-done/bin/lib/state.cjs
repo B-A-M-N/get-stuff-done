@@ -184,13 +184,13 @@ function cmdStateUpdate(cwd, field, value) {
 function stateExtractField(content, fieldName) {
   const escaped = fieldName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   // Try **Field:** bold format first
-  const boldPattern = new RegExp(`\\*\\*${escaped}:\\*\\*\\s*(.+)`, 'i');
+  const boldPattern = new RegExp(`\\*\\*${escaped}:\\*\\*[ \\t]*(.*)`, 'i');
   const boldMatch = content.match(boldPattern);
-  if (boldMatch) return boldMatch[1].trim();
+  if (boldMatch) return boldMatch[1].trim() || null;
   // Fall back to plain Field: format
-  const plainPattern = new RegExp(`^${escaped}:\\s*(.+)`, 'im');
+  const plainPattern = new RegExp(`^${escaped}:[ \\t]*(.*)`, 'im');
   const plainMatch = content.match(plainPattern);
-  return plainMatch ? plainMatch[1].trim() : null;
+  return plainMatch ? (plainMatch[1].trim() || null) : null;
 }
 
 function stateReplaceField(content, fieldName, newValue) {

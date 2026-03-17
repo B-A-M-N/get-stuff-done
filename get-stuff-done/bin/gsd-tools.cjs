@@ -261,7 +261,7 @@ async function main() {
         }, raw);
       } else if (subcommand === 'checkpoint') {
         const statusIdx = args.indexOf('--status');
-        const pathIdx = args.indexOf('--path');
+        const pathIdx = args.indexOf('--checkpoint-path');
         state.cmdStateCheckpoint(cwd, {
           status: statusIdx !== -1 ? args[statusIdx + 1] : null,
           checkpointPath: pathIdx !== -1 ? args[pathIdx + 1] : null,
