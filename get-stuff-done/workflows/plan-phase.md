@@ -271,7 +271,26 @@ Task(
 
 ### Handle Researcher Return
 
-- **`## RESEARCH COMPLETE`:** Display confirmation, continue to step 6
+- **`## RESEARCH COMPLETE`:**
+
+```bash
+# Verify research contract (ENFORCE-05)
+VERIFY_RESEARCH=$(node "$HOME/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" verify research-contract "$CONTEXT_PATH" --research "$RESEARCH_PATH" --raw)
+if [ "$VERIFY_RESEARCH" != "true" ]; then
+  echo "⚠ Research Contract Violation Detected!"
+  node "$HOME/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" verify research-contract "$CONTEXT_PATH" --research "$RESEARCH_PATH"
+
+  # AskUserQuestion:
+  # - header: "Research Contract"
+  # - question: "Research for Phase {X} violates the contract (e.g. lost ambiguities). How to proceed?"
+  # - options:
+  #   - "Revise research" — Re-spawn researcher with identified issues
+  #   - "Skip research" — Proceed to planning with warning
+  #   - "Abort" — Exit workflow
+fi
+```
+
+Display confirmation, continue to step 6
 - **`## RESEARCH BLOCKED`:** Display blocker, offer: 1) Provide context, 2) Skip research, 3) Abort
 
 ## 5.5. Create Validation Strategy
