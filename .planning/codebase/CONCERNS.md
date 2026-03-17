@@ -6,13 +6,13 @@
 
 **Large Monolithic Files:**
 - Issue: Several core library files are approaching 1,000 lines, making them difficult to maintain and test in isolation.
-- Files: `get-shit-done/bin/lib/profile-output.cjs` (931 lines), `get-shit-done/bin/lib/phase.cjs` (911 lines), `get-shit-done/bin/lib/verify.cjs` (842 lines).
+- Files: `get-stuff-done/bin/lib/profile-output.cjs` (931 lines), `get-stuff-done/bin/lib/phase.cjs` (911 lines), `get-stuff-done/bin/lib/verify.cjs` (842 lines).
 - Impact: Increased cognitive load for developers and higher risk of side effects during modifications.
 - Fix approach: Refactor these files into smaller, more focused modules based on functional responsibility.
 
 **Synchronous File I/O:**
 - Issue: Heavy reliance on `fs.readFileSync` throughout the codebase.
-- Files: Multiple files in `get-shit-done/bin/lib/`, particularly `state.cjs` and `milestone.cjs`.
+- Files: Multiple files in `get-stuff-done/bin/lib/`, particularly `state.cjs` and `milestone.cjs`.
 - Impact: Potential blocking of the event loop, though less critical for a CLI tool than a server.
 - Fix approach: Transition to asynchronous file operations (`fs.promises`) where performance or responsiveness is a concern.
 
@@ -28,7 +28,7 @@
 
 **Command Injection Risks:**
 - Risk: Use of `execSync` and `spawnSync` with potentially unvalidated inputs could lead to command injection.
-- Files: `get-shit-done/bin/lib/core.cjs`
+- Files: `get-stuff-done/bin/lib/core.cjs`
 - Current mitigation: Basic internal logic, but needs rigorous audit.
 - Recommendations: Implement strict input validation and prefer `spawn` with argument arrays over shell execution where possible.
 
@@ -36,14 +36,14 @@
 
 **Repeated State Parsing:**
 - Problem: The `STATE.md` file is read and parsed repeatedly across different commands.
-- Files: `get-shit-done/bin/lib/state.cjs`
+- Files: `get-stuff-done/bin/lib/state.cjs`
 - Cause: Lack of an in-memory cache or state management system during a single execution.
 - Improvement path: Implement a singleton or caching mechanism for state data during the lifecycle of a command execution.
 
 ## Fragile Areas
 
 **Markdown Parsing Logic:**
-- Files: `get-shit-done/bin/lib/state.cjs`, `get-shit-done/bin/lib/frontmatter.cjs`, `get-shit-done/bin/lib/roadmap.cjs`
+- Files: `get-stuff-done/bin/lib/state.cjs`, `get-stuff-done/bin/lib/frontmatter.cjs`, `get-stuff-done/bin/lib/roadmap.cjs`
 - Why fragile: Relies heavily on complex Regular Expressions to parse and update Markdown files. Small changes in file format can break the parser.
 - Safe modification: Add comprehensive unit tests for all regex-based parsing before modifying.
 - Test coverage: Partially covered by existing tests, but needs more edge-case scenarios.
@@ -72,7 +72,7 @@
 
 **Untested Logic in Large Files:**
 - What's not tested: Complex branching logic in `profile-output.cjs` and `phase.cjs`.
-- Files: `get-shit-done/bin/lib/profile-output.cjs`, `get-shit-done/bin/lib/phase.cjs`
+- Files: `get-stuff-done/bin/lib/profile-output.cjs`, `get-stuff-done/bin/lib/phase.cjs`
 - Risk: Undetected regressions in critical path logic.
 - Priority: High
 

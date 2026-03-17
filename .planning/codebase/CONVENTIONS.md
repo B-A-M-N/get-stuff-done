@@ -37,7 +37,7 @@
 3. [Other local imports]
 
 **Path Aliases:**
-- [Aliases used]: Not detected. All imports use relative paths (e.g., `../get-shit-done/bin/lib/core.cjs`).
+- [Aliases used]: Not detected. All imports use relative paths (e.g., `../get-stuff-done/bin/lib/core.cjs`).
 
 ## Error Handling
 

@@ -10,7 +10,7 @@
 ├── bin/                # Installer script
 ├── commands/           # Slash command definitions (user entry points)
 ├── docs/               # System documentation
-├── get-shit-done/      # Core logic and orchestration
+├── get-stuff-done/      # Core logic and orchestration
 │   ├── bin/            # CLI tools (gsd-tools.cjs) and library modules
 │   ├── references/     # Shared knowledge and pattern docs
 │   ├── templates/      # Artifact and phase templates
@@ -32,22 +32,22 @@
 - Contains: Markdown files that reference workflows.
 - Key files: `new-project.md`, `plan-phase.md`, `execute-phase.md`.
 
-**get-shit-done/bin/:**
+**get-stuff-done/bin/:**
 - Purpose: CLI utility and core business logic.
 - Contains: `gsd-tools.cjs` (main CLI) and `lib/*.cjs` (modules).
 - Key files: `lib/state.cjs`, `lib/phase.cjs`, `lib/config.cjs`.
 
-**get-shit-done/workflows/:**
+**get-stuff-done/workflows/:**
 - Purpose: Orchestration logic for multi-agent processes.
 - Contains: Markdown files defining the sequence of steps.
 - Key files: `new-project.md`, `plan-phase.md`, `execute-phase.md`.
 
-**get-shit-done/references/:**
+**get-stuff-done/references/:**
 - Purpose: Knowledge base for agents and workflows.
 - Contains: Guidelines on git, TDD, questioning, etc.
 - Key files: `model-profiles.md`, `checkpoints.md`, `git-integration.md`.
 
-**get-shit-done/templates/:**
+**get-stuff-done/templates/:**
 - Purpose: Scaffolding for project artifacts.
 - Contains: Markdown templates with variables.
 - Key files: `project.md`, `requirements.md`, `roadmap.md`.
@@ -64,12 +64,12 @@
 - `commands/gsd/`: Directory containing all user-facing command prompts.
 
 **Configuration:**
-- `get-shit-done/bin/lib/config.cjs`: Logic for managing `config.json`.
-- `get-shit-done/references/planning-config.md`: Reference for config options.
+- `get-stuff-done/bin/lib/config.cjs`: Logic for managing `config.json`.
+- `get-stuff-done/references/planning-config.md`: Reference for config options.
 
 **Core Logic:**
-- `get-shit-done/bin/gsd-tools.cjs`: Main entry point for CLI utility.
-- `get-shit-done/bin/lib/*.cjs`: Modular core logic (state, phase, roadmap, etc.).
+- `get-stuff-done/bin/gsd-tools.cjs`: Main entry point for CLI utility.
+- `get-stuff-done/bin/lib/*.cjs`: Modular core logic (state, phase, roadmap, etc.).
 
 **Testing:**
 - `tests/`: Comprehensive suite for testing CLI logic and command workflows.
@@ -90,21 +90,21 @@
 
 **New Command:**
 1. Define command in `commands/gsd/[command-name].md`.
-2. Map to a workflow in `get-shit-done/workflows/[command-name].md` (or reuse existing).
+2. Map to a workflow in `get-stuff-done/workflows/[command-name].md` (or reuse existing).
 3. Update `docs/COMMANDS.md` (if applicable).
 
 **New Workflow Step:**
-1. Modify the relevant workflow in `get-shit-done/workflows/*.md`.
-2. Add necessary CLI logic to `get-shit-done/bin/lib/*.cjs` if current tools are insufficient.
+1. Modify the relevant workflow in `get-stuff-done/workflows/*.md`.
+2. Add necessary CLI logic to `get-stuff-done/bin/lib/*.cjs` if current tools are insufficient.
 
 **New Agent:**
 1. Create `agents/gsd-[role].md`.
-2. Add the agent to `get-shit-done/references/model-profiles.md`.
+2. Add the agent to `get-stuff-done/references/model-profiles.md`.
 3. Reference the agent in the relevant workflow.
 
 **New CLI Utility:**
-1. Add function to existing module in `get-shit-done/bin/lib/` or create a new one.
-2. Expose the command via `get-shit-done/bin/gsd-tools.cjs`.
+1. Add function to existing module in `get-stuff-done/bin/lib/` or create a new one.
+2. Expose the command via `get-stuff-done/bin/gsd-tools.cjs`.
 
 ## Special Directories
 

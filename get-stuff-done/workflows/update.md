@@ -59,10 +59,10 @@ LOCAL_VERSION_FILE="" LOCAL_MARKER_FILE="" LOCAL_DIR="" LOCAL_RUNTIME=""
 for entry in $ORDERED_RUNTIME_DIRS; do
   runtime="${entry%%:*}"
   dir="${entry#*:}"
-  if [ -f "./$dir/get-shit-done/VERSION" ] || [ -f "./$dir/get-shit-done/workflows/update.md" ]; then
+  if [ -f "./$dir/get-stuff-done/VERSION" ] || [ -f "./$dir/get-stuff-done/workflows/update.md" ]; then
     LOCAL_RUNTIME="$runtime"
-    LOCAL_VERSION_FILE="./$dir/get-shit-done/VERSION"
-    LOCAL_MARKER_FILE="./$dir/get-shit-done/workflows/update.md"
+    LOCAL_VERSION_FILE="./$dir/get-stuff-done/VERSION"
+    LOCAL_MARKER_FILE="./$dir/get-stuff-done/workflows/update.md"
     LOCAL_DIR="$(cd "./$dir" 2>/dev/null && pwd)"
     break
   fi
@@ -72,10 +72,10 @@ GLOBAL_VERSION_FILE="" GLOBAL_MARKER_FILE="" GLOBAL_DIR="" GLOBAL_RUNTIME=""
 for entry in $ORDERED_RUNTIME_DIRS; do
   runtime="${entry%%:*}"
   dir="${entry#*:}"
-  if [ -f "$HOME/$dir/get-shit-done/VERSION" ] || [ -f "$HOME/$dir/get-shit-done/workflows/update.md" ]; then
+  if [ -f "$HOME/$dir/get-stuff-done/VERSION" ] || [ -f "$HOME/$dir/get-stuff-done/workflows/update.md" ]; then
     GLOBAL_RUNTIME="$runtime"
-    GLOBAL_VERSION_FILE="$HOME/$dir/get-shit-done/VERSION"
-    GLOBAL_MARKER_FILE="$HOME/$dir/get-shit-done/workflows/update.md"
+    GLOBAL_VERSION_FILE="$HOME/$dir/get-stuff-done/VERSION"
+    GLOBAL_MARKER_FILE="$HOME/$dir/get-stuff-done/workflows/update.md"
     GLOBAL_DIR="$(cd "$HOME/$dir" 2>/dev/null && pwd)"
     break
   fi
@@ -143,14 +143,14 @@ Proceed to install step (treat as version 0.0.0 for comparison).
 Check npm for latest version:
 
 ```bash
-npm view get-shit-done-cc version 2>/dev/null
+npm view get-stuff-done-cc version 2>/dev/null
 ```
 
 **If npm check fails:**
 ```
 Couldn't check for updates (offline or npm unavailable).
 
-To update manually: `npx get-shit-done-cc --global`
+To update manually: `npx get-stuff-done-cc --global`
 ```
 
 Exit.
@@ -214,7 +214,7 @@ Exit.
 
 ⚠️  **Note:** The installer performs a clean install of GSD folders:
 - `commands/gsd/` will be wiped and replaced
-- `get-shit-done/` will be wiped and replaced
+- `get-stuff-done/` will be wiped and replaced
 - `agents/gsd-*` files will be replaced
 
 (Paths are relative to detected runtime install location:
@@ -249,17 +249,17 @@ RUNTIME_FLAG="--$TARGET_RUNTIME"
 
 **If LOCAL install:**
 ```bash
-npx -y get-shit-done-cc@latest "$RUNTIME_FLAG" --local
+npx -y get-stuff-done-cc@latest "$RUNTIME_FLAG" --local
 ```
 
 **If GLOBAL install:**
 ```bash
-npx -y get-shit-done-cc@latest "$RUNTIME_FLAG" --global
+npx -y get-stuff-done-cc@latest "$RUNTIME_FLAG" --global
 ```
 
 **If UNKNOWN install:**
 ```bash
-npx -y get-shit-done-cc@latest --claude --global
+npx -y get-stuff-done-cc@latest --claude --global
 ```
 
 Capture output. If install fails, show error and exit.
@@ -287,7 +287,7 @@ Format completion message (changelog was already shown in confirmation step):
 
 ⚠️  Restart your runtime to pick up the new commands.
 
-[View full changelog](https://github.com/glittercowboy/get-shit-done/blob/main/CHANGELOG.md)
+[View full changelog](https://github.com/glittercowboy/get-stuff-done/blob/main/CHANGELOG.md)
 ```
 </step>
 

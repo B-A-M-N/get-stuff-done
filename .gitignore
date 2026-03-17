@@ -32,7 +32,7 @@ philosophy.md
 # Installed skills
 .github/agents/gsd-*
 .github/skills/gsd-*
-.github/get-shit-done/*
-.github/skills/get-shit-done
+.github/get-stuff-done/*
+.github/skills/get-stuff-done
 .github/copilot-instructions.md
 .bg-shell/

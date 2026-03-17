@@ -5,7 +5,7 @@
 ## Languages
 
 **Primary:**
-- JavaScript (CommonJS) - Used for core logic in `get-shit-done/bin/lib/`, CLI tools in `get-shit-done/bin/gsd-tools.cjs`, and installation scripts in `bin/install.js`.
+- JavaScript (CommonJS) - Used for core logic in `get-stuff-done/bin/lib/`, CLI tools in `get-stuff-done/bin/gsd-tools.cjs`, and installation scripts in `bin/install.js`.
 
 **Secondary:**
 - Markdown - Used for AI agent definitions in `agents/`, workflow commands in `commands/`, and all planning documentation in `.planning/`.

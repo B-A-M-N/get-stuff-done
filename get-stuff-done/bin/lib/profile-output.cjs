@@ -509,7 +509,7 @@ function cmdWriteProfile(cwd, options, raw) {
 
   let outputPath = options.output;
   if (!outputPath) {
-    outputPath = path.join(os.homedir(), '.claude', 'get-shit-done', 'USER-PROFILE.md');
+    outputPath = path.join(os.homedir(), '.claude', 'get-stuff-done', 'USER-PROFILE.md');
   } else if (!path.isAbsolute(outputPath)) {
     outputPath = path.join(cwd, outputPath);
   }

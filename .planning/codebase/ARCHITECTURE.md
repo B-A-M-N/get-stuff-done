@@ -22,7 +22,7 @@
 
 **Workflow Layer:**
 - Purpose: Orchestration logic for complex multi-step processes.
-- Location: `get-shit-done/workflows/`
+- Location: `get-stuff-done/workflows/`
 - Contains: Detailed process definitions that load context, spawn agents, manage gates/checkpoints, and update state.
 - Depends on: CLI Tools Layer, Agent Layer, Reference Layer.
 - Used by: Command Layer.
@@ -36,14 +36,14 @@
 
 **CLI Tools Layer:**
 - Purpose: Low-level utility for state parsing, config management, and artifact generation.
-- Location: `get-shit-done/bin/`
+- Location: `get-stuff-done/bin/`
 - Contains: `gsd-tools.cjs` and domain-specific modules in `lib/*.cjs`.
 - Depends on: Node.js runtime.
 - Used by: Workflow Layer, Installer.
 
 **Reference Layer:**
 - Purpose: Shared knowledge and patterns used across agents and workflows.
-- Location: `get-shit-done/references/`
+- Location: `get-stuff-done/references/`
 - Contains: Documents defining model profiles, verification patterns, git integration, etc.
 - Depends on: None.
 - Used by: Workflow Layer, Agent Layer.
@@ -76,7 +76,7 @@
 
 **Workflows:**
 - Purpose: Declarative orchestration scripts that define the sequence of actions and agent spawns.
-- Examples: `get-shit-done/workflows/new-project.md`, `get-shit-done/workflows/execute-phase.md`.
+- Examples: `get-stuff-done/workflows/new-project.md`, `get-stuff-done/workflows/execute-phase.md`.
 - Pattern: Step-by-step process flow with built-in validation gates.
 
 **Artifacts:**
@@ -97,7 +97,7 @@
 - Responsibilities: Bootstraps the corresponding workflow with necessary context and references.
 
 **CLI Utility:**
-- Location: `get-shit-done/bin/gsd-tools.cjs`
+- Location: `get-stuff-done/bin/gsd-tools.cjs`
 - Triggers: Invoked by workflows via bash commands.
 - Responsibilities: Performs file I/O, state updates, template filling, and config resolution.
 
@@ -113,7 +113,7 @@
 ## Cross-Cutting Concerns
 
 **Logging:** Handled via standard output from `gsd-tools.cjs` and workflow banners.
-**Validation:** `get-shit-done/bin/lib/verify.cjs` provides logic for validating plan structure and phase completeness.
+**Validation:** `get-stuff-done/bin/lib/verify.cjs` provides logic for validating plan structure and phase completeness.
 **Authentication:** Relies on the host AI agent's environment and permissions (e.g., git credentials).
 
 ---

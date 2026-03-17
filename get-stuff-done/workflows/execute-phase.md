@@ -16,7 +16,7 @@ Read STATE.md before any operation to load project context.
 Load all context in one call:
 
 ```bash
-INIT=$(node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" init execute-phase "${PHASE_ARG}")
+INIT=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" init execute-phase "${PHASE_ARG}")
 if [[ "$INIT" == @file:* ]]; then INIT=$(cat "${INIT#@file:}"); fi
 ```
 
@@ -32,7 +32,7 @@ When `parallelization` is false, plans within a wave execute sequentially.
 ```bash
 # REQUIRED: prevents stale auto-chain from previous --auto runs
 if [[ ! "$ARGUMENTS" =~ --auto ]]; then
-  node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" config-set workflow._auto_chain_active false 2>/dev/null
+  node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" config-set workflow._auto_chain_active false 2>/dev/null
 fi
 ```
 </step>
@@ -57,7 +57,7 @@ Report: "Found {plan_count} plans in {phase_dir} ({incomplete_count} incomplete)
 
 **Update STATE.md for phase start:**
 ```bash
-node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" state begin-phase --phase "${PHASE_NUMBER}" --name "${PHASE_NAME}" --plans "${PLAN_COUNT}"
+node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" state begin-phase --phase "${PHASE_NUMBER}" --name "${PHASE_NAME}" --plans "${PLAN_COUNT}"
 ```
 This updates Status, Last Activity, Current focus, Current Position, and plan counts in STATE.md so frontmatter and body text reflect the active phase immediately.
 </step>
@@ -66,7 +66,7 @@ This updates Status, Last Activity, Current focus, Current Position, and plan co
 Load plan inventory with wave grouping in one call:
 
 ```bash
-PLAN_INDEX=$(node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" phase-plan-index "${PHASE_NUMBER}")
+PLAN_INDEX=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" phase-plan-index "${PHASE_NUMBER}")
 ```
 
 Parse JSON for: `phase`, `plans[]` (each with `id`, `wave`, `autonomous`, `objective`, `files_modified`, `task_count`, `has_summary`), `waves` (map of wave number → plan IDs), `incomplete`, `has_checkpoints`.
@@ -125,10 +125,10 @@ Execute each wave in sequence. Within a wave: parallel if `PARALLELIZATION=true`
        </objective>
 
        <execution_context>
-       @~/.claude/get-shit-done/workflows/execute-plan.md
-       @~/.claude/get-shit-done/templates/summary.md
-       @~/.claude/get-shit-done/references/checkpoints.md
-       @~/.claude/get-shit-done/references/tdd.md
+       @~/.claude/get-stuff-done/workflows/execute-plan.md
+       @~/.claude/get-stuff-done/templates/summary.md
+       @~/.claude/get-stuff-done/references/checkpoints.md
+       @~/.claude/get-stuff-done/references/tdd.md
        </execution_context>
 
        <files_to_read>
@@ -188,7 +188,7 @@ Execute each wave in sequence. Within a wave: parallel if `PARALLELIZATION=true`
 
     Before spawning wave N+1, for each plan in the upcoming wave:
     ```bash
-    node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" verify key-links {phase_dir}/{plan}-PLAN.md
+    node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" verify key-links {phase_dir}/{plan}-PLAN.md
     ```
 
     If any key-link from a PRIOR wave's artifact fails verification:
@@ -217,8 +217,8 @@ Plans with `autonomous: false` require user interaction.
 
 Read auto-advance config (chain flag + user preference):
 ```bash
-AUTO_CHAIN=$(node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" config-get workflow._auto_chain_active 2>/dev/null || echo "false")
-AUTO_CFG=$(node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" config-get workflow.auto_advance 2>/dev/null || echo "false")
+AUTO_CHAIN=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" config-get workflow._auto_chain_active 2>/dev/null || echo "false")
+AUTO_CFG=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" config-get workflow.auto_advance 2>/dev/null || echo "false")
 ```
 
 When executor returns a checkpoint AND (`AUTO_CHAIN` is `"true"` OR `AUTO_CFG` is `"true"`):
@@ -293,7 +293,7 @@ fi
 
 **2. Find parent UAT file:**
 ```bash
-PARENT_INFO=$(node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" find-phase "${PARENT_PHASE}" --raw)
+PARENT_INFO=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" find-phase "${PARENT_PHASE}" --raw)
 # Extract directory from PARENT_INFO JSON, then find UAT file in that directory
 ```
 
@@ -324,7 +324,7 @@ mv .planning/debug/{slug}.md .planning/debug/resolved/
 
 **6. Commit updated artifacts:**
 ```bash
-node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" commit "docs(phase-${PARENT_PHASE}): resolve UAT gaps and debug sessions after ${PHASE_NUMBER} gap closure" --files .planning/phases/*${PARENT_PHASE}*/*-UAT.md .planning/debug/resolved/*.md
+node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" commit "docs(phase-${PARENT_PHASE}): resolve UAT gaps and debug sessions after ${PHASE_NUMBER} gap closure" --files .planning/phases/*${PARENT_PHASE}*/*-UAT.md .planning/debug/resolved/*.md
 ```
 </step>
 
@@ -395,7 +395,7 @@ Gap closure cycle: `/gsd:plan-phase {X} --gaps` reads VERIFICATION.md → create
 **Mark phase complete and update all tracking files:**
 
 ```bash
-COMPLETION=$(node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" phase complete "${PHASE_NUMBER}")
+COMPLETION=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" phase complete "${PHASE_NUMBER}")
 ```
 
 The CLI handles:
@@ -408,7 +408,7 @@ The CLI handles:
 Extract from result: `next_phase`, `next_phase_name`, `is_last_phase`.
 
 ```bash
-node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" commit "docs(phase-{X}): complete phase execution" --files .planning/ROADMAP.md .planning/STATE.md .planning/REQUIREMENTS.md {phase_dir}/*-VERIFICATION.md
+node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" commit "docs(phase-{X}): complete phase execution" --files .planning/ROADMAP.md .planning/STATE.md .planning/REQUIREMENTS.md {phase_dir}/*-VERIFICATION.md
 ```
 </step>
 
@@ -444,8 +444,8 @@ STOP. Do not proceed to auto-advance or transition.
 1. Parse `--auto` flag from $ARGUMENTS
 2. Read both the chain flag and user preference (chain flag already synced in init step):
    ```bash
-   AUTO_CHAIN=$(node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" config-get workflow._auto_chain_active 2>/dev/null || echo "false")
-   AUTO_CFG=$(node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" config-get workflow.auto_advance 2>/dev/null || echo "false")
+   AUTO_CHAIN=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" config-get workflow._auto_chain_active 2>/dev/null || echo "false")
+   AUTO_CFG=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" config-get workflow.auto_advance 2>/dev/null || echo "false")
    ```
 
 **If `--auto` flag present OR `AUTO_CHAIN` is true OR `AUTO_CFG` is true (AND verification passed with no gaps):**
@@ -459,7 +459,7 @@ STOP. Do not proceed to auto-advance or transition.
 
 Execute the transition workflow inline (do NOT use Task — orchestrator context is ~10-15%, transition needs phase completion data already in context):
 
-Read and follow `~/.claude/get-shit-done/workflows/transition.md`, passing through the `--auto` flag so it propagates to the next phase invocation.
+Read and follow `~/.claude/get-stuff-done/workflows/transition.md`, passing through the `--auto` flag so it propagates to the next phase invocation.
 
 **If none of `--auto`, `AUTO_CHAIN`, or `AUTO_CFG` is true:**
 
