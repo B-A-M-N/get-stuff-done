@@ -286,6 +286,7 @@ describe('verify plan-structure command', () => {
     );
   });
 
+
   test('returns error for nonexistent file', () => {
     const result = runGsdTools('verify plan-structure .planning/phases/01-test/nonexistent.md', tmpDir);
     assert.ok(result.success, `Command failed: ${result.error}`);
@@ -418,6 +419,11 @@ describe('verify summary command', () => {
     // Write SUMMARY.md referencing the file and commit hash
     const summaryPath = path.join(tmpDir, '.planning', 'phases', '01-test', '01-01-SUMMARY.md');
     fs.writeFileSync(summaryPath, [
+      '---',
+      'phase: 01',
+      'plan: 01',
+      'name: add-app-js',
+      '---',
       '# Summary',
       '',
       `Created: \`src/app.js\``,
@@ -437,6 +443,11 @@ describe('verify summary command', () => {
   test('reports missing files mentioned in summary', () => {
     const summaryPath = path.join(tmpDir, '.planning', 'phases', '01-test', '01-01-SUMMARY.md');
     fs.writeFileSync(summaryPath, [
+      '---',
+      'phase: 01',
+      'plan: 01',
+      'name: missing-files',
+      '---',
       '# Summary',
       '',
       'Created: `src/nonexistent.js`',
@@ -455,6 +466,11 @@ describe('verify summary command', () => {
   test('detects self-check section with pass indicators', () => {
     const summaryPath = path.join(tmpDir, '.planning', 'phases', '01-test', '01-01-SUMMARY.md');
     fs.writeFileSync(summaryPath, [
+      '---',
+      'phase: 01',
+      'plan: 01',
+      'name: self-check-pass',
+      '---',
       '# Summary',
       '',
       '## Self-Check',
@@ -472,6 +488,11 @@ describe('verify summary command', () => {
   test('detects self-check section with fail indicators', () => {
     const summaryPath = path.join(tmpDir, '.planning', 'phases', '01-test', '01-01-SUMMARY.md');
     fs.writeFileSync(summaryPath, [
+      '---',
+      'phase: 01',
+      'plan: 01',
+      'name: self-check-fail',
+      '---',
       '# Summary',
       '',
       '## Verification',
@@ -489,6 +510,11 @@ describe('verify summary command', () => {
   test('REG-03: returns self_check "not_found" when no self-check section exists', () => {
     const summaryPath = path.join(tmpDir, '.planning', 'phases', '01-test', '01-01-SUMMARY.md');
     fs.writeFileSync(summaryPath, [
+      '---',
+      'phase: 01',
+      'plan: 01',
+      'name: no-self-check',
+      '---',
       '# Summary',
       '',
       '## Accomplishments',
@@ -509,6 +535,11 @@ describe('verify summary command', () => {
     // content.search(selfCheckPattern) from ever being called, so -1 is impossible
     const summaryPath = path.join(tmpDir, '.planning', 'phases', '01-test', '01-01-SUMMARY.md');
     fs.writeFileSync(summaryPath, [
+      '---',
+      'phase: 01',
+      'plan: 01',
+      'name: no-heading',
+      '---',
       '# Summary',
       '',
       '## Notes',
@@ -528,6 +559,11 @@ describe('verify summary command', () => {
     // Write summary referencing 5 files (none exist)
     const summaryPath = path.join(tmpDir, '.planning', 'phases', '01-test', '01-01-SUMMARY.md');
     fs.writeFileSync(summaryPath, [
+      '---',
+      'phase: 01',
+      'plan: 01',
+      'name: test',
+      '---',
       '# Summary',
       '',
       'Files: `src/a.js`, `src/b.js`, `src/c.js`, `src/d.js`, `src/e.js`',
@@ -542,6 +578,46 @@ describe('verify summary command', () => {
       output.checks.files_created.checked <= 1,
       `Expected checked <= 1, got ${output.checks.files_created.checked}`
     );
+  });
+
+  test('reports schema errors for malformed SUMMARY.md frontmatter', () => {
+    const summaryPath = path.join(tmpDir, '.planning', 'phases', '01-test', '01-01-SUMMARY.md');
+    // Missing required 'phase' and 'plan' fields
+    fs.writeFileSync(summaryPath, [
+      '---',
+      'name: missing-fields',
+      '---',
+      '# Malformed Summary',
+    ].join('\n'));
+
+    const result = runGsdTools('verify-summary .planning/phases/01-test/01-01-SUMMARY.md', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.passed, false, 'should fail schema validation');
+    assert.strictEqual(output.checks.schema_valid, false);
+    assert.ok(
+      output.errors.some(e => e.includes('Schema error: phase - Invalid input: expected string, received undefined')),
+      `Expected phase required error: ${JSON.stringify(output.errors)}`
+    );
+  });
+
+  test('passes schema validation for well-formed SUMMARY.md', () => {
+    const summaryPath = path.join(tmpDir, '.planning', 'phases', '01-test', '01-01-SUMMARY.md');
+    fs.writeFileSync(summaryPath, [
+      '---',
+      'phase: 01',
+      'plan: 01',
+      'name: valid-summary',
+      '---',
+      '# Valid Summary',
+    ].join('\n'));
+
+    const result = runGsdTools('verify-summary .planning/phases/01-test/01-01-SUMMARY.md', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.checks.schema_valid, true, 'schema should be valid');
   });
 });
 
@@ -1009,5 +1085,173 @@ describe('verify key-links command', () => {
       output.error.includes('No must_haves.key_links'),
       `Expected "No must_haves.key_links" in error: ${output.error}`
     );
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// verify context-contract command
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('verify context-contract command', () => {
+  let tmpDir;
+
+  beforeEach(() => {
+    tmpDir = createTempProject();
+    fs.mkdirSync(path.join(tmpDir, '.planning', 'phases', '01-test'), { recursive: true });
+  });
+
+  afterEach(() => {
+    cleanup(tmpDir);
+  });
+
+  test('passes when unresolved ambiguities and assumptions stay out of locked decisions', () => {
+    const contextPath = path.join(tmpDir, '.planning', 'phases', '01-test', '01-CONTEXT.md');
+    fs.writeFileSync(contextPath, [
+      '# Phase 1: Test - Context',
+      '',
+      '<decisions>',
+      '## Implementation Decisions',
+      '### Output',
+      '- Use JSON output by default.',
+      '</decisions>',
+      '',
+      '<research_cues>',
+      '## Research Cues',
+      '### Unresolved Ambiguities',
+      '- Whether pagination should be automatic.',
+      '### Interpreted Assumptions',
+      '- Existing API auth can be reused.',
+      '</research_cues>',
+    ].join('\n'));
+
+    const result = runGsdTools('verify context-contract .planning/phases/01-test/01-CONTEXT.md', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.valid, true, `should be valid, errors: ${JSON.stringify(output.errors)}`);
+  });
+
+  test('fails when guidance-only items are duplicated in implementation decisions', () => {
+    const contextPath = path.join(tmpDir, '.planning', 'phases', '01-test', '01-CONTEXT.md');
+    fs.writeFileSync(contextPath, [
+      '# Phase 1: Test - Context',
+      '',
+      '<decisions>',
+      '## Implementation Decisions',
+      '### Output',
+      '- Existing API auth can be reused.',
+      '</decisions>',
+      '',
+      '<research_cues>',
+      '## Research Cues',
+      '### Unresolved Ambiguities',
+      '- Whether pagination should be automatic.',
+      '### Interpreted Assumptions',
+      '- Existing API auth can be reused.',
+      '</research_cues>',
+    ].join('\n'));
+
+    const result = runGsdTools('verify context-contract .planning/phases/01-test/01-CONTEXT.md', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.valid, false, 'should be invalid');
+    assert.ok(
+      output.errors.some(e => e.includes('Guidance-only item duplicated in Implementation Decisions')),
+      `Expected duplication error: ${JSON.stringify(output.errors)}`
+    );
+  });
+
+  test('fails when plan hardens unresolved ambiguity without assumption/defer markers', () => {
+    const contextPath = path.join(tmpDir, '.planning', 'phases', '01-test', '01-CONTEXT.md');
+    const planPath = path.join(tmpDir, '.planning', 'phases', '01-test', '01-01-PLAN.md');
+    fs.writeFileSync(contextPath, [
+      '# Phase 1: Test - Context',
+      '',
+      '<decisions>',
+      '## Implementation Decisions',
+      '### Output',
+      '- Use JSON output by default.',
+      '</decisions>',
+      '',
+      '<research_cues>',
+      '## Research Cues',
+      '### Unresolved Ambiguities',
+      '- Whether pagination should be automatic.',
+      '### Interpreted Assumptions',
+      '- Existing API auth can be reused.',
+      '</research_cues>',
+    ].join('\n'));
+    fs.writeFileSync(planPath, [
+      '---',
+      'phase: 01-test',
+      'plan: 01',
+      'type: execute',
+      'wave: 1',
+      'depends_on: []',
+      'files_modified: []',
+      'autonomous: true',
+      'must_haves:',
+      '  truths: []',
+      '---',
+      '',
+      'The implementation will assume existing API auth can be reused.',
+      'The task also decides whether pagination should be automatic.',
+    ].join('\n'));
+
+    const result = runGsdTools('verify context-contract .planning/phases/01-test/01-CONTEXT.md --plan .planning/phases/01-test/01-01-PLAN.md', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.valid, false, 'should be invalid');
+    assert.ok(
+      output.errors.some(e => e.includes('Unresolved ambiguity appears in the plan')),
+      `Expected unresolved ambiguity carry-forward error: ${JSON.stringify(output.errors)}`
+    );
+    assert.ok(
+      output.errors.some(e => e.includes('Interpreted assumption appears in the plan')),
+      `Expected interpreted assumption carry-forward error: ${JSON.stringify(output.errors)}`
+    );
+  });
+
+  test('passes when plan carries forward ambiguity as assumption/deferred work', () => {
+    const contextPath = path.join(tmpDir, '.planning', 'phases', '01-test', '01-CONTEXT.md');
+    const planPath = path.join(tmpDir, '.planning', 'phases', '01-test', '01-01-PLAN.md');
+    fs.writeFileSync(contextPath, [
+      '# Phase 1: Test - Context',
+      '',
+      '<decisions>',
+      '## Implementation Decisions',
+      '### Output',
+      '- Use JSON output by default.',
+      '</decisions>',
+      '',
+      '<research_cues>',
+      '## Research Cues',
+      '### Unresolved Ambiguities',
+      '- Whether pagination should be automatic.',
+      '### Interpreted Assumptions',
+      '- Existing API auth can be reused.',
+      '</research_cues>',
+    ].join('\n'));
+    fs.writeFileSync(planPath, [
+      '---',
+      'phase: 01-test',
+      'plan: 01',
+      'type: execute',
+      'wave: 1',
+      'depends_on: []',
+      'files_modified: []',
+      'autonomous: true',
+      'must_haves:',
+      '  truths: []',
+      '---',
+      '',
+      'Open question: Whether pagination should be automatic.',
+      'Assumption: Existing API auth can be reused.',
+      'Deferred follow-up if either assumption is wrong.',
+    ].join('\n'));
+
+    const result = runGsdTools('verify context-contract .planning/phases/01-test/01-CONTEXT.md --plan .planning/phases/01-test/01-01-PLAN.md', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.valid, true, `should be valid, errors: ${JSON.stringify(output.errors)}`);
   });
 });

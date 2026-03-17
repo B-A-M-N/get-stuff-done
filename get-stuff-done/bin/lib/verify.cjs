@@ -27,6 +27,7 @@ function cmdVerifySummary(cwd, summaryPath, checkFileCount, raw) {
         files_created: { checked: 0, found: 0, missing: [] },
         commits_exist: false,
         self_check: 'not_found',
+        schema_valid: false,
       },
       errors: ['SUMMARY.md not found'],
     };
@@ -35,7 +36,16 @@ function cmdVerifySummary(cwd, summaryPath, checkFileCount, raw) {
   }
 
   const content = fs.readFileSync(fullPath, 'utf-8');
+  const fm = extractFrontmatter(content);
   const errors = [];
+
+  // Check 1.5: Schema validation (SCHEMA-03)
+  const schemaResult = executionSummarySchema.safeParse(fm);
+  if (!schemaResult.success) {
+    for (const issue of schemaResult.error.issues) {
+      errors.push(`Schema error: ${issue.path.join('.')} - ${issue.message}`);
+    }
+  }
 
   // Check 2: Spot-check files mentioned in summary
   const mentionedFiles = new Set();
@@ -69,7 +79,7 @@ function cmdVerifySummary(cwd, summaryPath, checkFileCount, raw) {
   if (hashes.length > 0) {
     for (const hash of hashes.slice(0, 3)) {
       const result = execGit(cwd, ['cat-file', '-t', hash]);
-      if (result.exitCode === 0 && result.stdout === 'commit') {
+      if (result.exitCode === 0 && result.stdout.trim() === 'commit') {
         commitsExist = true;
         break;
       }
@@ -96,12 +106,13 @@ function cmdVerifySummary(cwd, summaryPath, checkFileCount, raw) {
 
   const checks = {
     summary_exists: true,
+    schema_valid: schemaResult.success,
     files_created: { checked: filesToCheck.length, found: filesToCheck.length - missing.length, missing },
     commits_exist: commitsExist,
     self_check: selfCheck,
   };
 
-  const passed = missing.length === 0 && selfCheck !== 'failed';
+  const passed = schemaResult.success && missing.length === 0 && selfCheck !== 'failed';
   const result = { passed, checks, errors };
   output(result, raw, passed ? 'passed' : 'failed');
 }
