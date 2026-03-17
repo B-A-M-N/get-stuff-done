@@ -16,11 +16,21 @@ Read STATE.md before any operation to load project context.
 Load all context in one call:
 
 ```bash
-INIT=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" init execute-phase "${PHASE_ARG}")
+INIT=$(node "/home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" init execute-phase "${PHASE_ARG}")
 if [[ "$INIT" == @file:* ]]; then INIT=$(cat "${INIT#@file:}"); fi
 ```
 
-Parse JSON for: `executor_model`, `verifier_model`, `commit_docs`, `parallelization`, `branching_strategy`, `branch_name`, `phase_found`, `phase_dir`, `phase_number`, `phase_name`, `phase_slug`, `plans`, `incomplete_plans`, `plan_count`, `incomplete_count`, `state_exists`, `roadmap_exists`, `phase_req_ids`.
+Parse JSON for: `executor_model`, `verifier_model`, `commit_docs`, `parallelization`, `branching_strategy`, `branch_name`, `phase_found`, `phase_dir`, `phase_number`, `phase_name`, `phase_slug`, `plans`, `incomplete_plans`, `plan_count`, `incomplete_count`, `state_exists`, `roadmap_exists`, `phase_req_ids`, `clarification_status`.
+
+**Clarification Gate:**
+```bash
+CLARIFICATION_STATUS=$(printf '%s\n' "$INIT" | jq -r '.clarification_status // "none"')
+if [ "$CLARIFICATION_STATUS" == "blocked" ]; then
+  echo "ERROR: Project is currently BLOCKED due to unresolved clarification."
+  echo "Run /gsd:resume-project to address the blocker."
+  exit 1
+fi
+```
 
 **If `phase_found` is false:** Error — phase directory not found.
 **If `plan_count` is 0:** Error — no plans found in phase.
@@ -32,7 +42,7 @@ When `parallelization` is false, plans within a wave execute sequentially.
 ```bash
 # REQUIRED: prevents stale auto-chain from previous --auto runs
 if [[ ! "$ARGUMENTS" =~ --auto ]]; then
-  node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" config-set workflow._auto_chain_active false 2>/dev/null
+  node "/home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" config-set workflow._auto_chain_active false 2>/dev/null
 fi
 ```
 </step>
@@ -57,7 +67,7 @@ Report: "Found {plan_count} plans in {phase_dir} ({incomplete_count} incomplete)
 
 **Update STATE.md for phase start:**
 ```bash
-node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" state begin-phase --phase "${PHASE_NUMBER}" --name "${PHASE_NAME}" --plans "${PLAN_COUNT}"
+node "/home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" state begin-phase --phase "${PHASE_NUMBER}" --name "${PHASE_NAME}" --plans "${PLAN_COUNT}"
 ```
 This updates Status, Last Activity, Current focus, Current Position, and plan counts in STATE.md so frontmatter and body text reflect the active phase immediately.
 </step>
@@ -66,7 +76,7 @@ This updates Status, Last Activity, Current focus, Current Position, and plan co
 Load plan inventory with wave grouping in one call:
 
 ```bash
-PLAN_INDEX=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" phase-plan-index "${PHASE_NUMBER}")
+PLAN_INDEX=$(node "/home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" phase-plan-index "${PHASE_NUMBER}")
 ```
 
 Parse JSON for: `phase`, `plans[]` (each with `id`, `wave`, `autonomous`, `objective`, `files_modified`, `task_count`, `has_summary`), `waves` (map of wave number → plan IDs), `incomplete`, `has_checkpoints`.
@@ -188,7 +198,7 @@ Execute each wave in sequence. Within a wave: parallel if `PARALLELIZATION=true`
 
     Before spawning wave N+1, for each plan in the upcoming wave:
     ```bash
-    node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" verify key-links {phase_dir}/{plan}-PLAN.md
+    node "/home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" verify key-links {phase_dir}/{plan}-PLAN.md
     ```
 
     If any key-link from a PRIOR wave's artifact fails verification:
@@ -217,8 +227,8 @@ Plans with `autonomous: false` require user interaction.
 
 Read auto-advance config (chain flag + user preference):
 ```bash
-AUTO_CHAIN=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" config-get workflow._auto_chain_active 2>/dev/null || echo "false")
-AUTO_CFG=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" config-get workflow.auto_advance 2>/dev/null || echo "false")
+AUTO_CHAIN=$(node "/home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" config-get workflow._auto_chain_active 2>/dev/null || echo "false")
+AUTO_CFG=$(node "/home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" config-get workflow.auto_advance 2>/dev/null || echo "false")
 ```
 
 When executor returns a checkpoint AND (`AUTO_CHAIN` is `"true"` OR `AUTO_CFG` is `"true"`):
@@ -231,7 +241,22 @@ When executor returns a checkpoint AND (`AUTO_CHAIN` is `"true"` OR `AUTO_CFG` i
 1. Spawn agent for checkpoint plan
 2. Agent runs until checkpoint task or auth gate → returns structured state
 3. Agent return includes: completed tasks table, current task + blocker, checkpoint type/details, what's awaited, plus explicit checkpoint fields: `status`, `why_blocked`, `what_is_uncertain`, `choices`, `allow_freeform`, and `resume_condition`
-3.5. Validate the checkpoint payload with `verify checkpoint-response` before showing it to the user. If malformed, reject it and request a corrected checkpoint return.
+3.5. **Hard Gate: Validate the checkpoint payload (ENFORCE-02)** before showing it to the user:
+```bash
+if [ -f "$CHECKPOINT_FILE" ]; then
+  node "/home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" verify checkpoint-response "$CHECKPOINT_FILE"
+  if [ $? -ne 0 ]; then
+    echo "ERROR: Invalid checkpoint response format (Requirement ENFORCE-02)."
+    echo "The agent produced a malformed checkpoint payload."
+    exit 1
+  fi
+else
+  echo "ERROR: Checkpoint file $CHECKPOINT_FILE not found (Requirement ENFORCE-02)."
+  exit 1
+fi
+```
+If malformed, the workflow halts. The agent must produce a valid checkpoint artifact to proceed.
+
 4. **Present to user:**
    ```
    ## Checkpoint: [Type]
@@ -247,16 +272,16 @@ When executor returns a checkpoint AND (`AUTO_CHAIN` is `"true"` OR `AUTO_CFG` i
 4.5. **Transition CHECKPOINT.md and STATE.md to awaiting-response** (after presenting to user, before waiting for response):
    ```bash
    # Update STATE.md checkpoint lifecycle fields atomically
-   node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" state checkpoint \
+   node "/home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" state checkpoint \
      --status awaiting-response \
      --path "{phase_dir}/CHECKPOINT.md"
 
    # Update CHECKPOINT.md status field
-   node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" frontmatter set \
+   node "/home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" frontmatter set \
      "{phase_dir}/CHECKPOINT.md" --field status --value '"awaiting-response"'
 
    # Commit both files together
-   node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" commit \
+   node "/home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" commit \
      "chore({phase}-checkpoint): update checkpoint to awaiting-response" \
      --files "{phase_dir}/CHECKPOINT.md" .planning/STATE.md
    ```
@@ -275,17 +300,17 @@ When executor returns a checkpoint AND (`AUTO_CHAIN` is `"true"` OR `AUTO_CFG` i
    RESOLVED_AT=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
    # Mark CHECKPOINT.md resolved with timestamp
-   node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" frontmatter set \
+   node "/home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" frontmatter set \
      "{phase_dir}/CHECKPOINT.md" --field status --value '"resolved"'
-   node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" frontmatter set \
+   node "/home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" frontmatter set \
      "{phase_dir}/CHECKPOINT.md" --field resolved_at --value "\"$RESOLVED_AT\""
 
    # Clear checkpoint fields from STATE.md (empty values excluded from frontmatter by falsy guard)
-   node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" state checkpoint \
+   node "/home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" state checkpoint \
      --status "" --path ""
 
    # Commit both files together
-   node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" commit \
+   node "/home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" commit \
      "chore({phase}-checkpoint): resolve checkpoint" \
      --files "{phase_dir}/CHECKPOINT.md" .planning/STATE.md
    ```
@@ -335,7 +360,7 @@ fi
 
 **2. Find parent UAT file:**
 ```bash
-PARENT_INFO=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" find-phase "${PARENT_PHASE}" --raw)
+PARENT_INFO=$(node "/home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" find-phase "${PARENT_PHASE}" --raw)
 # Extract directory from PARENT_INFO JSON, then find UAT file in that directory
 ```
 
@@ -366,7 +391,7 @@ mv .planning/debug/{slug}.md .planning/debug/resolved/
 
 **6. Commit updated artifacts:**
 ```bash
-node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" commit "docs(phase-${PARENT_PHASE}): resolve UAT gaps and debug sessions after ${PHASE_NUMBER} gap closure" --files .planning/phases/*${PARENT_PHASE}*/*-UAT.md .planning/debug/resolved/*.md
+node "/home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" commit "docs(phase-${PARENT_PHASE}): resolve UAT gaps and debug sessions after ${PHASE_NUMBER} gap closure" --files .planning/phases/*${PARENT_PHASE}*/*-UAT.md .planning/debug/resolved/*.md
 ```
 </step>
 
@@ -437,7 +462,7 @@ Gap closure cycle: `/gsd:plan-phase {X} --gaps` reads VERIFICATION.md → create
 **Mark phase complete and update all tracking files:**
 
 ```bash
-COMPLETION=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" phase complete "${PHASE_NUMBER}")
+COMPLETION=$(node "/home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" phase complete "${PHASE_NUMBER}")
 ```
 
 The CLI handles:
@@ -450,7 +475,7 @@ The CLI handles:
 Extract from result: `next_phase`, `next_phase_name`, `is_last_phase`.
 
 ```bash
-node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" commit "docs(phase-{X}): complete phase execution" --files .planning/ROADMAP.md .planning/STATE.md .planning/REQUIREMENTS.md {phase_dir}/*-VERIFICATION.md
+node "/home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" commit "docs(phase-{X}): complete phase execution" --files .planning/ROADMAP.md .planning/STATE.md .planning/REQUIREMENTS.md {phase_dir}/*-VERIFICATION.md
 ```
 </step>
 
@@ -486,8 +511,8 @@ STOP. Do not proceed to auto-advance or transition.
 1. Parse `--auto` flag from $ARGUMENTS
 2. Read both the chain flag and user preference (chain flag already synced in init step):
    ```bash
-   AUTO_CHAIN=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" config-get workflow._auto_chain_active 2>/dev/null || echo "false")
-   AUTO_CFG=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" config-get workflow.auto_advance 2>/dev/null || echo "false")
+   AUTO_CHAIN=$(node "/home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" config-get workflow._auto_chain_active 2>/dev/null || echo "false")
+   AUTO_CFG=$(node "/home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" config-get workflow.auto_advance 2>/dev/null || echo "false")
    ```
 
 **If `--auto` flag present OR `AUTO_CHAIN` is true OR `AUTO_CFG` is true (AND verification passed with no gaps):**
