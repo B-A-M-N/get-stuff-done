@@ -8,6 +8,7 @@ const os = require('os');
 const { safeReadFile, normalizePhaseName, execGit, findPhaseInternal, getMilestoneInfo, stripShippedMilestones, output, error } = require('./core.cjs');
 const { extractFrontmatter, parseMustHavesBlock } = require('./frontmatter.cjs');
 const { writeStateMd } = require('./state.cjs');
+const { checkpointResponseSchema } = require('./artifact-schema.cjs');
 
 function cmdVerifySummary(cwd, summaryPath, checkFileCount, raw) {
   if (!summaryPath) {
@@ -122,11 +123,14 @@ function cmdVerifyPlanStructure(cwd, filePath, raw) {
   }
 
   // Parse and check task elements
-  const taskPattern = /<task[^>]*>([\s\S]*?)<\/task>/g;
+  const taskPattern = /<task\b[^>]*>([\s\S]*?)<\/task>/g;
   const tasks = [];
   let taskMatch;
   while ((taskMatch = taskPattern.exec(content)) !== null) {
+    const taskOpenTag = taskMatch[0].match(/^<task[^>]*>/)?.[0] || '<task>';
     const taskContent = taskMatch[1];
+    const typeMatch = taskOpenTag.match(/type=["']([^"']+)["']/i);
+    const taskType = typeMatch ? typeMatch[1].trim() : 'auto';
     const nameMatch = taskContent.match(/<name>([\s\S]*?)<\/name>/);
     const taskName = nameMatch ? nameMatch[1].trim() : 'unnamed';
     const hasFiles = /<files>/.test(taskContent);
@@ -140,7 +144,46 @@ function cmdVerifyPlanStructure(cwd, filePath, raw) {
     if (!hasDone) warnings.push(`Task '${taskName}' missing <done>`);
     if (!hasFiles) warnings.push(`Task '${taskName}' missing <files>`);
 
-    tasks.push({ name: taskName, hasFiles, hasAction, hasVerify, hasDone });
+    if (taskType === 'checkpoint:human-verify') {
+      if (!/<what-built>[\s\S]*?<\/what-built>/i.test(taskContent)) {
+        errors.push(`Checkpoint task '${taskName}' missing <what-built>`);
+      }
+      if (!/<how-to-verify>[\s\S]*?<\/how-to-verify>/i.test(taskContent)) {
+        errors.push(`Checkpoint task '${taskName}' missing <how-to-verify>`);
+      }
+      if (!/<resume-signal>[\s\S]*?<\/resume-signal>/i.test(taskContent)) {
+        errors.push(`Checkpoint task '${taskName}' missing <resume-signal>`);
+      }
+    }
+
+    if (taskType === 'checkpoint:decision') {
+      if (!/<decision>[\s\S]*?<\/decision>/i.test(taskContent)) {
+        errors.push(`Checkpoint task '${taskName}' missing <decision>`);
+      }
+      if (!/<context>[\s\S]*?<\/context>/i.test(taskContent)) {
+        errors.push(`Checkpoint task '${taskName}' missing <context>`);
+      }
+      if (!/<options>[\s\S]*?<\/options>/i.test(taskContent)) {
+        errors.push(`Checkpoint task '${taskName}' missing <options>`);
+      }
+      if (!/<resume-signal>[\s\S]*?<\/resume-signal>/i.test(taskContent)) {
+        errors.push(`Checkpoint task '${taskName}' missing <resume-signal>`);
+      }
+    }
+
+    if (taskType === 'checkpoint:human-action') {
+      if (!/<instructions>[\s\S]*?<\/instructions>/i.test(taskContent)) {
+        errors.push(`Checkpoint task '${taskName}' missing <instructions>`);
+      }
+      if (!/<verification>[\s\S]*?<\/verification>/i.test(taskContent)) {
+        errors.push(`Checkpoint task '${taskName}' missing <verification>`);
+      }
+      if (!/<resume-signal>[\s\S]*?<\/resume-signal>/i.test(taskContent)) {
+        errors.push(`Checkpoint task '${taskName}' missing <resume-signal>`);
+      }
+    }
+
+    tasks.push({ name: taskName, type: taskType, hasFiles, hasAction, hasVerify, hasDone });
   }
 
   if (tasks.length === 0) warnings.push('No <task> elements found');
@@ -164,6 +207,21 @@ function cmdVerifyPlanStructure(cwd, filePath, raw) {
     tasks,
     frontmatter_fields: Object.keys(fm),
   }, raw, errors.length === 0 ? 'valid' : 'invalid');
+}
+
+function cmdVerifyCheckpointResponse(cwd, filePath, raw) {
+  if (!filePath) { error('file path required'); }
+  const fullPath = path.isAbsolute(filePath) ? filePath : path.join(cwd, filePath);
+  const content = safeReadFile(fullPath);
+  if (!content) { output({ error: 'File not found', path: filePath }, raw); return; }
+
+  const result = checkpointResponseSchema.safeParse(content);
+  if (result.success) {
+    output({ valid: true, errors: [], fields: result.data }, raw, 'valid');
+  } else {
+    const errors = result.error.errors.map(e => e.message);
+    output({ valid: false, errors, fields: {} }, raw, 'invalid');
+  }
 }
 
 function cmdVerifyPhaseCompleteness(cwd, phase, raw) {
@@ -393,6 +451,143 @@ function cmdVerifyKeyLinks(cwd, planFilePath, raw) {
     total: results.length,
     links: results,
   }, raw, verified === results.length ? 'valid' : 'invalid');
+}
+
+function extractTaggedBullets(content, tagName) {
+  const pattern = new RegExp(`<${tagName}>\\s*([\\s\\S]*?)\\s*</${tagName}>`, 'i');
+  const match = content.match(pattern);
+  if (!match) return [];
+  return match[1]
+    .split('\n')
+    .map(line => line.trim())
+    .filter(line => line.startsWith('- '))
+    .map(line => line.slice(2).trim())
+    .filter(Boolean)
+    .filter(line => !/^none\b/i.test(line));
+}
+
+function extractHeadingBullets(content, heading) {
+  const pattern = new RegExp(`###\\s+${heading}\\s*\\n([\\s\\S]*?)(?=\\n###\\s+|\\n</|$)`, 'i');
+  const match = content.match(pattern);
+  if (!match) return [];
+  return match[1]
+    .split('\n')
+    .map(line => line.trim())
+    .filter(line => line.startsWith('- '))
+    .map(line => line.slice(2).trim())
+    .filter(Boolean)
+    .filter(line => !/^none\b/i.test(line));
+}
+
+function findUncheckedCarryForward(items, planContent, label) {
+  const issues = [];
+
+  for (const item of items) {
+    const index = planContent.toLowerCase().indexOf(item.toLowerCase());
+    if (index === -1) continue;
+    const windowStart = Math.max(0, index - 120);
+    const windowEnd = Math.min(planContent.length, index + item.length + 120);
+    const window = planContent.slice(windowStart, windowEnd).toLowerCase();
+    const markedSafe = /(assumption|defer|deferred|follow-up|open question|clarif|pause|unknown|unresolved)/.test(window);
+    if (!markedSafe) {
+      issues.push(`${label} appears in the plan without an assumption/defer/clarification marker: ${item}`);
+    }
+  }
+
+  return issues;
+}
+
+function cmdVerifyContextContract(cwd, contextFilePath, planFilePath, raw) {
+  if (!contextFilePath) { error('context file path required'); }
+  const contextFullPath = path.isAbsolute(contextFilePath) ? contextFilePath : path.join(cwd, contextFilePath);
+  const contextContent = safeReadFile(contextFullPath);
+  if (!contextContent) { output({ error: 'Context file not found', path: contextFilePath }, raw); return; }
+
+  const implementationDecisions = extractTaggedBullets(contextContent, 'decisions');
+  const unresolvedAmbiguities = extractHeadingBullets(contextContent, 'Unresolved Ambiguities');
+  const interpretedAssumptions = extractHeadingBullets(contextContent, 'Interpreted Assumptions');
+  const errors = [];
+  const warnings = [];
+
+  if (!/###\s+Unresolved Ambiguities/i.test(contextContent)) {
+    warnings.push('CONTEXT.md is missing the "Unresolved Ambiguities" section.');
+  }
+
+  for (const item of [...unresolvedAmbiguities, ...interpretedAssumptions]) {
+    if (implementationDecisions.some(decision => decision.toLowerCase() === item.toLowerCase())) {
+      errors.push(`Guidance-only item duplicated in Implementation Decisions: ${item}`);
+    }
+  }
+
+  let plan = null;
+  if (planFilePath) {
+    const planFullPath = path.isAbsolute(planFilePath) ? planFilePath : path.join(cwd, planFilePath);
+    const planContent = safeReadFile(planFullPath);
+    if (!planContent) { output({ error: 'Plan file not found', path: planFilePath }, raw); return; }
+    errors.push(...findUncheckedCarryForward(unresolvedAmbiguities, planContent, 'Unresolved ambiguity'));
+    errors.push(...findUncheckedCarryForward(interpretedAssumptions, planContent, 'Interpreted assumption'));
+    plan = { path: planFilePath, checked: true };
+  }
+
+  output({
+    valid: errors.length === 0,
+    context: {
+      path: contextFilePath,
+      unresolved_ambiguities: unresolvedAmbiguities,
+      interpreted_assumptions: interpretedAssumptions,
+      implementation_decisions: implementationDecisions,
+    },
+    plan,
+    errors,
+    warnings,
+  }, raw, errors.length === 0 ? 'valid' : 'invalid');
+}
+
+function cmdVerifyResearchContract(cwd, contextFilePath, researchFilePath, raw) {
+  if (!contextFilePath) { error('context file path required'); }
+  if (!researchFilePath) { error('research file path required'); }
+
+  const contextFullPath = path.isAbsolute(contextFilePath) ? contextFilePath : path.join(cwd, contextFilePath);
+  const researchFullPath = path.isAbsolute(researchFilePath) ? researchFilePath : path.join(cwd, researchFilePath);
+  const contextContent = safeReadFile(contextFullPath);
+  const researchContent = safeReadFile(researchFullPath);
+  if (!contextContent) { output({ error: 'Context file not found', path: contextFilePath }, raw); return; }
+  if (!researchContent) { output({ error: 'Research file not found', path: researchFilePath }, raw); return; }
+
+  const unresolvedAmbiguities = extractHeadingBullets(contextContent, 'Unresolved Ambiguities');
+  const interpretedAssumptions = extractHeadingBullets(contextContent, 'Interpreted Assumptions');
+  const errors = [];
+  const warnings = [];
+
+  errors.push(...findUncheckedCarryForward(
+    unresolvedAmbiguities,
+    researchContent,
+    'Unresolved ambiguity'
+  ));
+  errors.push(...findUncheckedCarryForward(
+    interpretedAssumptions,
+    researchContent,
+    'Interpreted assumption'
+  ));
+
+  if (!/open question|unresolved|assumption|investigate|unknown/i.test(researchContent)) {
+    warnings.push('RESEARCH.md does not visibly carry forward open-question / assumption language.');
+  }
+
+  output({
+    valid: errors.length === 0,
+    context: {
+      path: contextFilePath,
+      unresolved_ambiguities: unresolvedAmbiguities,
+      interpreted_assumptions: interpretedAssumptions,
+    },
+    research: {
+      path: researchFilePath,
+      checked: true,
+    },
+    errors,
+    warnings,
+  }, raw, errors.length === 0 ? 'valid' : 'invalid');
 }
 
 function cmdValidateConsistency(cwd, raw) {
@@ -837,6 +1032,9 @@ module.exports = {
   cmdVerifyCommits,
   cmdVerifyArtifacts,
   cmdVerifyKeyLinks,
+  cmdVerifyCheckpointResponse,
+  cmdVerifyContextContract,
+  cmdVerifyResearchContract,
   cmdValidateConsistency,
   cmdValidateHealth,
 };
