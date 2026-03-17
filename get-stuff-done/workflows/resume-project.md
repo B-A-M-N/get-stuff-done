@@ -59,6 +59,96 @@ cat .planning/PROJECT.md
 
 </step>
 
+<step name="check_checkpoint_artifact">
+After reading STATE.md in load_state, check for an active checkpoint before proceeding:
+
+```bash
+# Read checkpoint fields from STATE.md frontmatter (machine-readable, not body text)
+STATE_JSON=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" state json 2>/dev/null || echo '{}')
+CHECKPOINT_STATUS=$(echo "$STATE_JSON" | node -e "const d=require('fs').readFileSync('/dev/stdin','utf-8'); try { const j=JSON.parse(d); process.stdout.write(j.checkpoint_status || ''); } catch { }")
+CHECKPOINT_PATH=$(echo "$STATE_JSON" | node -e "const d=require('fs').readFileSync('/dev/stdin','utf-8'); try { const j=JSON.parse(d); process.stdout.write(j.checkpoint_path || ''); } catch { }")
+```
+
+**Branch on CHECKPOINT_STATUS:**
+
+**If empty/null or "resolved":** No active checkpoint. Proceed to `check_incomplete_work` step normally.
+
+**If "pending" or "awaiting-response":**
+
+```bash
+# Step 1: Check if artifact file exists
+if [ -z "$CHECKPOINT_PATH" ] || [ ! -f "$CHECKPOINT_PATH" ]; then
+  # File missing — recovery path
+  CURRENT_PLAN=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" state get "Current Plan" --raw 2>/dev/null || echo "unknown")
+  echo "CHECKPOINT FILE MISSING"
+  echo "Status in STATE.md: $CHECKPOINT_STATUS"
+  echo "Expected artifact: ${CHECKPOINT_PATH:-not set}"
+  echo ""
+  echo "The session likely ended before the checkpoint artifact was fully written."
+  echo "Last completed plan: $CURRENT_PLAN"
+  echo ""
+  echo "To get back to where you were, re-run: /gsd:execute-phase {phase}"
+  # STOP — do not proceed to check_incomplete_work
+fi
+
+# Step 2: Validate the artifact against checkpointArtifactSchema
+VALIDATION=$(node -e "
+  const { checkpointArtifactSchema } = require(process.env.HOME + '/.claude/get-stuff-done/bin/lib/artifact-schema.cjs');
+  const { extractFrontmatter } = require(process.env.HOME + '/.claude/get-stuff-done/bin/lib/frontmatter.cjs');
+  const fs = require('fs');
+  try {
+    const content = fs.readFileSync('$CHECKPOINT_PATH', 'utf-8');
+    const fm = extractFrontmatter(content);
+    const result = checkpointArtifactSchema.safeParse(fm);
+    console.log(JSON.stringify({
+      valid: result.success,
+      data: result.success ? result.data : null,
+      errors: result.success ? [] : result.error.issues.map(i => i.message)
+    }));
+  } catch (e) {
+    console.log(JSON.stringify({ valid: false, data: null, errors: [e.message] }));
+  }
+" 2>/dev/null)
+
+VALID=$(echo "$VALIDATION" | node -e "const d=require('fs').readFileSync('/dev/stdin','utf-8'); try{const j=JSON.parse(d); process.stdout.write(String(j.valid));}catch{process.stdout.write('false')}")
+
+if [ "$VALID" != "true" ]; then
+  # Invalid artifact — recovery path
+  ERRORS=$(echo "$VALIDATION" | node -e "const d=require('fs').readFileSync('/dev/stdin','utf-8'); try{const j=JSON.parse(d); process.stdout.write(j.errors.join(', '));}catch{}")
+  CURRENT_PLAN=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" state get "Current Plan" --raw 2>/dev/null || echo "unknown")
+  echo "CHECKPOINT FILE INVALID"
+  echo "Artifact: $CHECKPOINT_PATH"
+  echo "Validation errors: $ERRORS"
+  echo "Last completed plan: $CURRENT_PLAN"
+  echo ""
+  echo "To get back to where you were, re-run: /gsd:execute-phase {phase}"
+  # STOP — do not proceed to check_incomplete_work
+fi
+
+# Step 3: Valid artifact — present summary and route back to execute-phase
+CHECKPOINT_DATA=$(echo "$VALIDATION" | node -e "const d=require('fs').readFileSync('/dev/stdin','utf-8'); try{const j=JSON.parse(d); process.stdout.write(JSON.stringify(j.data));}catch{}")
+TYPE=$(echo "$CHECKPOINT_DATA" | node -e "const d=require('fs').readFileSync('/dev/stdin','utf-8'); try{const j=JSON.parse(d); process.stdout.write(j.type);}catch{}")
+WHY=$(echo "$CHECKPOINT_DATA" | node -e "const d=require('fs').readFileSync('/dev/stdin','utf-8'); try{const j=JSON.parse(d); process.stdout.write(j.why_blocked);}catch{}")
+CHOICES=$(echo "$CHECKPOINT_DATA" | node -e "const d=require('fs').readFileSync('/dev/stdin','utf-8'); try{const j=JSON.parse(d); process.stdout.write(j.choices);}catch{}")
+RESUME=$(echo "$CHECKPOINT_DATA" | node -e "const d=require('fs').readFileSync('/dev/stdin','utf-8'); try{const j=JSON.parse(d); process.stdout.write(j.resume_condition);}catch{}")
+
+echo "╔══════════════════════════════════════════════════════════════╗"
+echo "║  CHECKPOINT AWAITING RESPONSE                                 ║"
+echo "╚══════════════════════════════════════════════════════════════╝"
+echo ""
+echo "Type:            $TYPE"
+echo "Why blocked:     $WHY"
+echo "Choices:         $CHOICES"
+echo "Resume when:     $RESUME"
+echo ""
+echo "Resume: /gsd:execute-phase {phase}"
+echo "(Re-run execute-phase to continue from this checkpoint — do not respond here)"
+# STOP — do not proceed to check_incomplete_work or determine_next_action
+```
+
+**Key rule:** When any of the STOP branches fires, present the message to the user and end the resume-project workflow at this step. Do NOT route to check_incomplete_work, present_status, determine_next_action, or offer_options. The user's only path forward is re-running `/gsd:execute-phase`.
+</step>
+
 <step name="check_incomplete_work">
 Look for incomplete work that needs attention:
 
@@ -259,6 +349,10 @@ Update STATE.md:
 Last session: [now]
 Stopped at: Session resumed, proceeding to [action]
 Resume file: [updated if applicable]
+Clarification Status: [none / pending / resolved / deferred / blocked]
+Clarification Rounds: [N]
+Last Clarification Reason: [Most recent checkpoint reason or None]
+Resume Requires User Input: [true / false]
 ```
 
 This ensures if session ends unexpectedly, next resume knows the state.
