@@ -18,7 +18,7 @@
 - [ ] **CHECKPOINT-01**: Canonical CHECKPOINT.md written to phase directory on every blocking checkpoint
 - [ ] **CHECKPOINT-02**: CHECKPOINT.md re-read and validated by resume-project before routing continuation
 - [ ] **CHECKPOINT-03**: Checkpoint lifecycle tracked in STATE.md (pending / awaiting-response / resolved)
-- [ ] **CHECKPOINT-04**: `checkpointArtifactSchema` (Zod) defines the canonical shape of CHECKPOINT.md
+- [x] **CHECKPOINT-04**: `checkpointArtifactSchema` (Zod) defines the canonical shape of CHECKPOINT.md
 
 ### CONTEXT — Pre-flight Context Enrichment
 
@@ -43,7 +43,7 @@
 
 ### SCHEMA — Artifact Schema Hardening
 
-- [ ] **SCHEMA-01**: `checkpointArtifactSchema` (Zod) — canonical shape for persisted CHECKPOINT.md (status, type, why_blocked, what_is_uncertain, choices, allow_freeform, resume_condition, resolved_at)
+- [x] **SCHEMA-01**: `checkpointArtifactSchema` (Zod) — canonical shape for persisted CHECKPOINT.md (status, type, why_blocked, what_is_uncertain, choices, allow_freeform, resume_condition, resolved_at)
 - [ ] **SCHEMA-02**: `executionSummarySchema` (Zod) — canonical shape for SUMMARY.md (one_liner, work_completed, key_files, verification, requirements_completed)
 - [ ] **SCHEMA-03**: `cmdVerifySummary` upgraded to validate against `executionSummarySchema` (currently only checks file count)
 - [ ] **SCHEMA-04**: `checkpointResponseSchema` (Zod) formalizes the agent checkpoint return contract — replaces manual field-by-field checking in `cmdVerifyCheckpointResponse` (verify.cjs line 211)
@@ -69,10 +69,10 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SCHEMA-01 | Phase 15 | Pending |
+| SCHEMA-01 | Phase 15 | Complete |
 | SCHEMA-04 | Phase 15 | Pending |
 | SCHEMA-05 | Phase 15 | Complete |
-| CHECKPOINT-04 | Phase 15 | Pending |
+| CHECKPOINT-04 | Phase 15 | Complete |
 | CHECKPOINT-01 | Phase 16 | Pending |
 | CHECKPOINT-02 | Phase 16 | Pending |
 | CHECKPOINT-03 | Phase 16 | Pending |

@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v0.1
 milestone_name: milestone
 status: planning
-stopped_at: Completed 15-02-PLAN.md
-last_updated: "2026-03-17T08:25:26.371Z"
+stopped_at: Completed 15-01-PLAN.md
+last_updated: "2026-03-17T08:30:34.989Z"
 last_activity: 2026-03-17 — Roadmap created; 23 requirements mapped across 6 phases (15-20).
 progress:
   total_phases: 6
   completed_phases: 0
   total_plans: 3
-  completed_plans: 1
+  completed_plans: 2
   percent: 0
 ---
 
@@ -49,6 +49,7 @@ Progress: [░░░░░░░░░░░░] 0%
 
 *Updated after each plan completion*
 | Phase 15-schema-foundation P02 | 3min | 1 tasks | 1 files |
+| Phase 15-schema-foundation P01 | 9min | 1 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -73,6 +74,9 @@ Progress: [░░░░░░░░░░░░] 0%
 
 for v0.2.0.
 - [Phase 15-schema-foundation]: itl-schema.cjs: additive named exports only — 5 sub-schemas accessible as top-level exports and via schemas.{}; clarificationPromptSchema added to schemas.{} namespace for consistency
+- [Phase 15-schema-foundation]: Zod v4 uses error option (not required_error/errorMap) for custom field messages — schema updated to v4 API
+- [Phase 15-schema-foundation]: checkpointResponseSchema uses z.preprocess(parseKeyValueText) to coerce raw agent key:value text into object before Zod validation
+- [Phase 15-schema-foundation]: Error messages in checkpointResponseSchema match legacy verify.cjs strings exactly for checkpoint-validator.test.cjs compatibility
 
 ### Blockers/Concerns
 
@@ -80,6 +84,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-17T08:25:26.362Z
-Stopped at: Completed 15-02-PLAN.md
+Last session: 2026-03-17T08:30:34.981Z
+Stopped at: Completed 15-01-PLAN.md
 Resume file: None

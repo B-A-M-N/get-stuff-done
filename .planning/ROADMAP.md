@@ -113,7 +113,7 @@ Plans:
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 15. Schema Foundation | 1/3 | In Progress|  | - |
+| 15. Schema Foundation | 2/3 | In Progress|  | - |
 | 16. Checkpoint Artifact Lifecycle | v0.2.0 | 0/TBD | Not started | - |
 | 17. Runtime Gate Enforcement | v0.2.0 | 0/TBD | Not started | - |
 | 18. Context Enrichment | v0.2.0 | 0/TBD | Not started | - |
