@@ -38,12 +38,21 @@ function cmdVerifySummary(cwd, summaryPath, checkFileCount, raw) {
   const content = fs.readFileSync(fullPath, 'utf-8');
   const fm = extractFrontmatter(content);
   const errors = [];
+  const warnings = [];
+
+  const phaseNum = parseInt(fm.phase, 10);
+  const isLegacy = !isNaN(phaseNum) && phaseNum < 15;
 
   // Check 1.5: Schema validation (SCHEMA-03)
   const schemaResult = executionSummarySchema.safeParse(fm);
   if (!schemaResult.success) {
     for (const issue of schemaResult.error.issues) {
-      errors.push(`Schema error: ${issue.path.join('.')} - ${issue.message}`);
+      const msg = `Schema error: ${issue.path.join('.')} - ${issue.message}`;
+      if (isLegacy) {
+        warnings.push(msg);
+      } else {
+        errors.push(msg);
+      }
     }
   }
 
@@ -104,6 +113,8 @@ function cmdVerifySummary(cwd, summaryPath, checkFileCount, raw) {
   if (!commitsExist && hashes.length > 0) errors.push('Referenced commit hashes not found in git history');
   if (selfCheck === 'failed') errors.push('Self-check section indicates failure');
 
+  const passed = errors.length === 0;
+
   const checks = {
     summary_exists: true,
     schema_valid: schemaResult.success,
@@ -112,8 +123,7 @@ function cmdVerifySummary(cwd, summaryPath, checkFileCount, raw) {
     self_check: selfCheck,
   };
 
-  const passed = schemaResult.success && missing.length === 0 && selfCheck !== 'failed';
-  const result = { passed, checks, errors };
+  const result = { passed, checks, errors, warnings, legacy: isLegacy };
   output(result, raw, passed ? 'passed' : 'failed');
 }
 
