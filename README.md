@@ -380,7 +380,7 @@ Quick mode gives you GSD guarantees (atomic commits, state tracking) with a fast
 - **Skips optional steps** — No research, no plan checker, no verifier by default
 - **Separate tracking** — Lives in `.planning/quick/`, not phases
 
-**`--discuss` flag:** Lightweight discussion to surface gray areas before planning.
+**`--discuss` flag:** Lightweight discussion to lock in decisions before planning.
 
 **`--research` flag:** Spawns a focused researcher before planning. Investigates implementation approaches, library options, and pitfalls. Use when you're unsure how to approach a task.
 
