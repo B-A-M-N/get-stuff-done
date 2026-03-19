@@ -29,7 +29,7 @@ See full archived roadmap: `.planning/milestones/v0.1.0-ROADMAP.md`
 - [x] **Phase 17: Runtime Gate Enforcement** - Blocked-state gates in plan-phase, execute-phase, autonomous, and resume-project (completed 2026-03-17)
 - [x] **Phase 18: Context Enrichment** - Pre-flight ambient state harvest before clarification escalation (completed 2026-03-17)
 - [x] **Phase 19: Workflow Surface Hardening** - research-phase, validate-phase, autonomous blocked-state gates; SUMMARY.md schema contract; orphaned workflow reconciliation (completed 2026-03-17)
-- [ ] **Phase 20: Scenario and Contract Tests** - Full behavioral loop tests and artifact contract validation
+- [x] **Phase 20: Scenario and Contract Tests** - Full behavioral loop tests and artifact contract validation (completed 2026-03-17)
 
 ### Phase Details
 
@@ -111,7 +111,8 @@ See full archived roadmap: `.planning/milestones/v0.1.0-ROADMAP.md`
   3. Checkpoint lifecycle test covers all transitions
   4. Contract test validates SUMMARY.md against schema
   5. Untracked test files committed and passing
-**Plans**: TBD
+**Plans**:
+- [x] 20-01-PLAN.md — End-to-end behavioral tests, gate enforcement tests, summary schema expansion, and regression test cleanup (TEST-01/02/03/04/05)
 
 ---
 
@@ -126,4 +127,4 @@ See full archived roadmap: `.planning/milestones/v0.1.0-ROADMAP.md`
 | 17. Runtime Gate Enforcement | 2/2 | Complete    | 2026-03-17 | - |
 | 18. Context Enrichment | 2/2 | Complete    | 2026-03-17 | - |
 | 19. Workflow Surface Hardening | 1/1 | Complete    | 2026-03-17 | - |
-| 20. Scenario and Contract Tests | v0.2.0 | 0/TBD | Not started | - |
+| 20. Scenario and Contract Tests | 1/1 | Complete    | 2026-03-17 | - |

@@ -10,9 +10,9 @@ last_updated: "2026-03-17T16:00:08.902Z"
 last_activity: 2026-03-17 — Roadmap created; 23 requirements mapped across 6 phases (15-20).
 progress:
   total_phases: 6
-  completed_phases: 5
-  total_plans: 14
-  completed_plans: 14
+  completed_phases: 6
+  total_plans: 15
+  completed_plans: 15
   percent: 100
   ---
 
@@ -23,15 +23,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-17)
 
 **Core value:** Runtime-bound orchestration integrity — enforcement that cannot be bypassed by following a different workflow path.
-**Current focus:** Phase 20 — Scenario and Contract Tests
+**Current focus:** v0.2.0 Milestone Complete
 
 ## Current Position
 
 Milestone: `v0.2.0`
-Phase: 19 of 20 (Workflow Surface Hardening)
+Phase: 20 of 20 (Scenario and Contract Tests)
 Plan: 1 of 1 in current phase
 Status: Complete
-Last activity: 2026-03-17 — Workflow surfaces hardened and internal library extracted (Phase 19).
+Last activity: 2026-03-17 — End-to-end scenario and contract tests complete (Phase 20).
 
 Progress: [████████████] 100%
 
