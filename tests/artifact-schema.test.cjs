@@ -130,15 +130,63 @@ test('checkpointResponseSchema: rejects invalid status', () => {
 // executionSummarySchema
 // ---------------------------------------------------------------------------
 
-test('executionSummarySchema: accepts valid phase/plan/name', () => {
+test('executionSummarySchema: accepts valid complete object', () => {
   assert.doesNotThrow(() => {
-    executionSummarySchema.parse({ phase: '15', plan: '01', name: 'Test' });
+    executionSummarySchema.parse({
+      phase: '15',
+      plan: '01',
+      subsystem: 'testing',
+      tags: ['unit'],
+      provides: ['nothing'],
+      duration: '10min',
+      completed: '2026-03-17',
+    });
   });
+});
+
+test('executionSummarySchema: accepts legacy object (phase < 15) with "name" instead of "subsystem"', () => {
+  const result = executionSummarySchema.parse({
+    phase: '14',
+    plan: '01',
+    name: 'legacy-subsystem',
+  });
+  assert.strictEqual(result.subsystem, 'legacy-subsystem');
+});
+
+test('executionSummarySchema: accepts legacy object (phase < 15) missing modern fields', () => {
+  assert.doesNotThrow(() => {
+    executionSummarySchema.parse({
+      phase: 10,
+      plan: '02',
+      subsystem: 'core',
+    });
+  });
+});
+
+test('executionSummarySchema: throws when modern fields missing for phase >= 15', () => {
+  const r = executionSummarySchema.safeParse({
+    phase: 15,
+    plan: '01',
+    subsystem: 'core',
+  });
+  assert.strictEqual(r.success, false);
+  const msgs = r.error.issues.map(e => e.message);
+  assert.ok(msgs.includes('Required field: tags'));
+  assert.ok(msgs.includes('Required field: provides'));
+  assert.ok(msgs.includes('Required field: duration'));
+  assert.ok(msgs.includes('Required field: completed'));
 });
 
 test('executionSummarySchema: throws when phase is missing', () => {
   assert.throws(() => {
-    executionSummarySchema.parse({ plan: '01', name: 'Test' });
+    executionSummarySchema.parse({
+      plan: '01',
+      subsystem: 'testing',
+      tags: ['unit'],
+      provides: ['nothing'],
+      duration: '10min',
+      completed: '2026-03-17',
+    });
   });
 });
 
@@ -147,7 +195,11 @@ test('executionSummarySchema: accepts optional requirements_completed array', ()
     executionSummarySchema.parse({
       phase: '15',
       plan: '01',
-      name: 'Test',
+      subsystem: 'testing',
+      tags: ['unit'],
+      provides: ['nothing'],
+      duration: '10min',
+      completed: '2026-03-17',
       requirements_completed: ['SCHEMA-01', 'SCHEMA-02'],
     });
   });

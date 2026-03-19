@@ -84,11 +84,20 @@ function parseCheckpointResponse(input) {
 // Phase 19 (SCHEMA-03) wires cmdVerifySummary to use this schema.
 // ---------------------------------------------------------------------------
 
-const executionSummarySchema = z.object({
+const executionSummarySchema = z.preprocess((data) => {
+  if (typeof data !== 'object' || data === null) return data;
+  const phase = parseInt(data.phase, 10);
+  // Alias name to subsystem for legacy phases
+  if (phase < 15 && data.name && !data.subsystem) {
+    return { ...data, subsystem: data.name };
+  }
+  return data;
+}, z.object({
   phase: z.union([z.string(), z.number()]),
   plan: z.union([z.string(), z.number()]),
-  subsystem: z.string().min(1),
-  tags: z.array(z.string()),
+  subsystem: z.string().min(1).optional(),
+  name: z.string().optional(),
+  tags: z.array(z.string()).optional(),
   requires: z.array(z.union([
     z.string(),
     z.object({
@@ -96,7 +105,7 @@ const executionSummarySchema = z.object({
       provides: z.string().min(1),
     }),
   ])).optional(),
-  provides: z.array(z.string()),
+  provides: z.array(z.string()).optional(),
   affects: z.array(z.string()).optional(),
   'tech-stack': z.object({
     added: z.array(z.string()),
@@ -109,9 +118,51 @@ const executionSummarySchema = z.object({
   'key-decisions': z.array(z.string()).optional(),
   'patterns-established': z.array(z.string()).optional(),
   'requirements-completed': z.array(z.string()).optional(),
-  duration: z.string().min(1),
-  completed: z.string().min(1),
-});
+  duration: z.string().min(1).optional(),
+  completed: z.string().min(1).optional(),
+}).superRefine((data, ctx) => {
+  const phase = parseInt(data.phase, 10);
+  const isLegacy = phase < 15;
+
+  if (!data.subsystem) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Required field: subsystem",
+      path: ["subsystem"],
+    });
+  }
+
+  if (!isLegacy) {
+    if (!data.tags) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Required field: tags",
+        path: ["tags"],
+      });
+    }
+    if (!data.provides) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Required field: provides",
+        path: ["provides"],
+      });
+    }
+    if (!data.duration) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Required field: duration",
+        path: ["duration"],
+      });
+    }
+    if (!data.completed) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Required field: completed",
+        path: ["completed"],
+      });
+    }
+  }
+}));
 
 function parseExecutionSummary(input) {
   return executionSummarySchema.parse(input);
