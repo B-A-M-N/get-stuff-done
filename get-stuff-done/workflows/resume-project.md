@@ -73,11 +73,20 @@ if [ "$CLARIFICATION_STATUS" == "blocked" ]; then
   echo "║  PROJECT BLOCKED: CLARIFICATION REQUIRED                     ║"
   echo "╚══════════════════════════════════════════════════════════════╝"
   echo ""
-  echo "Reason: $LAST_CLARIFICATION_REASON"
+  if [ -n "$LAST_CLARIFICATION_REASON" ] && [ "$LAST_CLARIFICATION_REASON" != "None" ]; then
+    echo "Reason: $LAST_CLARIFICATION_REASON"
+  else
+    echo "⚠ DEADLOCK DETECTED: Project is blocked but no reason was provided."
+    echo "This usually happens when legacy state is imported or a session crashed."
+  fi
   echo ""
   echo "To unblock, run:"
   echo "/gsd:discuss-phase {current_phase}"
-  echo "(Or follow the resume condition described in the blocker)"
+  echo ""
+  if [ -z "$LAST_CLARIFICATION_REASON" ] || [ "$LAST_CLARIFICATION_REASON" == "None" ]; then
+    echo "Alternatively, if this is a ghost block, force unblock with:"
+    echo "node \"$HOME/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs\" state record-session --clarification-status none"
+  fi
   exit 0 # STOP
 fi
 

@@ -1,10 +1,11 @@
-const { test } = require('node:test');
+const { test, describe, beforeEach, afterEach } = require('node:test');
 const assert = require('node:assert');
 const path = require('path');
 const fs = require('fs');
 const { cmdVerifySummary } = require('../get-stuff-done/bin/lib/verify.cjs');
+const { runGsdTools, createTempProject, cleanup } = require('./helpers.cjs');
 
-test('Brownfield Mega Audit: Legacy summaries ingestion', () => {
+test('Legacy summaries ingestion', () => {
   const cwd = path.resolve(__dirname, '..');
   const phasesDir = path.join(cwd, '.planning', 'phases');
   
@@ -52,5 +53,25 @@ test('Brownfield Mega Audit: Legacy summaries ingestion', () => {
     }
   } finally {
     process.stdout.write = originalWrite;
+  }
+});
+
+test('Orphaned Blocked State: state json reports correctly', () => {
+  const tmpDir = createTempProject();
+  try {
+    // Setup: STATE.md with blocked status but no reason
+    fs.writeFileSync(
+      path.join(tmpDir, '.planning', 'STATE.md'),
+      '---\nclarification_status: blocked\nlast_clarification_reason: None\n---\n# Project State\n\n**Clarification Status:** blocked\n**Last Clarification Reason:** None\n'
+    );
+
+    const result = runGsdTools(['state', 'json'], tmpDir);
+    assert.ok(result.success);
+    
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.clarification_status, 'blocked');
+    assert.strictEqual(output.last_clarification_reason, 'None');
+  } finally {
+    cleanup(tmpDir);
   }
 });
