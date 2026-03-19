@@ -1749,6 +1749,12 @@ function copyWithPathReplacement(srcDir, destDir, pathPrefix, runtime, isCommand
       let content = fs.readFileSync(srcPath, 'utf8');
       content = convertClaudeToAntigravityContent(content, isGlobal);
       fs.writeFileSync(destPath, content);
+    } else if (entry.name.endsWith('.cjs') || entry.name.endsWith('.js')) {
+      // All other runtimes: apply namespace replacements (/gsd: → /dostuff:, agent names, paths)
+      // so that CLI output (e.g. scratch pad commands) uses the installed fork prefix
+      let content = fs.readFileSync(srcPath, 'utf8');
+      content = convertInstalledContentNamespace(content, runtime, pathPrefix, isGlobal);
+      fs.writeFileSync(destPath, content);
     } else {
       fs.copyFileSync(srcPath, destPath);
     }
