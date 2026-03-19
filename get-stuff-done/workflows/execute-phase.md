@@ -589,26 +589,43 @@ Read and follow `~/.claude/get-stuff-done/workflows/lib/transition.md`, passing 
 
 **If none of `--auto`, `AUTO_CHAIN`, or `AUTO_CFG` is true:**
 
-**STOP. Do not auto-advance. Do not execute transition. Do not plan next phase.**
-
-**Write scratch pad before presenting options, so the suggestion survives /clear:**
-```bash
-node "/home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" next-step set "/gsd:plan-phase ${NEXT_PHASE_NUMBER}" --hint "Phase ${PHASE_NUMBER} complete — ready to plan Phase ${NEXT_PHASE_NUMBER}"
-```
-(If next phase number is unknown, use the phase complete result from `gsd-tools phase complete`.)
-
-**Present options to the user and wait.**
+**Present options and wait for the user response. Do NOT write scratch pad yet.**
 
 ```
 ## ✓ Phase {X}: {Name} Complete
 
-/gsd:progress — see updated roadmap
-/gsd:discuss-phase {next} — discuss next phase before planning
-/gsd:plan-phase {next} — plan next phase
-/gsd:execute-phase {next} — execute next phase
+Recommended next step: `/gsd:plan-phase {next}` — or tell me what you'd like to do
 
-<sub>/clear first → fresh context window — your next command is already saved</sub>
+**Also available:**
+- `/gsd:discuss-phase {next}` — discuss the phase before planning
+- `/gsd:research-phase {next}` — investigate unknowns first
+- `/gsd:progress` — see updated roadmap
+
+What would you like to do next?
 ```
+
+**After user responds — classify intent:**
+
+**Case A — GSD confirmation** ("yes", "plan it", "continue", "let's go", or the command itself):
+Execute the command right now in this session.
+
+**Case B — GSD redirect** (user wants a different action: "research first", "discuss first", "skip to X"):
+Derive the correct command from their intent. Save it:
+```bash
+node "/home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" next-step set "<corrected-command>" --hint "User redirected: <what they asked for>"
+```
+Then show:
+```
+╔══════════════════════════════════════════════════════╗
+║  /clear now → your next command is ready             ║
+║  <corrected-command>                                 ║
+╚══════════════════════════════════════════════════════╝
+
+Type /clear. When you come back, just say "continue".
+```
+Stop. Do not execute anything further.
+
+**Case C — Unrelated to GSD**: Continue the session normally. Do not write scratch pad.
 </step>
 
 </process>

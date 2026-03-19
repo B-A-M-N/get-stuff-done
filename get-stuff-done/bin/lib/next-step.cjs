@@ -114,14 +114,14 @@ function cmdConsume(cwd, raw) {
   // This text is consumed by Claude Code as injected context (UserPromptSubmit hook stdout)
   const injection = [
     '<gsd-scratch-pad>',
-    `GSD suggested next: ${record.command}${hint}`,
+    `GSD decision from previous session: ${record.command}${hint}`,
     '',
-    'This was saved at the end of the previous phase before /clear.',
-    "ROUTING RULE: Whatever the user says first in this session, check if it aligns with,",
-    'redirects, or overrides the suggested command above — then execute the right one.',
-    `  If the user confirms or says nothing specific → run: ${record.command}`,
-    `  If the user specifies a DIFFERENT next action → derive the correct /gsd: command`,
-    `    and run that instead (do NOT run ${record.command} in that case).${redirectNote}`,
+    'The user explicitly chose this action before /clear. This is a committed decision, not a suggestion.',
+    "ROUTING RULE: Execute the saved command unless the user's message in THIS session",
+    'explicitly overrides it with a different GSD action.',
+    `  User confirms ("yes", "continue", "do it", "go") → run: ${record.command}`,
+    `  User overrides with a different GSD action → run that instead (derive correct /gsd: command)${redirectNote}`,
+    '  User asks something unrelated to GSD phase work → answer normally, do not run any GSD command.',
     '</gsd-scratch-pad>',
   ].join('\n');
 

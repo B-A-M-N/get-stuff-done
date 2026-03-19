@@ -398,10 +398,7 @@ Exit skill and invoke SlashCommand("/gsd:discuss-phase [X+1] --auto")
 
 **If CONTEXT.md does NOT exist:**
 
-**Before presenting options — write scratch pad so the next command survives /clear:**
-```bash
-node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" next-step set "/gsd:discuss-phase [X+1]" --hint "Phase [X] complete — context not yet gathered for Phase [X+1]"
-```
+Present the completion summary and ask what they want to do. Do NOT write scratch pad yet — wait for user response first.
 
 ```
 ## ✓ Phase [X] Complete
@@ -412,26 +409,18 @@ node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" next-step set "/gsd:discus
 
 **Phase [X+1]: [Name]** — [Goal from ROADMAP.md]
 
-`/gsd:discuss-phase [X+1]` — gather context and clarify approach
-
-<sub>`/clear` first → fresh context window</sub>
-<sub>↳ Your next command is saved — just `/clear` and continue</sub>
-
----
+Recommended: `/gsd:discuss-phase [X+1]` — gather context before planning
 
 **Also available:**
-- `/gsd:plan-phase [X+1]` — skip discussion, plan directly
-- `/gsd:research-phase [X+1]` — investigate unknowns
+- `/gsd:plan-phase [X+1]` — skip discussion, jump straight to planning
+- `/gsd:research-phase [X+1]` — investigate unknowns first
 
----
+What would you like to do next?
 ```
 
 **If CONTEXT.md exists:**
 
-**Before presenting options — write scratch pad so the next command survives /clear:**
-```bash
-node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" next-step set "/gsd:plan-phase [X+1]" --hint "Phase [X] complete — context already gathered, ready to plan Phase [X+1]"
-```
+Present the completion summary and ask what they want to do. Do NOT write scratch pad yet.
 
 ```
 ## ✓ Phase [X] Complete
@@ -443,19 +432,47 @@ node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" next-step set "/gsd:plan-p
 **Phase [X+1]: [Name]** — [Goal from ROADMAP.md]
 <sub>✓ Context gathered, ready to plan</sub>
 
-`/gsd:plan-phase [X+1]`
-
-<sub>`/clear` first → fresh context window</sub>
-<sub>↳ Your next command is saved — just `/clear` and continue</sub>
-
----
+Recommended: `/gsd:plan-phase [X+1]`
 
 **Also available:**
 - `/gsd:discuss-phase [X+1]` — revisit context
-- `/gsd:research-phase [X+1]` — investigate unknowns
+- `/gsd:research-phase [X+1]` — investigate unknowns first
+
+What would you like to do next?
+```
 
 ---
+
+**After the user responds — classify their intent:**
+
+**Case A — GSD confirmation** (user confirms the recommended command, or says "yes", "continue", "do it", "plan it", "let's go", or runs the command directly):
+
+Execute the recommended command right now in this session. No /clear needed.
+
+**Case B — GSD redirect** (user wants a different GSD action — e.g., "research first", "let's discuss it", "skip to execute", "do phase X+2 instead"):
+
+Derive the correct command from their intent. Save it to scratch pad:
+```bash
+node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" next-step set "<corrected-command>" --hint "User redirected: <brief description of what they asked for>"
 ```
+
+Then present:
+```
+Got it — saving your decision.
+
+╔══════════════════════════════════════════════════════╗
+║  /clear now → your next command is ready             ║
+║  <corrected-command>                                 ║
+╚══════════════════════════════════════════════════════╝
+
+Type /clear. When you come back, just say "continue" — I'll pick up exactly where you left off.
+```
+
+Stop. Do not execute anything. Wait for the user to /clear.
+
+**Case C — Unrelated to GSD** (user asks about something else entirely — a question, a task, a conversation):
+
+Continue the session normally. Do NOT write scratch pad. The current context remains intact.
 
 </if>
 
@@ -484,10 +501,7 @@ Exit skill and invoke SlashCommand("/gsd:complete-milestone {version}")
 
 <if mode="interactive" OR="custom with gates.confirm_transition true">
 
-**Before presenting options — write scratch pad so the next command survives /clear:**
-```bash
-node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" next-step set "/gsd:complete-milestone {version}" --hint "Milestone {version} is 100% complete — all {N} phases done"
-```
+Present the milestone completion and ask what they want to do. Do NOT write scratch pad yet.
 
 ```
 ## ✓ Phase {X}: {Phase Name} Complete
@@ -498,20 +512,23 @@ node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" next-step set "/gsd:comple
 
 ## ▶ Next Up
 
-**Complete Milestone {version}** — archive and prepare for next
+**Complete Milestone {version}** — archive and prepare for next milestone
 
-`/gsd:complete-milestone {version}`
-
-<sub>`/clear` first → fresh context window</sub>
-<sub>↳ Your next command is saved — just `/clear` and continue</sub>
-
----
+Recommended: `/gsd:complete-milestone {version}`
 
 **Also available:**
 - Review accomplishments before archiving
 
----
+What would you like to do next?
 ```
+
+**After the user responds — classify intent (same rules as Route A):**
+
+**Case A — GSD confirmation** → execute `/gsd:complete-milestone {version}` right now.
+
+**Case B — GSD redirect** → derive correct command, write scratch pad, show /clear banner. Stop.
+
+**Case C — Unrelated** → continue session normally, do not write scratch pad.
 
 </if>
 
