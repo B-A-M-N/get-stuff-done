@@ -85,6 +85,19 @@ Debug file: @.planning/debug/{slug}.md
 **Response:** {user_response}
 </checkpoint_response>
 
+<checkpoint_contract>
+Return checkpoint state in a structured, explicit shape.
+
+- `status`: `continue` | `checkpoint` | `blocked`
+- `why_blocked`: exact reason the agent cannot safely continue alone
+- `what_is_uncertain`: the unresolved question, verification gap, or missing human action
+- `choices`: concrete options when a decision is needed; otherwise empty
+- `allow_freeform`: `true` when the human may respond in their own words
+- `resume_condition`: what must happen before debugging can continue
+
+Do not hide behind generic "needs input" language. State the blocker, the uncertainty, and the next valid responses.
+</checkpoint_contract>
+
 <mode>
 goal: {goal}
 </mode>

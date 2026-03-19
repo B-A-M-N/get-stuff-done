@@ -51,17 +51,21 @@ If $ARGUMENTS provided OR user describes new issue:
 
 ## 2. Gather Symptoms (if new issue)
 
-Use AskUserQuestion for each:
-
+Before hypothesizing, ask:
 1. **Expected behavior** - What should happen?
 2. **Actual behavior** - What happens instead?
 3. **Error messages** - Any errors? (paste or describe)
-4. **Timeline** - When did this start? Ever worked?
-5. **Reproduction** - How do you trigger it?
+4. **Timeline** - When did this start? Has this ever worked? If yes, what changed between when it worked and when it broke?
+5. **Stability** - Is it broken every time, or only sometimes? If sometimes — under what conditions?
+6. **Prior attempts** - Have you already tried anything to fix it? What happened?
+7. **Reproduction** - How do you trigger it?
 
 After all gathered, confirm ready to investigate.
 
 ## 3. Spawn gsd-debugger Agent
+
+Hypothesis framing (before each attempt):
+> "My hypothesis is [X]. I think this because [evidence]. To test it, I'll [action]. If I'm right, [expected result]. If I'm wrong, [what that tells us next]."
 
 Fill prompt and spawn:
 

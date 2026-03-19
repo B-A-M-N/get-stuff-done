@@ -49,7 +49,7 @@
     <text class="text cyan" font-size="14" y="148" xml:space="preserve">   ╚═════╝ ╚══════╝╚═════╝</text>
 
     <!-- Title and subtitle -->
-    <text class="text white" font-size="15" y="188">  Get Shit Done <tspan class="dim">v1.0.1</tspan></text>
+    <text class="text white" font-size="15" y="188">  Get Stuff Done <tspan class="dim">v1.0.1</tspan></text>
     <text class="text white" font-size="15" y="212">  A meta-prompting, context engineering and spec-driven</text>
     <text class="text white" font-size="15" y="232">  development system for Claude Code by TÂCHES.</text>
 

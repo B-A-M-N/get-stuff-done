@@ -34,14 +34,14 @@ Behavior:
 </objective>
 
 <execution_context>
-@~/.claude/get-stuff-done/workflows/new-project.md
-@~/.claude/get-stuff-done/references/questioning.md
-@~/.claude/get-stuff-done/references/ui-brand.md
-@~/.claude/get-stuff-done/templates/project.md
-@~/.claude/get-stuff-done/templates/requirements.md
+@/home/bamn/get-stuff-done/get-stuff-done/workflows/new-project.md
+@/home/bamn/get-stuff-done/get-stuff-done/references/questioning.md
+@/home/bamn/get-stuff-done/get-stuff-done/references/ui-brand.md
+@/home/bamn/get-stuff-done/get-stuff-done/templates/project.md
+@/home/bamn/get-stuff-done/get-stuff-done/templates/requirements.md
 </execution_context>
 
 <process>
-Execute the new-project workflow from @~/.claude/get-stuff-done/workflows/new-project.md end-to-end.
+Execute the new-project workflow from @/home/bamn/get-stuff-done/get-stuff-done/workflows/new-project.md end-to-end.
 Preserve all workflow gates (validation, approvals, commits, routing).
 </process>

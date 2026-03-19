@@ -23,6 +23,7 @@ Research how to implement a phase. Spawns gsd-phase-researcher agent with phase 
 **Why subagent:** Research burns context fast (WebSearch, Context7 queries, source verification). Fresh 200k context for investigation. Main context stays lean for user interaction.
 
 Narrative-first context from earlier `/dostuff:*` flows should improve research direction, but `CONTEXT.md` and `RESEARCH.md` remain the actual workflow contracts.
+Generated research should pass the research-contract validator before it is treated as safe planning input.
 </objective>
 
 <context>

@@ -108,6 +108,9 @@ For each task:
 <deviation_rules>
 **While executing, you WILL discover work not in the plan.** Apply these rules automatically. Track all deviations for Summary.
 
+**INV-03: User Decisions Are Inviolable**
+Before applying RULE 1, 2, or 3: scan `CONTEXT.md` `## Decisions` section. If the proposed fix touches any behavior, library, pattern, or architecture item that a locked decision specifies, you MUST NOT auto-fix it. Instead, treat it as **RULE 4 (Ask)** and escalate to a checkpoint regardless of the fix type.
+
 **Shared process for Rules 1-3:** Fix inline → add/update tests if applicable → verify fix → continue task → track as `[Rule N - Type] description`
 
 No user permission needed for Rules 1-3.

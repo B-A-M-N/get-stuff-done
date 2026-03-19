@@ -8,14 +8,14 @@ Standalone research command. For most workflows, use `/gsd:plan-phase` which int
 
 ## Step 0: Resolve Model Profile
 
-@~/.claude/get-stuff-done/references/model-profile-resolution.md
+@/home/bamn/get-stuff-done/get-stuff-done/references/model-profile-resolution.md
 
 Resolve model for:
 - `gsd-phase-researcher`
 
 ## Step 1: Normalize and Validate Phase
 
-@~/.claude/get-stuff-done/references/phase-argument-parsing.md
+@/home/bamn/get-stuff-done/get-stuff-done/references/phase-argument-parsing.md
 
 ```bash
 PHASE_INFO=$(node "/home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" roadmap get-phase "${PHASE}")

@@ -5,7 +5,7 @@ Create executable phase prompts (PLAN.md files) for a roadmap phase with integra
 <required_reading>
 Read all files referenced by the invoking prompt's execution_context before starting.
 
-@~/.claude/get-stuff-done/references/ui-brand.md
+@/home/bamn/get-stuff-done/get-stuff-done/references/ui-brand.md
 </required_reading>
 
 <process>
@@ -23,11 +23,15 @@ Parse JSON for: `researcher_model`, `planner_model`, `checker_model`, `research_
 
 **File paths (for <files_to_read> blocks):** `state_path`, `roadmap_path`, `requirements_path`, `context_path`, `research_path`, `verification_path`, `uat_path`. These are null if files don't exist.
 
-**Clarification Gate:**
+**Clarification Gate (BLOCK-01):**
 ```bash
 CLARIFICATION_STATUS=$(printf '%s\n' "$INIT" | jq -r '.clarification_status // "none"')
 if [ "$CLARIFICATION_STATUS" == "blocked" ]; then
-  echo "ERROR: Project is currently BLOCKED due to unresolved clarification."
+  echo "╔══════════════════════════════════════════════════════════════╗"
+  echo "║  BLOCK-01: I'm stuck and need your answer before I can plan  ║"
+  echo "╚══════════════════════════════════════════════════════════════╝"
+  echo ""
+  echo "I cannot proceed with planning Phase ${PHASE} because the project is currently BLOCKED."
   echo "Run /gsd:resume-project to address the blocker."
   exit 1
 fi
@@ -281,9 +285,13 @@ Task(
 - **`## RESEARCH COMPLETE`:**
 
 ```bash
-# Verify research contract (ENFORCE-05)
+# Verify research contract (ENFORCE-05 / BLOCK-04)
 VERIFY_RESEARCH=$(node "$HOME/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" verify research-contract "$CONTEXT_PATH" --research "$RESEARCH_PATH" --raw)
 if [ "$VERIFY_RESEARCH" != "true" ]; then
+  echo "╔══════════════════════════════════════════════════════════════╗"
+  echo "║  BLOCK-04: Failed Research Contract                          ║"
+  echo "╚══════════════════════════════════════════════════════════════╝"
+  echo ""
   echo "⚠ Research Contract Violation Detected!"
   node "$HOME/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" verify research-contract "$CONTEXT_PATH" --research "$RESEARCH_PATH"
 

@@ -15,6 +15,20 @@ Read all files referenced by the invoking prompt's execution_context before star
 </required_reading>
 
 <process>
+**Step 0: Scope Probing (P3)**
+
+Before initializing, establish scope with three questions (AskUserQuestion):
+
+1. **Complexity:** "Is this a change to one file, a few files, or does it touch how different parts connect?"
+2. **Dependencies:** "Does anything else depend on what you're asking me to change?"
+3. **Reversibility:** "If this doesn't look right, how easy is it to undo?"
+
+**Routing:**
+- If small/isolated/reversible → proceed.
+- If complex/architectural/dependent/irreversible → recommend `/gsd:plan-phase` instead. If user insists, proceed but note the risk.
+
+---
+
 **Step 1: Parse arguments and get task description**
 
 Parse `$ARGUMENTS` for:

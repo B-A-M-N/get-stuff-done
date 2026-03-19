@@ -24,6 +24,7 @@ Initialize a new project with narrative-first intake and ITL-backed interpretati
 
 **Prerequisites:** No existing `.planning/PROJECT.md`
 **Produces:** `PROJECT.md`, `REQUIREMENTS.md`, `ROADMAP.md`, `STATE.md`, `config.json`, `research/`
+**Behavior:** narrative-first intake, interpretation preview, explicit clarification checkpoints when ambiguity would corrupt planning artifacts, then project scaffolding
 
 ```bash
 /dostuff:new-project                    # Interactive mode
@@ -42,12 +43,12 @@ Capture implementation decisions before planning.
 
 | Flag | Description |
 |------|-------------|
-| `--auto` | Auto-select recommended defaults for all questions |
+| `--auto` | Auto-select recommended defaults only when ambiguity is not blocking |
 | `--batch` | Group questions for batch intake instead of one-by-one |
 
 **Prerequisites:** `.planning/ROADMAP.md` exists
 **Produces:** `{phase}-CONTEXT.md`
-**Behavior:** narrative-first intake, ITL interpretation preview, bounded clarification, then selective gray-area discussion
+**Behavior:** narrative-first intake, ITL interpretation preview, explicit clarification checkpoints with choices plus freeform fallback, then selective gray-area discussion
 
 ```bash
 /dostuff:discuss-phase 1                # Interactive discussion for phase 1
@@ -108,7 +109,9 @@ Research, plan, and verify a phase.
 
 **Prerequisites:** `.planning/ROADMAP.md` exists
 **Produces:** `{phase}-RESEARCH.md`, `{phase}-{N}-PLAN.md`, `{phase}-VALIDATION.md`
-**Behavior:** consumes richer CONTEXT and research guidance when available, while keeping PLAN.md and validation as the planning contracts
+**Behavior:** consumes richer CONTEXT and research guidance when available, runs a context-contract gate before the broader plan checker, and keeps PLAN.md and validation as the planning contracts
+
+This means the planner gets richer narrative/context handoff while still keeping PLAN.md and validation as the planning contracts.
 
 Invariant safety note: inferred constraints remain guidance until they pass the adversarial ambiguity gate; they are not automatically promoted to locked invariants.
 Audit note: the adversarial gate now exists in the ITL layer, but full downstream workflow enforcement is not claimed unless a workflow explicitly consumes that result.
@@ -180,7 +183,7 @@ User acceptance testing with auto-diagnosis.
 
 **Prerequisites:** Phase has been executed
 **Produces:** `{phase}-UAT.md`, fix plans if issues found
-**Behavior:** narrative-first verification intake, ITL interpretation preview, bounded clarification, then standard user-confirmed UAT and gap logging
+**Behavior:** narrative-first verification intake, ITL interpretation preview, explicit clarification checkpoints when verification intent is too uncertain, then standard user-confirmed UAT and gap logging
 
 ```bash
 /dostuff:verify-work 1                  # UAT for phase 1
@@ -375,10 +378,10 @@ Execute ad-hoc task with GSD guarantees.
 | Flag | Description |
 |------|-------------|
 | `--full` | Enable plan checking (2 iterations) + post-execution verification |
-| `--discuss` | Lightweight pre-planning discussion |
+| `--discuss` | Lightweight pre-planning discussion with clarification checkpoints |
 | `--research` | Spawn focused researcher before planning |
 
-Flags are composable.
+Flags are composable. `--discuss` now uses ITL interpretation first and pauses instead of guessing when the quick-task narrative is still blocking.
 
 ```bash
 /dostuff:quick                          # Basic quick task

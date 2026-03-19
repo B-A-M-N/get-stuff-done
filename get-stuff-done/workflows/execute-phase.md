@@ -22,11 +22,15 @@ if [[ "$INIT" == @file:* ]]; then INIT=$(cat "${INIT#@file:}"); fi
 
 Parse JSON for: `executor_model`, `verifier_model`, `commit_docs`, `parallelization`, `branching_strategy`, `branch_name`, `phase_found`, `phase_dir`, `phase_number`, `phase_name`, `phase_slug`, `plans`, `incomplete_plans`, `plan_count`, `incomplete_count`, `state_exists`, `roadmap_exists`, `phase_req_ids`, `clarification_status`.
 
-**Clarification Gate:**
+**Clarification Gate (BLOCK-01):**
 ```bash
 CLARIFICATION_STATUS=$(printf '%s\n' "$INIT" | jq -r '.clarification_status // "none"')
 if [ "$CLARIFICATION_STATUS" == "blocked" ]; then
-  echo "ERROR: Project is currently BLOCKED due to unresolved clarification."
+  echo "╔══════════════════════════════════════════════════════════════╗"
+  echo "║  BLOCK-01: I'm stuck and need your answer before I can build ║"
+  echo "╚══════════════════════════════════════════════════════════════╝"
+  echo ""
+  echo "I cannot proceed with execution because the project is currently BLOCKED."
   echo "Run /gsd:resume-project to address the blocker."
   exit 1
 fi
@@ -135,10 +139,10 @@ Execute each wave in sequence. Within a wave: parallel if `PARALLELIZATION=true`
        </objective>
 
        <execution_context>
-       @~/.claude/get-stuff-done/workflows/execute-plan.md
-       @~/.claude/get-stuff-done/templates/summary.md
-       @~/.claude/get-stuff-done/references/checkpoints.md
-       @~/.claude/get-stuff-done/references/tdd.md
+       @/home/bamn/get-stuff-done/get-stuff-done/workflows/execute-plan.md
+       @/home/bamn/get-stuff-done/get-stuff-done/templates/summary.md
+       @/home/bamn/get-stuff-done/get-stuff-done/references/checkpoints.md
+       @/home/bamn/get-stuff-done/get-stuff-done/references/tdd.md
        </execution_context>
 
        <files_to_read>
@@ -163,9 +167,19 @@ Execute each wave in sequence. Within a wave: parallel if `PARALLELIZATION=true`
 
 3. **Wait for all agents in wave to complete.**
 
-4. **Report completion — spot-check claims first:**
+4. **Report completion — verify artifacts and schema (BLOCK-06):**
 
    For each SUMMARY.md:
+   - **Schema Validation (BLOCK-06):**
+     ```bash
+     VERIFY_RESULT=$(node "/home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" verify verify-summary "{phase_dir}/{plan}-SUMMARY.md" --raw)
+     if [ "$(echo "$VERIFY_RESULT" | jq -r '.passed')" != "true" ]; then
+       echo "╔══════════════════════════════════════════════════════════════╗"
+       echo "║  BLOCK-06: SUMMARY.md Schema Failure                         ║"
+       echo "╚══════════════════════════════════════════════════════════════╝"
+       node "/home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" verify verify-summary "{phase_dir}/{plan}-SUMMARY.md"
+       # Route to failure handler
+     fi
    - Verify first 2 files from `key-files.created` exist on disk
    - Check `git log --oneline --all --grep="{phase}-{plan}"` returns ≥1 commit
    - Check for `## Self-Check: FAILED` marker
@@ -241,11 +255,15 @@ When executor returns a checkpoint AND (`AUTO_CHAIN` is `"true"` OR `AUTO_CFG` i
 1. Spawn agent for checkpoint plan
 2. Agent runs until checkpoint task or auth gate → returns structured state
 3. Agent return includes: completed tasks table, current task + blocker, checkpoint type/details, what's awaited, plus explicit checkpoint fields: `status`, `why_blocked`, `what_is_uncertain`, `choices`, `allow_freeform`, and `resume_condition`
-3.5. **Hard Gate: Validate the checkpoint payload (ENFORCE-02)** before showing it to the user:
+3.5. **Hard Gate: Validate the checkpoint payload (ENFORCE-02 / BLOCK-05)** before showing it to the user:
 ```bash
 if [ -f "$CHECKPOINT_FILE" ]; then
   node "/home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" verify checkpoint-response "$CHECKPOINT_FILE"
   if [ $? -ne 0 ]; then
+    echo "╔══════════════════════════════════════════════════════════════╗"
+    echo "║  BLOCK-05: Invalid Checkpoint Response                       ║"
+    echo "╚══════════════════════════════════════════════════════════════╝"
+    echo ""
     echo "ERROR: Invalid checkpoint response format (Requirement ENFORCE-02)."
     echo "The agent produced a malformed checkpoint payload."
     exit 1

@@ -96,6 +96,22 @@ describe('quick workflow: research step', () => {
     );
   });
 
+  test('discussion phase uses ITL clarification checkpoints before gray-area prompts', () => {
+    content = fs.readFileSync(workflowPath, 'utf-8');
+    assert.ok(
+      content.includes('itl discuss-seed'),
+      'discussion flow should interpret quick-task narrative through ITL first'
+    );
+    assert.ok(
+      content.includes('keep asking while the checkpoint remains `required` or `blocking`'),
+      'discussion flow should keep clarifying while ambiguity is still blocking'
+    );
+    assert.ok(
+      content.includes('stop quick discussion, and wait instead of planning from guesswork'),
+      'discussion flow should pause instead of planning from unresolved blockers'
+    );
+  });
+
   test('research step spawns gsd-phase-researcher', () => {
     content = fs.readFileSync(workflowPath, 'utf-8');
     const researchSection = content.substring(

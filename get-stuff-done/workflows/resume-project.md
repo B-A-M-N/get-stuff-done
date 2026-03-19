@@ -11,7 +11,7 @@ Instantly restore full project context so "Where were we?" has an immediate, com
 </purpose>
 
 <required_reading>
-@~/.claude/get-stuff-done/references/continuation-format.md
+@/home/bamn/get-stuff-done/get-stuff-done/references/continuation-format.md
 </required_reading>
 
 <process>
@@ -184,7 +184,14 @@ ls .planning/phases/*/.continue-here*.md 2>/dev/null
 # Check for plans without summaries (incomplete execution)
 for plan in .planning/phases/*/*-PLAN.md; do
   summary="${plan/PLAN/SUMMARY}"
-  [ ! -f "$summary" ] && echo "Incomplete: $plan"
+  if [ ! -f "$summary" ]; then
+    echo "╔══════════════════════════════════════════════════════════════╗"
+    echo "║  BLOCK-07: Orphaned Phase State                              ║"
+    echo "╚══════════════════════════════════════════════════════════════╝"
+    echo ""
+    echo "Incomplete: $plan"
+    echo "STATE.md shows this plan as active but no completion summary exists."
+  fi
 done 2>/dev/null
 
 # Check for interrupted agents (use has_interrupted_agent and interrupted_agent_id from init)

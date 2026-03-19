@@ -144,7 +144,7 @@ describe('SPAWN: spawn type consistency', () => {
 
   test('diagnose-issues uses gsd-debugger (not general-purpose)', () => {
     const content = fs.readFileSync(
-      path.join(WORKFLOWS_DIR, 'diagnose-issues.md'), 'utf-8'
+      path.join(WORKFLOWS_DIR, 'lib', 'diagnose-issues.md'), 'utf-8'
     );
     assert.ok(
       content.includes('subagent_type="gsd-debugger"'),

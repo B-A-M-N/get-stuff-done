@@ -11,6 +11,34 @@ Plans execute autonomously. Checkpoints formalize interaction points where human
 5. **Auto-mode bypasses verification/decision checkpoints** — When `workflow._auto_chain_active` or `workflow.auto_advance` is true in config: human-verify auto-approves, decision auto-selects first option, human-action still stops (auth gates cannot be automated)
 </overview>
 
+<agent_contract>
+## Agent Checkpoint Return Contract
+
+Whenever a subagent hits a checkpoint or must pause on ambiguity, it must return a structured checkpoint state, not a vague note.
+
+Required fields:
+- `status`: `continue` | `checkpoint` | `blocked`
+- `why_blocked`: exact reason the agent cannot safely continue alone
+- `what_is_uncertain`: the unresolved ambiguity, decision, verification gap, or human-only action
+- `choices`: 2-3 concrete options when a decision is required; otherwise empty
+- `allow_freeform`: whether the human may respond in their own words
+- `resume_condition`: what must happen before the agent can continue
+
+Required behavior:
+1. Name the uncertainty explicitly.
+2. Explain why it matters now.
+3. Offer concrete choices when choices exist.
+4. Allow freeform input when the listed choices may be incomplete.
+5. Never claim completion past a blocking checkpoint.
+
+Bad:
+- "Waiting for user input."
+- "Need clarification."
+
+Good:
+- "Blocked because the visual acceptance bar is unclear. I cannot validate the layout safely without knowing whether mobile or desktop fidelity is the priority. Choices: prioritize mobile first, prioritize desktop first, or provide your own acceptance rule. Resume when the user selects an option or gives a freeform rule."
+</agent_contract>
+
 <checkpoint_types>
 
 <type name="human-verify">

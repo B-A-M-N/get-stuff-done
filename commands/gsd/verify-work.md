@@ -20,8 +20,8 @@ Output: {phase_num}-UAT.md tracking all test results. If issues found: diagnosed
 </objective>
 
 <execution_context>
-@~/.claude/get-stuff-done/workflows/verify-work.md
-@~/.claude/get-stuff-done/templates/UAT.md
+@/home/bamn/get-stuff-done/get-stuff-done/workflows/verify-work.md
+@/home/bamn/get-stuff-done/get-stuff-done/templates/UAT.md
 </execution_context>
 
 <context>
@@ -33,7 +33,7 @@ Context files are resolved inside the workflow (`init verify-work`) and delegate
 </context>
 
 <process>
-Execute the verify-work workflow from @~/.claude/get-stuff-done/workflows/verify-work.md end-to-end.
+Execute the verify-work workflow from @/home/bamn/get-stuff-done/get-stuff-done/workflows/verify-work.md end-to-end.
 Preserve all workflow gates (session management, test presentation, diagnosis, fix planning, routing).
 
 Installed surface: when this fork is installed, this flow is exposed to users as `/dostuff:verify-work`.

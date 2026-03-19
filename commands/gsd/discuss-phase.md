@@ -1,6 +1,6 @@
 ---
 name: gsd:discuss-phase
-description: Gather phase context through adaptive questioning before planning. Use --auto to skip interactive questions (Claude picks recommended defaults).
+description: Gather phase context through adaptive questioning before planning. Use --auto to skip interactive questions when ambiguity is not blocking.
 argument-hint: "<phase> [--auto]"
 allowed-tools:
   - Read
@@ -30,8 +30,8 @@ Extract implementation decisions that downstream agents need — researcher and 
 </objective>
 
 <execution_context>
-@~/.claude/get-stuff-done/workflows/discuss-phase.md
-@~/.claude/get-stuff-done/templates/context.md
+@/home/bamn/get-stuff-done/get-stuff-done/workflows/discuss-phase.md
+@/home/bamn/get-stuff-done/get-stuff-done/templates/context.md
 </execution_context>
 
 <context>
@@ -45,7 +45,7 @@ Context files are resolved in-workflow using `init phase-op` and roadmap/state t
 2. Check if CONTEXT.md exists (offer update/view/skip if yes)
 3. **Load prior context** — Read PROJECT.md, REQUIREMENTS.md, STATE.md, and all prior CONTEXT.md files
 4. **Scout codebase** — Find reusable assets, patterns, and integration points
-5. **Interpret phase narrative** — Capture how the user imagines the phase working, show an interpretation summary, and ask bounded clarification only when ambiguity is high
+5. **Interpret phase narrative** — Capture how the user imagines the phase working, show an interpretation summary, and use explicit clarification checkpoints before any risky auto/default behavior
 6. **Analyze phase** — Check prior decisions, skip already-decided areas, generate remaining gray areas using the interpreted intent
 7. **Present gray areas** — Multi-select: which to discuss? Annotate with prior decisions + code context
 8. **Deep-dive each area** — 4 questions per area, code-informed options, Context7 for library choices

@@ -1,9 +1,9 @@
 ---
 phase: 15
 slug: schema-foundation
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: ready
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-03-17
 ---
 
@@ -17,20 +17,20 @@ created: 2026-03-17
 
 | Property | Value |
 |----------|-------|
-| **Framework** | {pytest 7.x / jest 29.x / vitest / go test / other} |
-| **Config file** | {path or "none — Wave 0 installs"} |
-| **Quick run command** | `{quick command}` |
-| **Full suite command** | `{full command}` |
-| **Estimated runtime** | ~15 seconds |
+| **Framework** | node:test (built-in) |
+| **Config file** | none — scripts/run-tests.cjs auto-discovers *.test.cjs |
+| **Quick run command** | `node --test tests/checkpoint-validator.test.cjs` |
+| **Full suite command** | `node scripts/run-tests.cjs` |
+| **Estimated runtime** | ~5 seconds (quick), ~30 seconds (full) |
 
 ---
 
 ## Sampling Rate
 
-- **After every task commit:** Run `{quick run command}`
-- **After every plan wave:** Run `{full suite command}`
+- **After every task commit:** Run `node --test tests/checkpoint-validator.test.cjs`
+- **After every plan wave:** Run `node scripts/run-tests.cjs`
 - **Before `/gsd:verify-work`:** Full suite must be green
-- **Max feedback latency:** 15 seconds
+- **Max feedback latency:** 5 seconds
 
 ---
 
@@ -38,7 +38,10 @@ created: 2026-03-17
 
 | Task ID | Plan | Wave | Requirement | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|-----------|-------------------|-------------|--------|
-| 15-01-01 | 01 | 1 | REQ-{XX} | unit | `{command}` | ✅ / ❌ W0 | ⬜ pending |
+| 15-01-01 | 01 | 1 | SCHEMA-01, CHECKPOINT-04 | unit + export check | `node -e "require('./get-stuff-done/bin/lib/artifact-schema.cjs')" && node --test tests/checkpoint-validator.test.cjs` | ❌ W0 (new file) | ⬜ pending |
+| 15-02-01 | 02 | 1 | SCHEMA-05 | unit + export check | `node -e "const s=require('./get-stuff-done/bin/lib/itl-schema.cjs'); ['interpretationSchema','ambiguitySchema','lockabilitySchema','clarificationCheckpointSchema','clarificationPromptSchema'].forEach(k=>{if(!s[k])throw new Error(k+' missing')})" && node --test tests/itl.test.cjs` | ✅ existing | ⬜ pending |
+| 15-03-01 | 03 | 2 | SCHEMA-04 | unit (regression) | `node --test tests/checkpoint-validator.test.cjs` | ✅ existing | ⬜ pending |
+| 15-03-02 | 03 | 2 | SCHEMA-04, SCHEMA-05 | unit (new assertions) | `node --test tests/checkpoint-validator.test.cjs && node --test tests/itl.test.cjs` | ✅ existing | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -46,31 +49,27 @@ created: 2026-03-17
 
 ## Wave 0 Requirements
 
-- [ ] `{tests/test_file.py}` — stubs for REQ-{XX}
-- [ ] `{tests/conftest.py}` — shared fixtures
-- [ ] `{framework install}` — if no framework detected
+- [x] `tests/checkpoint-validator.test.cjs` — exists, covers checkpointResponseSchema validation
+- [x] `tests/itl.test.cjs` — exists, covers ITL sub-schema exports
+- [ ] `get-stuff-done/bin/lib/artifact-schema.cjs` — new file created by Plan 01 Task 1 (Wave 0 gap closed by Plan 01)
 
-*If none: "Existing infrastructure covers all phase requirements."*
+*Plan 01 Task 1 creates the new file — no pre-existing stubs needed. Tests already exist.*
 
 ---
 
 ## Manual-Only Verifications
 
-| Behavior | Requirement | Why Manual | Test Instructions |
-|----------|-------------|------------|-------------------|
-| {behavior} | REQ-{XX} | {reason} | {steps} |
-
-*If none: "All phase behaviors have automated verification."*
+*All phase behaviors have automated verification.*
 
 ---
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 15s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify (4 tasks, all verified)
+- [x] Wave 0 covers all MISSING references (artifact-schema.cjs created in Plan 01)
+- [x] No watch-mode flags
+- [x] Feedback latency < 15s (all commands ~2-5s)
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** {pending / approved YYYY-MM-DD}
+**Approval:** approved 2026-03-17

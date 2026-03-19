@@ -16,13 +16,13 @@ without choosing a workflow first.
 Behavior:
 - Interprets multi-paragraph narrative input into structured intent
 - Produces an interpretation summary before routing
-- Flags ambiguity instead of silently auto-routing risky input
+- Uses explicit clarification checkpoints before routing risky input
 - Records an audit trail under `.planning/itl/`
 - Routes to `/dostuff:new-project` or `/dostuff:quick` after interpretation
 </objective>
 
 <execution_context>
-@~/.claude/get-stuff-done/workflows/dostuff.md
+@/home/bamn/get-stuff-done/get-stuff-done/workflows/dostuff.md
 </execution_context>
 
 <context>
@@ -30,6 +30,6 @@ $ARGUMENTS
 </context>
 
 <process>
-Execute the dostuff workflow from @~/.claude/get-stuff-done/workflows/dostuff.md end-to-end.
+Execute the dostuff workflow from @/home/bamn/get-stuff-done/get-stuff-done/workflows/dostuff.md end-to-end.
 Interpret the narrative, handle ambiguity safely, then route to `/dostuff:new-project` or `/dostuff:quick`.
 </process>

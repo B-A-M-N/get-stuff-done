@@ -18,8 +18,8 @@ Output: {phase_num}-UI-REVIEW.md
 </objective>
 
 <execution_context>
-@~/.claude/get-stuff-done/workflows/ui-review.md
-@~/.claude/get-stuff-done/references/ui-brand.md
+@/home/bamn/get-stuff-done/get-stuff-done/workflows/ui-review.md
+@/home/bamn/get-stuff-done/get-stuff-done/references/ui-brand.md
 </execution_context>
 
 <context>
@@ -27,6 +27,6 @@ Phase: $ARGUMENTS — optional, defaults to last completed phase.
 </context>
 
 <process>
-Execute @~/.claude/get-stuff-done/workflows/ui-review.md end-to-end.
+Execute @/home/bamn/get-stuff-done/get-stuff-done/workflows/ui-review.md end-to-end.
 Preserve all workflow gates.
 </process>

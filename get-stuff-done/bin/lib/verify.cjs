@@ -1045,6 +1045,100 @@ function cmdValidateHealth(cwd, options, raw) {
   }, raw);
 }
 
+function cmdVerifyCrossPlanDataContracts(cwd, phase, raw) {
+  if (!phase) { error('phase required'); }
+  const phaseInfo = findPhaseInternal(cwd, phase);
+  if (!phaseInfo || !phaseInfo.found) {
+    output({ error: 'Phase not found', phase }, raw);
+    return;
+  }
+
+  const phaseDir = path.join(cwd, phaseInfo.directory);
+  const planFiles = fs.readdirSync(phaseDir).filter(f => f.endsWith('-PLAN.md'));
+  const plans = [];
+
+  for (const file of planFiles) {
+    const content = fs.readFileSync(path.join(phaseDir, file), 'utf-8');
+    const fm = extractFrontmatter(content);
+    
+    // Extract input files from action and verify elements
+    const inputFiles = new Set();
+    const actionVerifyMatches = content.match(/<(?:action|verify)>([\s\S]*?)<\/(?:action|verify)>/g) || [];
+    for (const block of actionVerifyMatches) {
+      // Find backtick paths or @-refs
+      const paths = block.match(/`([^`\s]+\.[a-zA-Z]+)`|@([^\s\n,)]+\/[^\s\n,)]+)/g) || [];
+      for (const p of paths) {
+        const clean = p.startsWith('@') ? p.slice(1) : p.slice(1, -1);
+        if (clean.includes('.') || clean.includes('/')) inputFiles.add(clean);
+      }
+    }
+
+    plans.push({
+      id: file.replace(/-PLAN\.md$/i, ''),
+      wave: parseInt(fm.wave) || 1,
+      files_modified: Array.isArray(fm.files_modified) ? fm.files_modified : [],
+      files_read: Array.from(inputFiles),
+    });
+  }
+
+  const issues = [];
+  const waves = {};
+  for (const plan of plans) {
+    if (!waves[plan.wave]) waves[plan.wave] = [];
+    waves[plan.wave].push(plan);
+  }
+
+  for (const waveNum in waves) {
+    const wavePlans = waves[waveNum];
+    if (wavePlans.length < 2) continue;
+
+    // Check 1: Multiple plans modifying same file
+    const modifiedInWave = {};
+    for (const plan of wavePlans) {
+      for (const file of plan.files_modified) {
+        if (!modifiedInWave[file]) modifiedInWave[file] = [];
+        modifiedInWave[file].push(plan.id);
+      }
+    }
+
+    for (const file in modifiedInWave) {
+      if (modifiedInWave[file].length > 1) {
+        issues.push({
+          type: 'race_condition',
+          severity: 'blocker',
+          description: `Multiple plans modifying same file in Wave ${waveNum}: ${file}`,
+          plans: modifiedInWave[file],
+          fix_hint: `Move one of ${modifiedInWave[file].join(', ')} to a later wave`,
+        });
+      }
+    }
+
+    // Check 2: Read/Write race (Plan A writes, Plan B reads in same wave)
+    for (const planA of wavePlans) {
+      for (const planB of wavePlans) {
+        if (planA.id === planB.id) continue;
+        const intersection = planA.files_modified.filter(f => planB.files_read.includes(f));
+        if (intersection.length > 0) {
+          issues.push({
+            type: 'data_race',
+            severity: 'blocker',
+            description: `Data race: Plan ${planA.id} writes files that Plan ${planB.id} reads in Wave ${waveNum}`,
+            files: intersection,
+            fix_hint: `Move Plan ${planB.id} to a later wave (add Plan ${planA.id} to depends_on)`,
+          });
+        }
+      }
+    }
+  }
+
+  output({
+    valid: issues.length === 0,
+    phase: phaseInfo.phase_number,
+    plan_count: plans.length,
+    issues,
+  }, raw, issues.length === 0 ? 'valid' : 'invalid');
+}
+
 module.exports = {
   cmdVerifySummary,
   cmdVerifyPlanStructure,
@@ -1053,9 +1147,10 @@ module.exports = {
   cmdVerifyCommits,
   cmdVerifyArtifacts,
   cmdVerifyKeyLinks,
-  cmdVerifyCheckpointResponse,
   cmdVerifyContextContract,
   cmdVerifyResearchContract,
+  cmdVerifyCheckpointResponse,
+  cmdVerifyCrossPlanDataContracts,
   cmdValidateConsistency,
   cmdValidateHealth,
 };

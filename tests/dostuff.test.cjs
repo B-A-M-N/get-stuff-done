@@ -27,7 +27,9 @@ describe('dostuff command', () => {
   test('workflow uses ITL interpretation before routing', () => {
     const content = fs.readFileSync(WORKFLOW_PATH, 'utf8');
     assert.ok(content.includes('itl interpret'));
-    assert.ok(content.includes('ambiguity severity'));
+    assert.ok(content.includes('clarification checkpoint'));
+    assert.ok(content.includes('lockability result'));
+    assert.ok(content.includes('Keep asking while the checkpoint remains `required` or `blocking`'));
     assert.ok(content.includes('/dostuff:new-project'));
     assert.ok(content.includes('/dostuff:quick'));
     assert.ok(content.includes('If `$ARGUMENTS` is empty'));
@@ -46,8 +48,10 @@ describe('new-project narrative-first flow', () => {
     const content = fs.readFileSync(path.join(__dirname, '..', 'get-stuff-done', 'workflows', 'new-project.md'), 'utf8');
     assert.ok(content.includes('itl init-seed'));
     assert.ok(content.includes('Tell me what you\'re trying to build'));
-    assert.ok(content.includes('clarification_questions'));
-    assert.ok(content.includes('needs_clarification'));
+    assert.ok(content.includes('clarification.mode'));
+    assert.ok(content.includes('clarification.reason'));
+    assert.ok(content.includes('provide their own wording'));
+    assert.ok(content.includes('stop before writing files'));
     assert.ok(content.includes('requirements_seed.active'));
   });
 });
@@ -64,8 +68,10 @@ describe('discuss-phase narrative-first flow', () => {
     const content = fs.readFileSync(path.join(__dirname, '..', 'get-stuff-done', 'workflows', 'discuss-phase.md'), 'utf8');
     assert.ok(content.includes('itl discuss-seed'));
     assert.ok(content.includes('Interpretation Preview'));
-    assert.ok(content.includes('needs_clarification'));
-    assert.ok(content.includes('clarification_questions'));
+    assert.ok(content.includes('clarification.mode'));
+    assert.ok(content.includes('why clarification is being raised'));
+    assert.ok(content.includes('do not silently resolve it by inference'));
+    assert.ok(content.includes('stop auto mode'));
     assert.ok(content.includes('deferred ideas'));
   });
 });
@@ -83,6 +89,8 @@ describe('verify-work narrative-first flow', () => {
     assert.ok(content.includes('Narrative-first verification is additive'));
     assert.ok(content.includes('prioritized_checks'));
     assert.ok(content.includes('normal UAT format'));
+    assert.ok(content.includes('clarification.mode'));
+    assert.ok(content.includes('stop before extracting tests'));
   });
 });
 
@@ -90,6 +98,8 @@ describe('research handoff integration', () => {
   test('context template distinguishes research cues from decisions', () => {
     const content = fs.readFileSync(path.join(__dirname, '..', 'get-stuff-done', 'templates', 'context.md'), 'utf8');
     assert.ok(content.includes('## Research Cues'));
+    assert.ok(content.includes('### Invariant Safety'));
+    assert.ok(content.includes('### Unresolved Ambiguities'));
     assert.ok(content.includes('### Interpreted Assumptions'));
     assert.ok(content.includes('not locked implementation decisions'));
   });
@@ -106,6 +116,8 @@ describe('research handoff integration', () => {
     assert.ok(content.includes('Implementation Decisions'));
     assert.ok(content.includes('Research Cues'));
     assert.ok(content.includes('Narrative Intake Summary'));
+    assert.ok(content.includes('Invariant Safety'));
+    assert.ok(content.includes('Unresolved Ambiguities'));
   });
 });
 
@@ -114,6 +126,7 @@ describe('planning handoff integration', () => {
     const content = fs.readFileSync(path.join(__dirname, '..', 'commands', 'gsd', 'plan-phase.md'), 'utf8');
     assert.ok(content.includes('Narrative-first context'));
     assert.ok(content.includes('planning contracts'));
+    assert.ok(content.includes('context-contract validator'));
   });
 
   test('plan-phase workflow distinguishes locked decisions from inferred planning guidance', () => {
@@ -121,14 +134,19 @@ describe('planning handoff integration', () => {
     assert.ok(content.includes('Implementation Decisions'));
     assert.ok(content.includes('Narrative Intake Summary'));
     assert.ok(content.includes('Research Cues'));
+    assert.ok(content.includes('Invariant Safety'));
+    assert.ok(content.includes('Unresolved Ambiguities'));
     assert.ok(content.includes('do not silently convert it into hard scope'));
+    assert.ok(content.includes('verify context-contract'));
   });
 
   test('planning docs describe richer handoff without replacing plan validation', () => {
     const help = fs.readFileSync(path.join(__dirname, '..', 'get-stuff-done', 'workflows', 'help.md'), 'utf8');
     const commands = fs.readFileSync(path.join(__dirname, '..', 'docs', 'COMMANDS.md'), 'utf8');
     assert.ok(help.includes('richer narrative/context/research handoff'));
+    assert.ok(help.includes('context-contract gate'));
     assert.ok(commands.includes('keeping PLAN.md and validation as the planning contracts'));
+    assert.ok(commands.includes('context-contract gate before the broader plan checker'));
   });
 });
 

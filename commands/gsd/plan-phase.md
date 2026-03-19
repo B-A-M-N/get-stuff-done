@@ -21,11 +21,13 @@ Create executable phase prompts (PLAN.md files) for a roadmap phase with integra
 **Orchestrator role:** Parse arguments, validate phase, research domain (unless skipped), spawn gsd-planner, verify with gsd-plan-checker, iterate until pass or max iterations, present results.
 
 Narrative-first context from earlier `/dostuff:*` flows should improve planner handoff, but `PLAN.md` and validation remain the actual planning contracts.
+Guidance-only inferences from narrative intake must not be silently promoted into locked scope unless explicitly confirmed or adversarially validated.
+Generated plans should pass the context-contract validator before broader plan checking proceeds.
 </objective>
 
 <execution_context>
-@~/.claude/get-stuff-done/workflows/plan-phase.md
-@~/.claude/get-stuff-done/references/ui-brand.md
+@/home/bamn/get-stuff-done/get-stuff-done/workflows/plan-phase.md
+@/home/bamn/get-stuff-done/get-stuff-done/references/ui-brand.md
 </execution_context>
 
 <context>
@@ -42,6 +44,6 @@ Normalize phase input in step 2 before any directory lookups.
 </context>
 
 <process>
-Execute the plan-phase workflow from @~/.claude/get-stuff-done/workflows/plan-phase.md end-to-end.
+Execute the plan-phase workflow from @/home/bamn/get-stuff-done/get-stuff-done/workflows/plan-phase.md end-to-end.
 Preserve all workflow gates (validation, research, planning, verification loop, routing).
 </process>

@@ -10,8 +10,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **`/gsd:profile-user` command** — Developer behavioral profiling from session analysis across 8 dimensions (communication, decisions, debugging, UX, vendor choices, frustrations, learning style, explanation depth). Generates `USER-PROFILE.md`, `/gsd:dev-preferences`, and `CLAUDE.md` profile section for personalized responses. Includes `--questionnaire` fallback and `--refresh` for re-analysis
 - **Execution hardening** — Three quality improvements to the execution pipeline:
   - Pre-wave dependency check in `execute-phase`: verifies key-links from prior wave artifacts before spawning next wave
-  - Cross-Plan Data Contracts (Dimension 9) in plan-checker: detects incompatible transformations between plans sharing data pipelines
-  - Export-level spot check in `verify-phase`: catches dead stores that exist in wired files but are never called
+  - Cross-Plan Data Contracts (Dimension 9) in plan-checker: [planned - not yet implemented] detects incompatible transformations between plans sharing data pipelines
+  - Export-level spot check in `verify-phase`: [planned - not yet implemented] catches dead stores that exist in wired files but are never called
 
 ### Fixed
 - **Requirements `mark-complete` is now idempotent** — Re-marking already-completed requirements returns `already_complete` instead of `not_found` (#948)
@@ -1529,7 +1529,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [1.0.0] - 2025-12-14
 
 ### Added
-- Initial release of GSD (Get Shit Done) meta-prompting system
+- Initial release of GSD (Get Stuff Done) meta-prompting system
 - Core slash commands: `/gsd:new-project`, `/gsd:discuss-phase`, `/gsd:plan-phase`, `/gsd:execute-phase`
 - PROJECT.md and STATE.md templates
 - Phase-based development workflow

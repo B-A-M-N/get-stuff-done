@@ -62,6 +62,16 @@ Template for `.planning/phases/XX-name/{phase_num}-CONTEXT.md` - captures implem
 <research_cues>
 ## Research Cues
 
+### Invariant Safety
+- Confirmed user decisions belong only in `Implementation Decisions`
+- Inferred assumptions stay guidance-only until they pass the adversarial ambiguity gate
+- Unresolved ambiguity must remain visible as open questions, not be rewritten into locked scope
+
+### Unresolved Ambiguities
+- [Ambiguity that remains visible after discussion]
+- [Why it was not fully resolved yet]
+- [What downstream agents must NOT assume because of it]
+
 ### Interpreted Assumptions
 - [Inferred assumption that could guide research]
 - [Another inferred assumption]

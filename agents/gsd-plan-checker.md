@@ -91,7 +91,7 @@ Same methodology (goal-backward), different timing, different subject matter.
 4. For each requirement, find covering task(s) in the plan that claims it
 5. Flag requirements with no coverage or missing from all plans' `requirements` fields
 
-**FAIL the verification** if any requirement ID from the roadmap is absent from all plans' `requirements` fields. This is a blocking issue, not a warning.
+**FAIL the verification (BLOCK-02)** if any requirement ID from the roadmap is absent from all plans' `requirements` fields. This is a blocking issue, not a warning.
 
 **Red flags:**
 - Requirement has zero tasks addressing it
@@ -103,7 +103,7 @@ Same methodology (goal-backward), different timing, different subject matter.
 issue:
   dimension: requirement_coverage
   severity: blocker
-  description: "AUTH-02 (logout) has no covering task"
+  description: "BLOCK-02: AUTH-02 (logout) has no covering task"
   plan: "16-01"
   fix_hint: "Add task for logout endpoint in plan 01 or new plan"
 ```
@@ -287,12 +287,14 @@ issue:
 - Task implements something from Deferred Ideas
 - Plan ignores user's stated preference
 
+**Severity: BLOCK-03** (Blocker)
+
 **Example — contradiction:**
 ```yaml
 issue:
   dimension: context_compliance
   severity: blocker
-  description: "Plan contradicts locked decision: user specified 'card layout' but Task 2 implements 'table layout'"
+  description: "BLOCK-03: Plan contradicts locked decision: user specified 'card layout' but Task 2 implements 'table layout'"
   plan: "01"
   task: 2
   user_decision: "Layout: Cards (from Decisions section)"
@@ -372,22 +374,35 @@ If FAIL: return to planner with specific fixes. Same revision loop as other dime
 
 ## Dimension 9: Cross-Plan Data Contracts
 
-**Question:** When plans share data pipelines, are their transformations compatible?
+**Question:** When parallel plans share files or exports, do they violate the data contract or cause races?
 
 **Process:**
-1. Identify data entities in multiple plans' `key_links` or `<action>` elements
-2. For each shared data path, check if one plan's transformation conflicts with another's:
-   - Plan A strips/sanitizes data that Plan B needs in original form
-   - Plan A's output format doesn't match Plan B's expected input
-   - Two plans consume the same stream with incompatible assumptions
-3. Check for a preservation mechanism (raw buffer, copy-before-transform)
+1. **Identify shared files:** For each wave, collect the set of `files_modified` for all parallel plans. Flag any file that appears in more than one plan in the same wave.
+2. **Detect Read/Write races:**
+   - Collect output files (created/modified) per Plan A in wave N.
+   - Collect input files (read/referenced in action/verify) per Plan B in the same wave N.
+   - If A writes a file that B reads → **BLOCKING FAIL**. These plans must be in different waves.
+3. **Detect Export conflicts:**
+   - If Plan A adds/modifies an export (function, class, type) that Plan B calls/uses in the same wave N → **BLOCKING FAIL**.
+4. **Detect Transformation conflicts:**
+   - Plan A strips/sanitizes data that Plan B needs in original form.
+   - Plan A's output format doesn't match Plan B's expected input.
+   - Flag as **BLOCKER** if no preservation mechanism (raw buffer, copy-before-transform) is planned.
 
 **Red flags:**
-- "strip"/"clean"/"sanitize" in one plan + "parse"/"extract" original format in another
-- Streaming consumer modifies data that finalization consumer needs intact
-- Two plans transform same entity without shared raw source
+- Two plans modifying the same file in the same wave.
+- Plan B reading a file Plan A is currently modifying.
+- "strip"/"clean"/"sanitize" in one plan + "parse"/"extract" original format in another.
 
-**Severity:** WARNING for potential conflicts. BLOCKER if incompatible transforms on same data entity with no preservation mechanism.
+**Example issue:**
+```yaml
+issue:
+  dimension: cross_plan_data_contracts
+  severity: blocker
+  description: "Data race: Plan 01 writes src/lib/db.ts which Plan 02 reads in Wave 1"
+  plans: ["01", "02"]
+  fix_hint: "Move Plan 02 to Wave 2 (add '01' to depends_on)"
+```
 
 </verification_dimensions>
 

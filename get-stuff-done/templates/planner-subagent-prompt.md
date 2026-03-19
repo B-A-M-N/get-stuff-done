@@ -107,6 +107,19 @@ Existing plans: @.planning/phases/{phase_dir}/*-PLAN.md
 **Response:** {user_response}
 </checkpoint_response>
 
+<checkpoint_contract>
+Return checkpoint state in a structured, explicit shape.
+
+- `status`: `continue` | `checkpoint` | `blocked`
+- `why_blocked`: exact reason the agent cannot safely continue alone
+- `what_is_uncertain`: the unresolved decision, ambiguity, or verification gap
+- `choices`: 2-3 concrete options when the checkpoint is a decision; otherwise empty
+- `allow_freeform`: `true` when the human may answer in their own words
+- `resume_condition`: what user response or external condition allows continuation
+
+Do not say only "waiting for user input". Name the uncertainty, why it matters, and what the user can do next.
+</checkpoint_contract>
+
 <mode>
 Continue: {standard | gap_closure}
 </mode>

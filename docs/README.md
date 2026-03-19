@@ -1,6 +1,6 @@
 # GSD Documentation
 
-Comprehensive documentation for the Get Shit Done (GSD) framework — a meta-prompting, context engineering, and spec-driven development system for AI coding agents.
+Comprehensive documentation for the Get Stuff Done (GSD) framework — a meta-prompting, context engineering, and spec-driven development system for AI coding agents.
 
 ## Documentation Index
 

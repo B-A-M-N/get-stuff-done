@@ -10,6 +10,7 @@
     "verifier": true,
     "adversarial_test_harness": true,
     "nyquist_validation": true,
-    "auto_advance": false
+    "auto_advance": false,
+    "_auto_chain_active": false
   }
 }

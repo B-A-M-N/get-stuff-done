@@ -1,6 +1,6 @@
 <div align="center">
 
-# GET SHIT DONE
+# GET STUFF DONE
 
 **English** · [简体中文](README.zh-CN.md)
 

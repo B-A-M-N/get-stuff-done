@@ -277,6 +277,9 @@ async function main() {
           plansIdx !== -1 ? parseInt(args[plansIdx + 1], 10) : null,
           raw
         );
+      } else if (subcommand === 'harvest-context') {
+        const phaseIdx = args.indexOf('--phase');
+        state.cmdStateHarvestContext(cwd, phaseIdx !== -1 ? args[phaseIdx + 1] : null, raw);
       } else {
         state.cmdStateLoad(cwd, raw);
       }
@@ -385,8 +388,10 @@ async function main() {
         verify.cmdVerifyResearchContract(cwd, args[2], researchIdx !== -1 ? args[researchIdx + 1] : null, raw);
       } else if (subcommand === 'checkpoint-response') {
         verify.cmdVerifyCheckpointResponse(cwd, args[2], raw);
+      } else if (subcommand === 'cross-plan-data-contracts') {
+        verify.cmdVerifyCrossPlanDataContracts(cwd, args[2], raw);
       } else {
-        error('Unknown verify subcommand. Available: plan-structure, phase-completeness, references, commits, artifacts, key-links, context-contract, research-contract, checkpoint-response');
+        error('Unknown verify subcommand. Available: plan-structure, phase-completeness, references, commits, artifacts, key-links, context-contract, research-contract, checkpoint-response, cross-plan-data-contracts');
       }
       break;
     }
@@ -633,12 +638,21 @@ async function main() {
       const providerIndex = args.indexOf('--provider');
       const responseJsonIndex = args.indexOf('--provider-response-json');
       const responseFileIndex = args.indexOf('--provider-response-file');
+      const ambientContextIndex = args.indexOf('--ambient-context');
+      const phaseIndex = args.indexOf('--phase');
+
       const provider = providerIndex !== -1 ? args[providerIndex + 1] : null;
       const providerResponse = responseJsonIndex !== -1
         ? JSON.parse(args[responseJsonIndex + 1])
         : responseFileIndex !== -1
           ? JSON.parse(fs.readFileSync(args[responseFileIndex + 1], 'utf8'))
           : undefined;
+
+      const ambientContext = ambientContextIndex !== -1
+        ? JSON.parse(args[ambientContextIndex + 1])
+        : null;
+      const phase = phaseIndex !== -1 ? args[phaseIndex + 1] : null;
+
       if (subcommand === 'interpret') {
         const textIndex = args.indexOf('--text');
         const projectInitializedIndex = args.indexOf('--project-initialized');
@@ -650,25 +664,45 @@ async function main() {
           provider,
           provider_response: providerResponse,
           project_initialized: projectInitializedIndex !== -1 ? args[projectInitializedIndex + 1] : null,
+          ambient_context: ambientContext,
+          phase: phase,
         }, raw);
       } else if (subcommand === 'init-seed') {
         const textIndex = args.indexOf('--text');
         const text = textIndex !== -1
           ? args[textIndex + 1]
           : args.slice(2).filter(arg => !arg.startsWith('--')).join(' ');
-        itl.cmdItlInitSeed(cwd, { text, provider, provider_response: providerResponse }, raw);
+        itl.cmdItlInitSeed(cwd, {
+          text,
+          provider,
+          provider_response: providerResponse,
+          ambient_context: ambientContext,
+          phase: phase,
+        }, raw);
       } else if (subcommand === 'discuss-seed') {
         const textIndex = args.indexOf('--text');
         const text = textIndex !== -1
           ? args[textIndex + 1]
           : args.slice(2).filter(arg => !arg.startsWith('--')).join(' ');
-        itl.cmdItlDiscussSeed(cwd, { text, provider, provider_response: providerResponse }, raw);
+        itl.cmdItlDiscussSeed(cwd, {
+          text,
+          provider,
+          provider_response: providerResponse,
+          ambient_context: ambientContext,
+          phase: phase,
+        }, raw);
       } else if (subcommand === 'verify-seed') {
         const textIndex = args.indexOf('--text');
         const text = textIndex !== -1
           ? args[textIndex + 1]
           : args.slice(2).filter(arg => !arg.startsWith('--')).join(' ');
-        itl.cmdItlVerifySeed(cwd, { text, provider, provider_response: providerResponse }, raw);
+        itl.cmdItlVerifySeed(cwd, {
+          text,
+          provider,
+          provider_response: providerResponse,
+          ambient_context: ambientContext,
+          phase: phase,
+        }, raw);
       } else if (subcommand === 'latest') {
         itl.cmdItlLatest(cwd, raw);
       } else {

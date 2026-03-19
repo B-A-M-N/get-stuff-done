@@ -20,7 +20,7 @@ describe('state-snapshot command', () => {
   });
 
   test('missing STATE.md returns error', () => {
-    const result = runGsdTools('state-snapshot', tmpDir);
+    const result = runGsdTools(['state-snapshot'], tmpDir);
     assert.ok(result.success, `Command should succeed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -130,6 +130,38 @@ describe('state-snapshot command', () => {
     assert.strictEqual(output.session.last_date, '2024-01-15', 'session date extracted');
     assert.strictEqual(output.session.stopped_at, 'Phase 3, Plan 2, Task 1', 'stopped at extracted');
     assert.strictEqual(output.session.resume_file, '.planning/phases/03-api/03-02-PLAN.md', 'resume file extracted');
+  });
+
+  test('extracts clarification continuity info', () => {
+    fs.writeFileSync(
+      path.join(tmpDir, '.planning', 'STATE.md'),
+      `# Project State
+
+**Current Phase:** 03
+
+## Session Continuity
+
+**Clarification Status:** blocked
+**Clarification Rounds:** 3
+**Last Clarification Reason:** Success criteria still conflict with scope expectations.
+**Resume Requires User Input:** true
+`
+    );
+
+    const result = runGsdTools('state-snapshot', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.clarification_status, 'blocked', 'clarification status extracted');
+    assert.strictEqual(output.clarification_rounds, 3, 'clarification rounds extracted');
+    assert.strictEqual(output.last_clarification_reason, 'Success criteria still conflict with scope expectations.', 'clarification reason extracted');
+    assert.strictEqual(output.resume_requires_user_input, true, 'resume_requires_user_input extracted');
+    assert.deepStrictEqual(output.clarification, {
+      status: 'blocked',
+      rounds: 3,
+      last_reason: 'Success criteria still conflict with scope expectations.',
+      resume_requires_user_input: true,
+    }, 'clarification object extracted');
   });
 
   test('handles paused_at field', () => {
@@ -313,7 +345,7 @@ describe('state json command', () => {
   });
 
   test('missing STATE.md returns error', () => {
-    const result = runGsdTools('state json', tmpDir);
+    const result = runGsdTools(['state', 'json'], tmpDir);
     assert.ok(result.success, `Command should succeed: ${result.error}`);
 
     const output = JSON.parse(result.output);
@@ -376,6 +408,33 @@ stopped_at: Plan 2 of Phase 3
     assert.strictEqual(output.current_phase, '03', 'phase from frontmatter');
     assert.strictEqual(output.status, 'paused', 'status from frontmatter');
     assert.strictEqual(output.stopped_at, 'Plan 2 of Phase 3', 'stopped_at from frontmatter');
+  });
+
+  test('builds clarification frontmatter from body', () => {
+    fs.writeFileSync(
+      path.join(tmpDir, '.planning', 'STATE.md'),
+      `# Project State
+
+**Current Phase:** 05
+**Status:** Paused
+
+## Session Continuity
+
+**Clarification Status:** pending
+**Clarification Rounds:** 2
+**Last Clarification Reason:** The intended first milestone is still unclear.
+**Resume Requires User Input:** true
+`
+    );
+
+    const result = runGsdTools('state json', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.clarification_status, 'pending', 'clarification status extracted');
+    assert.strictEqual(output.clarification_rounds, 2, 'clarification rounds extracted');
+    assert.strictEqual(output.last_clarification_reason, 'The intended first milestone is still unclear.', 'clarification reason extracted');
+    assert.strictEqual(output.resume_requires_user_input, true, 'resume_requires_user_input extracted');
   });
 
   test('normalizes various status values', () => {
@@ -1195,6 +1254,47 @@ describe('cmdStateRecordSession (state record-session)', () => {
 
     const today = new Date().toISOString().split('T')[0];
     assert.ok(updated.includes(today), 'Last session should be updated to today');
+  });
+
+  test('updates clarification continuity fields', () => {
+    fs.writeFileSync(
+      path.join(tmpDir, '.planning', 'STATE.md'),
+      [
+        '# Project State',
+        '',
+        '## Session Continuity',
+        '',
+        '**Last session:** 2024-01-10',
+        '**Stopped at:** Phase 2, Plan 1',
+        '**Resume file:** None',
+        '**Clarification Status:** none',
+        '**Clarification Rounds:** 0',
+        '**Last Clarification Reason:** None',
+        '**Resume Requires User Input:** false',
+      ].join('\n') + '\n'
+    );
+
+    const result = runGsdTools([
+      'state', 'record-session',
+      '--clarification-status', 'blocked',
+      '--clarification-rounds', '4',
+      '--clarification-reason', 'Scope and timeline are still in conflict.',
+      '--resume-requires-user-input', 'true',
+    ], tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.recorded, true, 'recorded should be true');
+    assert.ok(output.updated.includes('Clarification Status'), 'clarification status should be updated');
+    assert.ok(output.updated.includes('Clarification Rounds'), 'clarification rounds should be updated');
+    assert.ok(output.updated.includes('Last Clarification Reason'), 'clarification reason should be updated');
+    assert.ok(output.updated.includes('Resume Requires User Input'), 'resume_requires_user_input should be updated');
+
+    const updated = fs.readFileSync(path.join(tmpDir, '.planning', 'STATE.md'), 'utf-8');
+    assert.ok(updated.includes('**Clarification Status:** blocked'), 'clarification status updated in body');
+    assert.ok(updated.includes('**Clarification Rounds:** 4'), 'clarification rounds updated in body');
+    assert.ok(updated.includes('**Last Clarification Reason:** Scope and timeline are still in conflict.'), 'clarification reason updated in body');
+    assert.ok(updated.includes('**Resume Requires User Input:** true'), 'resume_requires_user_input updated in body');
   });
 
   test('updates Last session timestamp even with no other options', () => {

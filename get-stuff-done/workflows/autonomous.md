@@ -142,9 +142,9 @@ Parse `has_context` and `clarification_status` from JSON.
 ```bash
 CLARIFICATION_STATUS=$(printf '%s\n' "$PHASE_STATE" | jq -r '.clarification_status // "none"')
 if [ "$CLARIFICATION_STATUS" == "blocked" ]; then
-  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-  echo " GSD ► AUTONOMOUS HALTED: BLOCKED STATE"
-  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo "╔══════════════════════════════════════════════════════════════╗"
+  echo "║  BLOCK-01: I'm stuck and need your answer before I can build ║"
+  echo "╚══════════════════════════════════════════════════════════════╝"
   echo ""
   echo "Phase ${PHASE_NUM} is currently BLOCKED."
   echo "Unblock with: /gsd:resume-project"
