@@ -51,7 +51,7 @@ npx get-stuff-done-cc@latest
 
 ---
 
-## Why I Built This
+## Why the Original Was Built
 
 I'm a solo developer. I don't write code — Claude Code does.
 
@@ -67,9 +67,15 @@ That's what this is. No enterprise roleplay bullshit. Just an incredibly effecti
 
 ---
 
-Vibecoding has a bad reputation. You describe what you want, AI generates code, and you get inconsistent garbage that falls apart at scale.
+## Why I Forked It
 
-GSD fixes that. It's the context engineering layer that makes Claude Code reliable. Describe your idea, let the system extract everything it needs to know, and let Claude Code get to work.
+I agree with everything above. But when I used it, I ran into two problems the original doesn't solve.
+
+**Context capture is too structured.** The discuss-phase asks you to identify "gray areas" in predefined categories. If you already think that way, great. But most people don't. They have an idea, a rough picture in their head, and a bunch of implicit preferences they've never articulated. Asking someone to categorize gray areas before they've even said what they're building puts the burden in the wrong place. This fork flips it: you describe what you're imagining in plain language, and the system extracts the decisions. You don't need to arrive with the right vocabulary.
+
+**Agents leap ahead.** The original GSD is good at executing plans. It's less disciplined about stopping between them. An agent completes a phase and immediately starts deciding what comes next — researching, planning, sometimes executing — before you've had a chance to redirect. By the time you notice, it's several steps into something you didn't ask for. This fork adds explicit flow controls at every phase transition. The system presents options and stops. It waits for your response, classifies your intent, and only proceeds when you've confirmed the direction. If you need a fresh context and have to `/clear`, your decision survives the reset — the next session knows exactly what you chose.
+
+These aren't cosmetic changes. They affect how reliably the system builds what you actually want.
 
 ---
 
