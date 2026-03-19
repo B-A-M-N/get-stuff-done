@@ -3,7 +3,7 @@
 ## Milestones
 
 - [x] **v0.1.0 Intent Translation Layer** - Phases 1-14 (shipped 2026-03-17)
-- [ ] **v0.2.0 Orchestration Integrity** - Phases 15-20 (in progress)
+- [ ] **v0.2.0 Orchestration Integrity** - Phases 15-21 (in progress)
 
 ## Archived Milestones
 
@@ -30,6 +30,7 @@ See full archived roadmap: `.planning/milestones/v0.1.0-ROADMAP.md`
 - [x] **Phase 18: Context Enrichment** - Pre-flight ambient state harvest before clarification escalation (completed 2026-03-17)
 - [x] **Phase 19: Workflow Surface Hardening** - research-phase, validate-phase, autonomous blocked-state gates; SUMMARY.md schema contract; orphaned workflow reconciliation (completed 2026-03-17)
 - [x] **Phase 20: Scenario and Contract Tests** - Full behavioral loop tests and artifact contract validation (completed 2026-03-17)
+- [x] **Phase 21: Brownfield Resilience** - Mega Audit stress-test against un-sanitized legacy chaos (completed 2026-03-18)
 
 ### Phase Details
 
@@ -99,7 +100,7 @@ See full archived roadmap: `.planning/milestones/v0.1.0-ROADMAP.md`
   3. cmdVerifySummary validates against executionSummarySchema
   4. Orphaned workflows moved to lib/ or removed
 **Plans**:
-- [ ] 19-01-PLAN.md — Gates, lib extraction, and SUMMARY.md schema enforcement
+- [x] 19-01-PLAN.md — Gates, lib extraction, and SUMMARY.md schema enforcement
 
 #### Phase 20: Scenario and Contract Tests
 **Goal**: Full pause-clarify-blocked-resume-resolve behavioral loop covered by end-to-end tests
@@ -112,13 +113,28 @@ See full archived roadmap: `.planning/milestones/v0.1.0-ROADMAP.md`
   4. Contract test validates SUMMARY.md against schema
   5. Untracked test files committed and passing
 **Plans**:
-- [x] 20-01-PLAN.md — End-to-end behavioral tests, gate enforcement tests, summary schema expansion, and regression test cleanup (TEST-01/02/03/04/05)
+- [x] 20-01-PLAN.md — End-to-end behavioral tests, gate enforcement tests, summary schema expansion, and regression test cleanup
+
+#### Phase 21: Brownfield Resilience
+**Goal**: Zero-sanitization stress test of v0.2.0 orchestration rules against legacy chaos
+**Depends on**: Phase 20
+**Requirements**: Mega Audit Vector 1, 2, 3, 4
+**Success Criteria**:
+  1. Legacy Phase 1-14 summaries pass verification with "Legacy Compliance" status
+  2. State repair logic auto-recovers from orphaned blocked states
+  3. Pre-flight harvesting supports 2,000+ line STATE.md files
+  4. Orphaned workflows in lib/ maintain backward compatibility
+**Plans**:
+- [x] 21-01-PLAN.md — Schema Resilience & Legacy Fixtures (Vector 1)
+- [x] 21-02-PLAN.md — Deadlock Detection & State Repair (Vector 2)
+- [x] 21-03-PLAN.md — Large-Scale Context Harvesting & Truncation (Vector 3)
+- [x] 21-04-PLAN.md — Workflow Library Backward Compatibility (Vector 4)
 
 ---
 
 ## Progress
 
-**Execution Order:** 15 → 16 → 17 → 18 → 19 → 20
+**Execution Order:** 15 → 16 → 17 → 18 → 19 → 20 → 21
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -128,3 +144,4 @@ See full archived roadmap: `.planning/milestones/v0.1.0-ROADMAP.md`
 | 18. Context Enrichment | 2/2 | Complete    | 2026-03-17 | - |
 | 19. Workflow Surface Hardening | 1/1 | Complete    | 2026-03-17 | - |
 | 20. Scenario and Contract Tests | 1/1 | Complete    | 2026-03-17 | - |
+| 21. Brownfield Resilience | 4/4 | Complete    | 2026-03-18 | - |
