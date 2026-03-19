@@ -114,3 +114,14 @@ test('Scale Test: Massive Context Ingestion truncation', () => {
     cleanup(tmpDir);
   }
 });
+
+test('Integration Test: Library Accessibility', () => {
+  const cwd = path.resolve(__dirname, '..');
+  const libPath = path.join(cwd, 'get-stuff-done', 'workflows', 'lib', 'diagnose-issues.md');
+  
+  assert.ok(fs.existsSync(libPath), 'diagnose-issues.md should exist in lib/');
+  
+  const content = fs.readFileSync(libPath, 'utf-8');
+  assert.ok(content.includes('<purpose>'), 'Workflow should have a purpose section');
+  assert.ok(content.includes('Diagnose UAT gaps'), 'Workflow should be about UAT gaps');
+});
