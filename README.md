@@ -47,6 +47,10 @@ npx get-stuff-done-cc@latest
 
 ---
 
+> **Fork notice:** This version — `get-shit-done` — is a personal fork of [get-stuff-done](https://github.com/glittercowboy/get-stuff-done) with additional features and workflow changes. It is not officially supported or maintained by the original project team. The underlying system and community trust belong to the original `get-stuff-done` — if you want the battle-tested, widely-supported version, use that. This fork exists because of specific gaps that needed addressing.
+
+---
+
 ## Why I Built This
 
 I'm a solo developer. I don't write code — Claude Code does.
