@@ -232,17 +232,18 @@ You approve the roadmap. Now you're ready to build.
 
 Your roadmap has a sentence or two per phase. That's not enough context to build something the way *you* imagine it. This step captures your preferences before anything gets researched or planned.
 
-The system analyzes the phase and identifies gray areas based on what's being built:
+Most tools ask you to check boxes: "which gray areas apply?" But if you don't already think in those categories, you end up with shallow answers — and the system builds something generic. GSD takes a narrative approach instead. The system asks open questions, you answer in plain language, and it extracts the decisions from what you say.
 
-- **Visual features** → Layout, density, interactions, empty states
-- **APIs/CLIs** → Response format, flags, error handling, verbosity
-- **Content systems** → Structure, tone, depth, flow
-- **Organization tasks** → Grouping criteria, naming, duplicates, exceptions
+You don't need to know the right technical terminology. You just describe what you're picturing. The system reads between the lines:
 
-For each area you select, it asks until you're satisfied. The output — `CONTEXT.md` — feeds directly into the next two steps:
+> "I want it to feel snappy, not a heavy full-page load" → extracted decision: client-side navigation, optimistic updates
 
-1. **Researcher reads it** — Knows what patterns to investigate ("user wants card layout" → research card component libraries)
-2. **Planner reads it** — Knows what decisions are locked ("infinite scroll decided" → plan includes scroll handling)
+> "Keep it simple, I don't want a whole admin interface" → extracted decision: scope APIs to user-facing only, no admin layer for v1
+
+The output — `CONTEXT.md` — feeds directly into the next two steps:
+
+1. **Researcher reads it** — Knows what patterns to investigate based on your actual intent
+2. **Planner reads it** — Knows what decisions are locked and plans accordingly
 
 The deeper you go here, the more the system builds what you actually want. Skip it and you get reasonable defaults. Use it and you get *your* vision.
 
@@ -282,6 +283,16 @@ The system:
 4. **Verifies against goals** — Checks the codebase delivers what the phase promised
 
 Walk away, come back to completed work with clean git history.
+
+**Phase transitions wait for you.**
+
+When execution completes, the system presents the next recommended action and stops. It does not auto-advance. You decide what happens next:
+
+- Confirm → it runs the command right now in the same session
+- Redirect → say what you actually want ("research before planning", "skip to phase 3") and it saves your decision
+- Unrelated question → the session continues normally, no GSD command runs
+
+**Cross-session continuity.** If you redirect and need a fresh context (`/clear`), your decision is saved to `.planning/.gsd-next.json`. A `UserPromptSubmit` hook automatically injects it into your next session. Just say "continue" — the system knows exactly what you asked for.
 
 **How Wave Execution Works:**
 
@@ -452,6 +463,20 @@ Every stage uses the same pattern: a thin orchestrator spawns specialized agents
 The orchestrator never does heavy lifting. It spawns agents, waits, integrates results.
 
 **The result:** You can run an entire phase — deep research, multiple plans created and verified, thousands of lines of code written across parallel executors, automated verification against goals — and your main context window stays at 30-40%. The work happens in fresh subagent contexts. Your session stays fast and responsive.
+
+### Agent Discipline
+
+A common failure mode in AI-driven systems: the agent finishes a task and immediately starts the next one without asking. It "helpfully" chains steps together and by the time you look up, it's three phases ahead doing something you didn't want.
+
+GSD prevents this. Phase transitions use an explicit wait-and-classify pattern:
+
+1. Phase completes → system presents recommended next action
+2. System **stops and waits** for your response
+3. Response is classified as: confirm (run it), redirect (save decision, /clear), or unrelated (continue session normally)
+
+In `yolo` mode, auto-advance chains steps. In `interactive` mode (default), nothing happens without your say-so.
+
+The cross-session scratch pad extends this discipline across context resets. Your redirected decision survives `/clear`. The hook injects it into the next session automatically. The system always knows where you left off and what you chose — without needing to re-explain.
 
 ### Atomic Git Commits
 
