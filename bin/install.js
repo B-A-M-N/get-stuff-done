@@ -2111,6 +2111,28 @@ function uninstall(isGlobal, runtime = 'claude') {
       }
     }
 
+    // Remove fork hooks from UserPromptSubmit (next-step consume)
+    if (settings.hooks && settings.hooks.UserPromptSubmit) {
+      const before = settings.hooks.UserPromptSubmit.length;
+      settings.hooks.UserPromptSubmit = settings.hooks.UserPromptSubmit.filter(entry => {
+        if (entry.hooks && Array.isArray(entry.hooks)) {
+          const hasGsdHook = entry.hooks.some(h =>
+            h.command && h.command.includes('next-step consume') &&
+            h.command.includes(FORK_COMMAND_PREFIX)
+          );
+          return !hasGsdHook;
+        }
+        return true;
+      });
+      if (settings.hooks.UserPromptSubmit.length < before) {
+        settingsModified = true;
+        console.log(`  ${green}✓${reset} Removed ${FORK_COMMAND_PREFIX} next-step hook from settings`);
+      }
+      if (settings.hooks.UserPromptSubmit.length === 0) {
+        delete settings.hooks.UserPromptSubmit;
+      }
+    }
+
     // Clean up empty hooks object
     if (settings.hooks && Object.keys(settings.hooks).length === 0) {
       delete settings.hooks;
@@ -2846,6 +2868,9 @@ function install(isGlobal, runtime = 'claude') {
   const contextMonitorCommand = isGlobal
     ? buildHookCommand(targetDir, FORK_CONTEXT_MONITOR_HOOK)
     : 'node ' + dirName + '/hooks/' + FORK_CONTEXT_MONITOR_HOOK;
+  const nextStepConsumeCommand = isGlobal
+    ? `node "${getForkEngineRoot(targetDir).replace(/\\/g, '/')}/bin/gsd-tools.cjs" next-step consume`
+    : `node "${dirName}/${FORK_INSTALL_SUBDIR}/${FORK_ENGINE_DIRNAME}/bin/gsd-tools.cjs" next-step consume`;
 
   // Enable experimental agents for Gemini CLI (required for custom sub-agents)
   if (isGemini) {
@@ -2869,6 +2894,7 @@ function install(isGlobal, runtime = 'claude') {
   if (!isOpencode) {
     addHookToEvent('SessionStart', updateCheckCommand);
     addHookToEvent(postToolEvent, contextMonitorCommand);
+    addHookToEvent('UserPromptSubmit', nextStepConsumeCommand);
   }
 
   return { settingsPath, settings, statuslineCommand, runtime };

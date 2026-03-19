@@ -745,17 +745,38 @@ Verification: {Passed | Passed with override | Skipped}
 
 **Execute Phase {X}** — run all {N} plans
 
-/gsd:execute-phase {X}
-
-<sub>/clear first → fresh context window</sub>
-
-───────────────────────────────────────────────────────────────
+Recommended: `/gsd:execute-phase {X}`
 
 **Also available:**
-- cat .planning/phases/{phase-dir}/*-PLAN.md — review plans
-- /gsd:plan-phase {X} --research — re-research first
+- `/gsd:plan-phase {X} --research` — re-research and replan
+- `cat .planning/phases/{phase-dir}/*-PLAN.md` — review plans first
+
+What would you like to do next?
 
 ───────────────────────────────────────────────────────────────
+
+**After user responds — classify intent:**
+
+**Case A — GSD confirmation** ("yes", "execute it", "run it", "let's go"):
+Execute `/gsd:execute-phase {X}` right now in this session.
+
+**Case B — GSD redirect** ("review plans first", "research more", "skip to phase X+1"):
+Derive the correct command. Save it:
+```bash
+node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" next-step set "<corrected-command>" --hint "User redirected after planning Phase {X}: <what they asked for>"
+```
+Then show:
+```
+╔══════════════════════════════════════════════════════╗
+║  /clear now → your next command is ready             ║
+║  <corrected-command>                                 ║
+╚══════════════════════════════════════════════════════╝
+
+Type /clear. When you come back, just say "continue".
+```
+Stop. Do not execute anything further.
+
+**Case C — Unrelated to GSD**: Continue the session normally. Do not write scratch pad.
 </offer_next>
 
 <success_criteria>
