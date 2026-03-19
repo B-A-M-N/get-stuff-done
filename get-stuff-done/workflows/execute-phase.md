@@ -589,7 +589,15 @@ Read and follow `~/.claude/get-stuff-done/workflows/lib/transition.md`, passing 
 
 **If none of `--auto`, `AUTO_CHAIN`, or `AUTO_CFG` is true:**
 
-**STOP. Do not auto-advance. Do not execute transition. Do not plan next phase. Present options to the user and wait.**
+**STOP. Do not auto-advance. Do not execute transition. Do not plan next phase.**
+
+**Write scratch pad before presenting options, so the suggestion survives /clear:**
+```bash
+node "/home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" next-step set "/gsd:plan-phase ${NEXT_PHASE_NUMBER}" --hint "Phase ${PHASE_NUMBER} complete — ready to plan Phase ${NEXT_PHASE_NUMBER}"
+```
+(If next phase number is unknown, use the phase complete result from `gsd-tools phase complete`.)
+
+**Present options to the user and wait.**
 
 ```
 ## ✓ Phase {X}: {Name} Complete
@@ -598,6 +606,8 @@ Read and follow `~/.claude/get-stuff-done/workflows/lib/transition.md`, passing 
 /gsd:discuss-phase {next} — discuss next phase before planning
 /gsd:plan-phase {next} — plan next phase
 /gsd:execute-phase {next} — execute next phase
+
+<sub>/clear first → fresh context window — your next command is already saved</sub>
 ```
 </step>
 

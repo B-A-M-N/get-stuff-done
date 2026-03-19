@@ -22,7 +22,7 @@ Behavior:
 </objective>
 
 <execution_context>
-@/home/bamn/get-stuff-done/get-stuff-done/workflows/dostuff.md
+@~/.claude/get-stuff-done/workflows/dostuff.md
 </execution_context>
 
 <context>
@@ -30,6 +30,6 @@ $ARGUMENTS
 </context>
 
 <process>
-Execute the dostuff workflow from @/home/bamn/get-stuff-done/get-stuff-done/workflows/dostuff.md end-to-end.
+Execute the dostuff workflow from @~/.claude/get-stuff-done/workflows/dostuff.md end-to-end.
 Interpret the narrative, handle ambiguity safely, then route to `/dostuff:new-project` or `/dostuff:quick`.
 </process>

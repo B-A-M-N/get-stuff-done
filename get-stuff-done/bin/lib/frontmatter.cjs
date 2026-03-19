@@ -8,6 +8,31 @@ const { safeReadFile, normalizeMd, output, error } = require('./core.cjs');
 
 // ─── Parsing engine ───────────────────────────────────────────────────────────
 
+// Quote-aware inline YAML array split. Handles values like [a, "b,c", d] correctly.
+function splitInlineArray(str) {
+  const items = [];
+  let buf = '';
+  let q = null;
+  for (let i = 0; i < str.length; i++) {
+    const c = str[i];
+    if (q) {
+      if (c === q) q = null;
+      else buf += c;
+    } else if (c === '"' || c === "'") {
+      q = c;
+    } else if (c === ',') {
+      const t = buf.trim();
+      if (t) items.push(t);
+      buf = '';
+    } else {
+      buf += c;
+    }
+  }
+  const t = buf.trim();
+  if (t) items.push(t);
+  return items.filter(Boolean);
+}
+
 function extractFrontmatter(content) {
   const frontmatter = {};
   const match = content.match(/^---\r?\n([\s\S]+?)\r?\n---/);
@@ -16,54 +41,50 @@ function extractFrontmatter(content) {
   const yaml = match[1];
   const lines = yaml.split(/\r?\n/);
 
-  // Stack to track nested objects: [{obj, key, indent}]
-  // obj = object to write to, key = current key collecting array items, indent = indentation level
-  let stack = [{ obj: frontmatter, key: null, indent: -1 }];
+  // Stack to track nested objects: [{obj, indent, pendingArrayKey}]
+  // pendingArrayKey: the key whose value is an empty-object placeholder awaiting
+  // array items. Needed to handle zero-indented block arrays:
+  //   files_modified:
+  //   - a.js   ← same indent as the key, so we pop back to parent before seeing it
+  let stack = [{ obj: frontmatter, indent: -1, pendingArrayKey: null }];
 
   for (const line of lines) {
-    // Skip empty lines
     if (line.trim() === '') continue;
 
-    // Calculate indentation (number of leading spaces)
     const indentMatch = line.match(/^(\s*)/);
     const indent = indentMatch ? indentMatch[1].length : 0;
 
-    // Pop stack back to appropriate level
     while (stack.length > 1 && indent <= stack[stack.length - 1].indent) {
       stack.pop();
     }
 
     const current = stack[stack.length - 1];
 
-    // Check for key: value pattern
     const keyMatch = line.match(/^(\s*)([a-zA-Z0-9_-]+):\s*(.*)/);
     if (keyMatch) {
       const key = keyMatch[2];
       const value = keyMatch[3].trim();
 
+      // Clear pending key — a new key means we're past the placeholder
+      current.pendingArrayKey = null;
+
       if (value === '' || value === '[') {
-        // Key with no value or opening bracket — could be nested object or array
-        // We'll determine based on next lines, for now create placeholder
+        // Key with no inline value — placeholder for nested content or array
         current.obj[key] = value === '[' ? [] : {};
-        current.key = null;
-        // Push new context for potential nested content
-        stack.push({ obj: current.obj[key], key: null, indent });
+        current.pendingArrayKey = key;  // remember in case items appear at same indent
+        stack.push({ obj: current.obj[key], indent, pendingArrayKey: null });
       } else if (value.startsWith('[') && value.endsWith(']')) {
-        // Inline array: key: [a, b, c]
-        current.obj[key] = value.slice(1, -1).split(',').map(s => s.trim().replace(/^["']|["']$/g, '')).filter(Boolean);
-        current.key = null;
+        // Inline array: key: [a, b, c] or key: ["a,b", c]
+        current.obj[key] = splitInlineArray(value.slice(1, -1));
       } else {
         // Simple key: value
         current.obj[key] = value.replace(/^["']|["']$/g, '');
-        current.key = null;
       }
     } else if (line.trim().startsWith('- ')) {
-      // Array item
       const itemValue = line.trim().slice(2).replace(/^["']|["']$/g, '');
 
-      // If current context is an empty object, convert to array
       if (typeof current.obj === 'object' && !Array.isArray(current.obj) && Object.keys(current.obj).length === 0) {
-        // Find the key in parent that points to this object and convert it
+        // Current context is the empty-object placeholder — convert in-place
         const parent = stack.length > 1 ? stack[stack.length - 2] : null;
         if (parent) {
           for (const k of Object.keys(parent.obj)) {
@@ -76,6 +97,16 @@ function extractFrontmatter(content) {
         }
       } else if (Array.isArray(current.obj)) {
         current.obj.push(itemValue);
+      } else if (current.pendingArrayKey) {
+        // We've popped back to the parent whose key had an empty-object placeholder.
+        // The array item belongs to that key (zero-indented block array).
+        const target = current.obj[current.pendingArrayKey];
+        if (target !== undefined && typeof target === 'object' && !Array.isArray(target) && Object.keys(target).length === 0) {
+          current.obj[current.pendingArrayKey] = [itemValue];
+          stack.push({ obj: current.obj[current.pendingArrayKey], indent, pendingArrayKey: null });
+        } else if (Array.isArray(target)) {
+          target.push(itemValue);
+        }
       }
     }
   }

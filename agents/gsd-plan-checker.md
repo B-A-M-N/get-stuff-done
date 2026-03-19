@@ -526,6 +526,22 @@ done
 
 Validate: all referenced plans exist, no cycles, wave numbers consistent, no forward references. If A -> B -> C -> A, report cycle.
 
+## Step 6.5: Cross-Plan Data Contracts (Dimension 9)
+
+Run the CLI gate directly — this is programmatic, not judgment-based:
+
+```bash
+CROSS_PLAN=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" verify cross-plan-data-contracts "$phase_number" --raw)
+```
+
+Parse JSON: `{ valid, plan_count, issues: [{ type, severity, description, plans, fix_hint }] }`
+
+- If `valid: false` → map each issue to Dimension 9 format and add to issues list
+- `race_condition` and `data_race` types → severity `blocker`
+- All Dimension 9 issues are **BLOCKING FAILS** per the dimension spec
+
+If the phase has only one plan or all plans are in separate waves, this check passes trivially — report "Dimension 9: PASS (no parallel plans in same wave)".
+
 ## Step 7: Check Key Links
 
 For each key_link in must_haves: find source artifact task, check if action mentions the connection, flag missing wiring.
@@ -734,7 +750,7 @@ Plan verification complete when:
   - [ ] No tasks contradict locked decisions
   - [ ] Deferred ideas not included in plans
 - [ ] Overall status determined (passed | issues_found)
-- [ ] Cross-plan data contracts checked (no conflicting transforms on shared data)
+- [ ] Cross-plan data contracts checked via CLI (`verify cross-plan-data-contracts`) — no conflicting transforms on shared data
 - [ ] Structured issues returned (if any found)
 - [ ] Result returned to orchestrator
 

@@ -255,6 +255,24 @@ grep -E "\{.*$state_var.*\}|\{$state_var\." "$component" 2>/dev/null
 
 Status: WIRED (state displayed) | NOT_WIRED (state exists, not rendered)
 
+## Step 5.5: Export-Level Dead Store Check
+
+After verifying key links, run the dead-export spot check. This catches symbols that were correctly planned and exist in the producer file, but were never actually wired into the consumer — a common sign of incomplete integration that key_links verification alone can miss.
+
+```bash
+DEAD_EXPORTS=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" verify dead-exports "$PHASE_NUM" --raw)
+```
+
+Parse JSON: `{ valid, links_checked, verified, dead_stores: [{from, to, via, description, fix_hint}], skipped }`
+
+- If `valid: false`: each `dead_stores` entry is a wiring gap — add to gaps list with severity ⚠️ Warning (or 🛑 Blocker if the dead export is load-bearing for a truth)
+- If `links_checked === 0`: no key_links with `via` fields in any plan — skip and note "Step 5.5: SKIPPED (no key_links with via field)"
+- `skipped` entries (missing files, missing symbol) — note in report as informational; don't treat as failures
+
+**Dead store severity:**
+- The `from`→`to` link is declared in a truth-backing key_link → 🛑 Blocker
+- The link is supplementary (wiring detail, not truth-backing) → ⚠️ Warning
+
 ## Step 6: Check Requirements Coverage
 
 **6a. Extract requirement IDs from PLAN frontmatter:**
@@ -568,6 +586,7 @@ return <div>No messages</div>  // Always shows "no messages"
 - [ ] All truths verified with status and evidence
 - [ ] All artifacts checked at all three levels (exists, substantive, wired)
 - [ ] All key links verified
+- [ ] Dead-export spot check run via CLI (`verify dead-exports`) — dead stores flagged
 - [ ] Requirements coverage assessed (if applicable)
 - [ ] Anti-patterns scanned and categorized
 - [ ] Human verification items identified

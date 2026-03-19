@@ -151,6 +151,7 @@ const frontmatter = require('./lib/frontmatter.cjs');
 const itl = require('./lib/itl.cjs');
 const profilePipeline = require('./lib/profile-pipeline.cjs');
 const profileOutput = require('./lib/profile-output.cjs');
+const nextStep = require('./lib/next-step.cjs');
 
 // ─── CLI Router ───────────────────────────────────────────────────────────────
 
@@ -400,6 +401,30 @@ async function main() {
         verify.cmdVerifyOrphanedState(cwd, args[2], raw);
       } else {
         error('Unknown verify subcommand. Available: plan-structure, phase-completeness, references, commits, artifacts, key-links, context-contract, research-contract, checkpoint-response, cross-plan-data-contracts, requirement-coverage, dead-exports, orphaned-state');
+      }
+      break;
+    }
+
+    case 'next-step': {
+      const subcommand = args[1];
+      if (subcommand === 'set') {
+        const hintIdx = args.indexOf('--hint');
+        const hint = hintIdx !== -1 ? args[hintIdx + 1] : null;
+        // command is everything between 'set' and first -- flag
+        const cmdParts = [];
+        for (let i = 2; i < args.length; i++) {
+          if (args[i].startsWith('--')) break;
+          cmdParts.push(args[i]);
+        }
+        nextStep.cmdSet(cwd, cmdParts.join(' '), hint, raw);
+      } else if (subcommand === 'get') {
+        nextStep.cmdGet(cwd, raw);
+      } else if (subcommand === 'consume') {
+        nextStep.cmdConsume(cwd, raw);
+      } else if (subcommand === 'clear') {
+        nextStep.cmdClear(cwd, raw);
+      } else {
+        error('Unknown next-step subcommand. Available: set, get, consume, clear');
       }
       break;
     }

@@ -54,21 +54,20 @@ describe('extractFrontmatter', () => {
     assert.deepStrictEqual(result.key, ['a', 'b', 'c']);
   });
 
-  test('handles quoted commas in inline arrays — REG-04 known limitation', () => {
-    // REG-04: The split(',') on line 53 does NOT respect quotes.
-    // The parser WILL split on commas inside quotes, producing wrong results.
-    // This test documents the CURRENT (buggy) behavior.
+  test('handles quoted commas in inline arrays correctly — REG-04 fixed', () => {
+    // REG-04 is fixed: the parser now uses a quote-aware split.
     const content = '---\nkey: ["a, b", c]\n---\n';
     const result = extractFrontmatter(content);
-    // Current behavior: splits on ALL commas, producing 3 items instead of 2
-    // Expected correct behavior would be: ["a, b", "c"]
-    // Actual current behavior: ["a", "b", "c"] (split ignores quotes)
-    assert.ok(Array.isArray(result.key), 'should produce an array');
-    assert.ok(result.key.length >= 2, 'should produce at least 2 items from comma split');
-    // The bug produces ["a", "b\"", "c"] or similar — the exact output depends on
-    // how the regex strips quotes after the split.
-    // We verify the key insight: the result has MORE items than intended (known limitation).
-    assert.ok(result.key.length > 2, 'REG-04: split produces more items than intended due to quoted comma bug');
+    assert.deepStrictEqual(result.key, ['a, b', 'c']);
+  });
+
+  test('handles non-indented block array items (zero-indent after key)', () => {
+    // Files in the wild may use YAML where array items share the key's indentation.
+    // This is technically non-standard YAML but the parser should handle it gracefully.
+    const content = '---\nfiles_modified:\n- src/main.js\n- src/lib/api.js\n---\n';
+    const result = extractFrontmatter(content);
+    assert.ok(Array.isArray(result.files_modified), 'should produce an array');
+    assert.deepStrictEqual(result.files_modified, ['src/main.js', 'src/lib/api.js']);
   });
 
   test('returns empty object for no frontmatter', () => {

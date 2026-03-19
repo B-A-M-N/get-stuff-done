@@ -63,7 +63,27 @@ Read the plan file provided in your prompt context.
 
 Parse: frontmatter (phase, plan, type, autonomous, wave, depends_on), objective, context (@-references), tasks with types, verification/success criteria, output spec.
 
-**If plan references CONTEXT.md:** Honor user's vision throughout execution.
+**If plan references CONTEXT.md:** Run the programmatic context-contract check before executing any tasks:
+
+```bash
+CONTEXT_CHECK=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" verify context-contract <context-file> <plan-file> --raw 2>/dev/null)
+```
+
+Parse result. If `valid: false`:
+- STOP — do not execute any tasks
+- Return to orchestrator with:
+  ```
+  ## BLOCKED: Plan contradicts context decisions
+
+  The plan cannot execute because it violates locked user decisions from CONTEXT.md.
+
+  **Violations:**
+  [list each error from CONTEXT_CHECK.errors]
+
+  **Action required:** Return this plan to the planner with these violations. The planner must revise the plan to honor the locked decisions before execution can proceed.
+  ```
+
+If `valid: true` (or CONTEXT.md does not exist): proceed with execution.
 </step>
 
 <step name="record_start_time">

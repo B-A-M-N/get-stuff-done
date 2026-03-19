@@ -7,6 +7,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- **GSD scratch pad + forced context reset** — At the end of every phase (transition and execute-phase), the recommended next command is written to `.planning/.gsd-next.json`. A `UserPromptSubmit` hook reads and consumes this file at the start of each new session, injecting routing context into Claude's conversation. If the user redirects ("Continue but research"), the hook injection includes phase-specific alternatives so Claude runs the right command rather than the saved default. 13 tests added. No config required — hook registered automatically in `~/.claude/settings.json`.
 - **`/gsd:profile-user` command** — Developer behavioral profiling from session analysis across 8 dimensions (communication, decisions, debugging, UX, vendor choices, frustrations, learning style, explanation depth). Generates `USER-PROFILE.md`, `/gsd:dev-preferences`, and `CLAUDE.md` profile section for personalized responses. Includes `--questionnaire` fallback and `--refresh` for re-analysis
 - **Execution hardening** — Three quality improvements to the execution pipeline:
   - Pre-wave dependency check in `execute-phase`: verifies key-links from prior wave artifacts before spawning next wave

@@ -398,6 +398,11 @@ Exit skill and invoke SlashCommand("/gsd:discuss-phase [X+1] --auto")
 
 **If CONTEXT.md does NOT exist:**
 
+**Before presenting options — write scratch pad so the next command survives /clear:**
+```bash
+node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" next-step set "/gsd:discuss-phase [X+1]" --hint "Phase [X] complete — context not yet gathered for Phase [X+1]"
+```
+
 ```
 ## ✓ Phase [X] Complete
 
@@ -410,6 +415,7 @@ Exit skill and invoke SlashCommand("/gsd:discuss-phase [X+1] --auto")
 `/gsd:discuss-phase [X+1]` — gather context and clarify approach
 
 <sub>`/clear` first → fresh context window</sub>
+<sub>↳ Your next command is saved — just `/clear` and continue</sub>
 
 ---
 
@@ -421,6 +427,11 @@ Exit skill and invoke SlashCommand("/gsd:discuss-phase [X+1] --auto")
 ```
 
 **If CONTEXT.md exists:**
+
+**Before presenting options — write scratch pad so the next command survives /clear:**
+```bash
+node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" next-step set "/gsd:plan-phase [X+1]" --hint "Phase [X] complete — context already gathered, ready to plan Phase [X+1]"
+```
 
 ```
 ## ✓ Phase [X] Complete
@@ -435,6 +446,7 @@ Exit skill and invoke SlashCommand("/gsd:discuss-phase [X+1] --auto")
 `/gsd:plan-phase [X+1]`
 
 <sub>`/clear` first → fresh context window</sub>
+<sub>↳ Your next command is saved — just `/clear` and continue</sub>
 
 ---
 
@@ -472,6 +484,11 @@ Exit skill and invoke SlashCommand("/gsd:complete-milestone {version}")
 
 <if mode="interactive" OR="custom with gates.confirm_transition true">
 
+**Before presenting options — write scratch pad so the next command survives /clear:**
+```bash
+node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" next-step set "/gsd:complete-milestone {version}" --hint "Milestone {version} is 100% complete — all {N} phases done"
+```
+
 ```
 ## ✓ Phase {X}: {Phase Name} Complete
 
@@ -486,6 +503,7 @@ Exit skill and invoke SlashCommand("/gsd:complete-milestone {version}")
 `/gsd:complete-milestone {version}`
 
 <sub>`/clear` first → fresh context window</sub>
+<sub>↳ Your next command is saved — just `/clear` and continue</sub>
 
 ---
 
