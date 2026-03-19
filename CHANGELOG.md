@@ -10,11 +10,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **`/gsd:profile-user` command** — Developer behavioral profiling from session analysis across 8 dimensions (communication, decisions, debugging, UX, vendor choices, frustrations, learning style, explanation depth). Generates `USER-PROFILE.md`, `/gsd:dev-preferences`, and `CLAUDE.md` profile section for personalized responses. Includes `--questionnaire` fallback and `--refresh` for re-analysis
 - **Execution hardening** — Three quality improvements to the execution pipeline:
   - Pre-wave dependency check in `execute-phase`: verifies key-links from prior wave artifacts before spawning next wave
-  - Cross-Plan Data Contracts (Dimension 9) in plan-checker: [planned - not yet implemented] detects incompatible transformations between plans sharing data pipelines
-  - Export-level spot check in `verify-phase`: [planned - not yet implemented] catches dead stores that exist in wired files but are never called
+  - Cross-Plan Data Contracts (Dimension 9) in plan-checker: wired — `verify cross-plan-data-contracts` CLI gate runs as Step 6.5, detects race conditions and data races between parallel plans in the same wave (7 tests added)
+  - Executor programmatic context-contract check: `verify context-contract` CLI gate now runs at plan load time — if the plan contradicts locked CONTEXT.md decisions, execution is blocked before any tasks run
+  - Export-level spot check in `verify-phase`: wired — `verify dead-exports` CLI gate runs in gsd-verifier Step 5.5 (invoked automatically via execute-phase → gsd-verifier chain), detects symbols defined in producer files but absent from declared consumer files (9 tests added)
+- **BLOCK-07: Orphaned Phase State detection** — `verify orphaned-state <phase>` CLI gate detects interrupted execution (some plans have SUMMARY.md, later plans in the same phase do not). Surfaced in `execute-phase` initialize step with plain-language message and resume instructions. 7 tests added.
 
 ### Fixed
 - **Requirements `mark-complete` is now idempotent** — Re-marking already-completed requirements returns `already_complete` instead of `not_found` (#948)
+- **BLOCK-05 checkpoint gate** — `$CHECKPOINT_FILE` was referenced but never defined in the execute-phase checkpoint handling step, causing the gate to always error. Fixed: orchestrator now writes checkpoint fields extracted from executor output to `CHECKPOINT.md` before running `verify checkpoint-response`.
+- **Discussion language** — `--discuss` mode in quick command now says "locking in decisions" instead of "surfacing gray areas", matching the MEGAPROMPT Part 5 language rules.
 
 ## [1.25.0] - 2026-03-16
 

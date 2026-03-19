@@ -1045,6 +1045,77 @@ function cmdValidateHealth(cwd, options, raw) {
   }, raw);
 }
 
+function cmdVerifyRequirementCoverage(cwd, phase, raw) {
+  if (!phase) { error('phase required'); }
+  const phaseInfo = findPhaseInternal(cwd, phase);
+  if (!phaseInfo || !phaseInfo.found) {
+    output({ error: 'Phase not found', phase }, raw);
+    return;
+  }
+
+  const reqPath = path.join(cwd, '.planning', 'REQUIREMENTS.md');
+  const reqContent = safeReadFile(reqPath);
+  if (!reqContent) {
+    output({ error: 'REQUIREMENTS.md not found — cannot verify coverage', valid: false }, raw, 'invalid');
+    return;
+  }
+
+  // Extract phase number as integer for matching (e.g. "01" → 1, "17" → 17)
+  const phaseNum = parseInt(phaseInfo.phase_number, 10);
+
+  // Parse traceability table: | REQ-ID | Phase N | Status |
+  const traceRows = reqContent.match(/\|\s*([A-Z]+-\d+)\s*\|\s*Phase\s*(\d+)\s*\|/g) || [];
+  const phaseRequirements = [];
+  for (const row of traceRows) {
+    const m = row.match(/\|\s*([A-Z]+-\d+)\s*\|\s*Phase\s*(\d+)\s*\|/);
+    if (m && parseInt(m[2], 10) === phaseNum) {
+      phaseRequirements.push(m[1]);
+    }
+  }
+
+  // Collect requirement IDs claimed by all plans in this phase
+  const phaseDir = path.join(cwd, phaseInfo.directory);
+  const planFiles = fs.readdirSync(phaseDir).filter(f => f.endsWith('-PLAN.md'));
+  const coveredIds = new Set();
+  for (const file of planFiles) {
+    const content = fs.readFileSync(path.join(phaseDir, file), 'utf-8');
+    const fm = extractFrontmatter(content);
+    const reqs = Array.isArray(fm.requirements) ? fm.requirements : [];
+    for (const r of reqs) coveredIds.add(String(r).trim());
+  }
+
+  // Check for dangling plan references (claimed but not in REQUIREMENTS.md)
+  const allReqIds = new Set(reqContent.match(/\b[A-Z]+-\d+\b/g) || []);
+  const dangling = [];
+  for (const id of coveredIds) {
+    if (!allReqIds.has(id)) dangling.push(id);
+  }
+
+  // BLOCK-02: requirements scoped to this phase but not covered by any plan
+  const uncovered = phaseRequirements.filter(id => !coveredIds.has(id));
+
+  const valid = uncovered.length === 0;
+  const errors = [];
+  if (uncovered.length > 0) {
+    errors.push(`BLOCK-02: ${uncovered.length} requirement(s) scoped to Phase ${phaseNum} have no plan coverage: ${uncovered.join(', ')}`);
+  }
+  const warnings = dangling.length > 0
+    ? [`Plans reference requirement IDs not found in REQUIREMENTS.md: ${dangling.join(', ')}`]
+    : [];
+
+  output({
+    valid,
+    phase: phaseInfo.phase_number,
+    phase_requirements: phaseRequirements,
+    covered: [...coveredIds],
+    uncovered,
+    dangling_references: dangling,
+    plan_count: planFiles.length,
+    errors,
+    warnings,
+  }, raw, valid ? 'valid' : 'invalid');
+}
+
 function cmdVerifyCrossPlanDataContracts(cwd, phase, raw) {
   if (!phase) { error('phase required'); }
   const phaseInfo = findPhaseInternal(cwd, phase);
@@ -1139,6 +1210,179 @@ function cmdVerifyCrossPlanDataContracts(cwd, phase, raw) {
   }, raw, issues.length === 0 ? 'valid' : 'invalid');
 }
 
+// ---------------------------------------------------------------------------
+// cmdVerifyDeadExports — export-level spot check (post-execution)
+// For each must_haves.key_link with a `via` field: verifies the named
+// symbol is both defined in `from` (the producer) AND used in `to` (the
+// consumer). If defined but not consumed → dead store.
+// ---------------------------------------------------------------------------
+
+function cmdVerifyDeadExports(cwd, phase, raw) {
+  if (!phase) { error('phase required'); }
+  const phaseInfo = findPhaseInternal(cwd, phase);
+  if (!phaseInfo || !phaseInfo.found) {
+    output({ error: 'Phase not found', phase }, raw);
+    return;
+  }
+
+  const phaseDir = path.join(cwd, phaseInfo.directory);
+  const planFiles = fs.readdirSync(phaseDir).filter(f => f.endsWith('-PLAN.md'));
+
+  const deadStores = [];
+  const verified = [];
+  const skipped = [];
+  let linksChecked = 0;
+
+  for (const file of planFiles) {
+    const content = fs.readFileSync(path.join(phaseDir, file), 'utf-8');
+    const fm = extractFrontmatter(content);
+    const keyLinks = parseMustHavesBlock(content, 'key_links');
+
+    for (const link of keyLinks) {
+      if (typeof link !== 'object' || !link.via || !link.from || !link.to) {
+        skipped.push({ file, reason: 'key_link missing via, from, or to' });
+        continue;
+      }
+
+      const symbol = link.via;
+      const fromPath = path.join(cwd, link.from);
+      const toPath = path.join(cwd, link.to);
+      linksChecked++;
+
+      const fromContent = safeReadFile(fromPath);
+      const toContent = safeReadFile(toPath);
+
+      if (!fromContent) {
+        skipped.push({ from: link.from, to: link.to, via: symbol, reason: 'from file not found' });
+        continue;
+      }
+      if (!toContent) {
+        skipped.push({ from: link.from, to: link.to, via: symbol, reason: 'to file not found' });
+        continue;
+      }
+
+      const definedInFrom = fromContent.includes(symbol);
+      const usedInTo = toContent.includes(symbol);
+
+      if (!definedInFrom) {
+        // Symbol not in from — export doesn't exist (separate issue from dead-store)
+        skipped.push({ from: link.from, to: link.to, via: symbol, reason: 'symbol not found in producer file (missing export)' });
+      } else if (!usedInTo) {
+        deadStores.push({
+          from: link.from,
+          to: link.to,
+          via: symbol,
+          description: `"${symbol}" is defined in ${link.from} but not used in ${link.to}`,
+          fix_hint: `Add import/call for "${symbol}" in ${link.to}, or update the key_link if the wiring changed`,
+        });
+      } else {
+        verified.push({ from: link.from, to: link.to, via: symbol });
+      }
+    }
+  }
+
+  const valid = deadStores.length === 0;
+  output({
+    valid,
+    phase: phaseInfo.phase_number,
+    links_checked: linksChecked,
+    verified: verified.length,
+    dead_stores: deadStores,
+    skipped,
+  }, raw, valid ? 'valid' : 'invalid');
+}
+
+/**
+ * BLOCK-07: Orphaned Phase State
+ *
+ * Detects when execution was interrupted mid-phase: some plans have SUMMARY.md
+ * (committed work) while later plans in the same phase do not, meaning the
+ * executor stopped without completing the phase.
+ *
+ * Returns { orphaned, phase, plans_with_summary, plans_without_summary, message }
+ */
+function cmdVerifyOrphanedState(cwd, phaseArg, raw) {
+  if (!phaseArg) {
+    error('phase argument required');
+  }
+
+  const planningDir = path.join(cwd, '.planning');
+  const phasesDir = path.join(planningDir, 'phases');
+
+  // Find the phase directory
+  const phaseInfo = findPhaseInternal(cwd, phaseArg);
+  if (!phaseInfo || !phaseInfo.found) {
+    output({
+      orphaned: false,
+      phase: phaseArg,
+      plans_with_summary: [],
+      plans_without_summary: [],
+      message: `Phase ${phaseArg} not found — nothing to check`,
+    }, raw, 'clean');
+    return;
+  }
+
+  const phaseDir = path.join(cwd, phaseInfo.directory);
+
+  let phaseFiles;
+  try {
+    phaseFiles = fs.readdirSync(phaseDir);
+  } catch {
+    output({
+      orphaned: false,
+      phase: phaseInfo.phase_number,
+      plans_with_summary: [],
+      plans_without_summary: [],
+      message: `Phase directory ${phaseDir} is not readable`,
+    }, raw, 'clean');
+    return;
+  }
+
+  // Collect all PLAN.md files and SUMMARY.md files
+  const plans = phaseFiles
+    .filter(f => f.endsWith('-PLAN.md'))
+    .map(f => f.replace('-PLAN.md', ''))
+    .sort();
+
+  const summaryBases = new Set(
+    phaseFiles
+      .filter(f => f.endsWith('-SUMMARY.md'))
+      .map(f => f.replace('-SUMMARY.md', ''))
+  );
+
+  if (plans.length === 0) {
+    output({
+      orphaned: false,
+      phase: phaseInfo.phase_number,
+      plans_with_summary: [],
+      plans_without_summary: [],
+      message: 'No plans found in phase — nothing to check',
+    }, raw, 'clean');
+    return;
+  }
+
+  const plansWithSummary = plans.filter(p => summaryBases.has(p));
+  const plansWithoutSummary = plans.filter(p => !summaryBases.has(p));
+
+  // Orphaned only when SOME plans have summaries but LATER ones don't.
+  // A fresh phase (no summaries yet) is not orphaned — it just hasn't started.
+  const orphaned = plansWithSummary.length > 0 && plansWithoutSummary.length > 0;
+
+  const message = orphaned
+    ? `BLOCK-07: Execution stopped mid-phase — ${plansWithSummary.length} plan(s) completed but ${plansWithoutSummary.length} plan(s) have no record. Re-run /gsd:execute-phase ${phaseInfo.phase_number} to resume from where it stopped.`
+    : plansWithoutSummary.length === 0
+      ? `All ${plans.length} plan(s) have summaries — phase is complete`
+      : `Phase has ${plans.length} plan(s) with no summaries yet — fresh start, not orphaned`;
+
+  output({
+    orphaned,
+    phase: phaseInfo.phase_number,
+    plans_with_summary: plansWithSummary,
+    plans_without_summary: plansWithoutSummary,
+    message,
+  }, raw, orphaned ? 'orphaned' : 'clean');
+}
+
 module.exports = {
   cmdVerifySummary,
   cmdVerifyPlanStructure,
@@ -1150,7 +1394,10 @@ module.exports = {
   cmdVerifyContextContract,
   cmdVerifyResearchContract,
   cmdVerifyCheckpointResponse,
+  cmdVerifyRequirementCoverage,
   cmdVerifyCrossPlanDataContracts,
+  cmdVerifyDeadExports,
+  cmdVerifyOrphanedState,
   cmdValidateConsistency,
   cmdValidateHealth,
 };

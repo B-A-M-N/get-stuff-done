@@ -15,20 +15,6 @@ Read all files referenced by the invoking prompt's execution_context before star
 </required_reading>
 
 <process>
-**Step 0: Scope Probing (P3)**
-
-Before initializing, establish scope with three questions (AskUserQuestion):
-
-1. **Complexity:** "Is this a change to one file, a few files, or does it touch how different parts connect?"
-2. **Dependencies:** "Does anything else depend on what you're asking me to change?"
-3. **Reversibility:** "If this doesn't look right, how easy is it to undo?"
-
-**Routing:**
-- If small/isolated/reversible → proceed.
-- If complex/architectural/dependent/irreversible → recommend `/gsd:plan-phase` instead. If user insists, proceed but note the risk.
-
----
-
 **Step 1: Parse arguments and get task description**
 
 Parse `$ARGUMENTS` for:
@@ -50,6 +36,26 @@ AskUserQuestion(
 Store response as `$DESCRIPTION`.
 
 If still empty, re-prompt: "Please provide a task description."
+
+**Understanding questions** — now that you know what the task is, ask three short questions to flush out what the user hasn't said yet. Most users describe the surface of what they want, not the edges that cause problems. These questions surface the edges.
+
+Ask all three together in a single `AskUserQuestion` call so the user answers in one go, not three rounds:
+
+```
+AskUserQuestion(
+  header: "A few quick questions before I start",
+  question: "
+1. What else does this touch or depend on? (Other files, services, or parts of the codebase that might be affected — even indirectly.)
+2. Is there anything this must NOT break or change? (Existing behavior, contracts, or constraints you're counting on staying the same.)
+3. How will you know it worked? (What does success look like — even a quick description helps me aim at the right target.)
+  ",
+  followUp: null
+)
+```
+
+Store answers as `$CONTEXT_ANSWERS`. These go into the planner's context so the plan reflects the real edges of the task, not just its surface.
+
+**If the user's answers reveal the task is substantially larger than the description suggested** (e.g. "it touches the auth system, the API layer, and three frontend components") → say what you found and offer to switch to a proper phase. Do not silently proceed into a task that will obviously fail quick mode's scope.
 
 Display banner based on active flags:
 
@@ -95,7 +101,7 @@ If `$DISCUSS_MODE` only:
  GSD ► QUICK TASK (DISCUSS)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-◆ Discussion phase enabled — surfacing gray areas before planning
+◆ Discussion phase enabled — locking in decisions before planning
 ```
 
 If `$RESEARCH_MODE` only:
@@ -170,7 +176,7 @@ Display banner:
  GSD ► DISCUSSING QUICK TASK
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-◆ Surfacing gray areas for: ${DESCRIPTION}
+◆ Locking in decisions for: ${DESCRIPTION}
 ```
 
 **4.5a. Narrative clarification checkpoint**
@@ -219,8 +225,8 @@ Use `discussion_seed.gray_area_hints` first, then fill remaining gaps from the t
 
 ```
 AskUserQuestion(
-  header: "Gray Areas",
-  question: "Which areas need clarification before planning?",
+  header: "Decisions to Lock",
+  question: "Which of these decisions should we lock before I start?",
   options: [
     { label: "${area_1}", description: "${why_it_matters_1}" },
     { label: "${area_2}", description: "${why_it_matters_2}" },

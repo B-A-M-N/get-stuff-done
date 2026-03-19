@@ -40,6 +40,23 @@ fi
 **If `plan_count` is 0:** Error — no plans found in phase.
 **If `state_exists` is false but `.planning/` exists:** Offer reconstruct or continue.
 
+**Orphaned Execution Gate (BLOCK-07):**
+```bash
+ORPHAN_CHECK=$(node "/home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" verify orphaned-state "${PHASE_ARG}" --raw 2>/dev/null)
+ORPHANED=$(printf '%s\n' "$ORPHAN_CHECK" | jq -r '.orphaned // "false"')
+if [ "$ORPHANED" == "true" ]; then
+  echo "╔══════════════════════════════════════════════════════════════╗"
+  echo "║  BLOCK-07: Execution stopped mid-run — incomplete plans found ║"
+  echo "╚══════════════════════════════════════════════════════════════╝"
+  echo ""
+  printf '%s\n' "$ORPHAN_CHECK" | jq -r '.message'
+  echo ""
+  echo "Run /gsd:execute-phase ${PHASE_ARG} again to resume from the last completed plan."
+fi
+```
+
+Note: BLOCK-07 is advisory, not a hard stop — re-running execute-phase automatically skips completed plans (those with SUMMARY.md) and resumes from the first incomplete one. The block message surfaces the state clearly so the user knows what happened.
+
 When `parallelization` is false, plans within a wave execute sequentially.
 
 **REQUIRED — Sync chain flag with intent.** If user invoked manually (no `--auto`), clear the ephemeral chain flag from any previous interrupted `--auto` chain. This prevents stale `_auto_chain_active: true` from causing unwanted auto-advance. This does NOT touch `workflow.auto_advance` (the user's persistent settings preference). You MUST execute this bash block before any config reads:
@@ -174,9 +191,8 @@ Execute each wave in sequence. Within a wave: parallel if `PARALLELIZATION=true`
      ```bash
      VERIFY_RESULT=$(node "/home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" verify verify-summary "{phase_dir}/{plan}-SUMMARY.md" --raw)
      if [ "$(echo "$VERIFY_RESULT" | jq -r '.passed')" != "true" ]; then
-       echo "╔══════════════════════════════════════════════════════════════╗"
-       echo "║  BLOCK-06: SUMMARY.md Schema Failure                         ║"
-       echo "╚══════════════════════════════════════════════════════════════╝"
+       echo "The plan finished but its completion record is missing required fields."
+       echo "I can't mark this plan as done until the record is complete."
        node "/home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" verify verify-summary "{phase_dir}/{plan}-SUMMARY.md"
        # Route to failure handler
      fi
@@ -256,36 +272,63 @@ When executor returns a checkpoint AND (`AUTO_CHAIN` is `"true"` OR `AUTO_CFG` i
 2. Agent runs until checkpoint task or auth gate → returns structured state
 3. Agent return includes: completed tasks table, current task + blocker, checkpoint type/details, what's awaited, plus explicit checkpoint fields: `status`, `why_blocked`, `what_is_uncertain`, `choices`, `allow_freeform`, and `resume_condition`
 3.5. **Hard Gate: Validate the checkpoint payload (ENFORCE-02 / BLOCK-05)** before showing it to the user:
+
+First, write the checkpoint fields from the executor's return to disk so the gate can validate them:
 ```bash
-if [ -f "$CHECKPOINT_FILE" ]; then
-  node "/home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" verify checkpoint-response "$CHECKPOINT_FILE"
-  if [ $? -ne 0 ]; then
-    echo "╔══════════════════════════════════════════════════════════════╗"
-    echo "║  BLOCK-05: Invalid Checkpoint Response                       ║"
-    echo "╚══════════════════════════════════════════════════════════════╝"
-    echo ""
-    echo "ERROR: Invalid checkpoint response format (Requirement ENFORCE-02)."
-    echo "The agent produced a malformed checkpoint payload."
-    exit 1
-  fi
-else
-  echo "ERROR: Checkpoint file $CHECKPOINT_FILE not found (Requirement ENFORCE-02)."
+CHECKPOINT_FILE="{phase_dir}/CHECKPOINT.md"
+```
+
+Use the Write tool to create `$CHECKPOINT_FILE` with YAML frontmatter containing the fields extracted from the executor's output:
+```yaml
+---
+status: checkpoint
+why_blocked: "{extracted from executor output}"
+what_is_uncertain: "{extracted from executor output}"
+choices: ["{extracted from executor output, as array}"]
+allow_freeform: true
+resume_condition: "{extracted from executor output}"
+---
+# Checkpoint
+```
+
+Then validate:
+```bash
+node "/home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" verify checkpoint-response "$CHECKPOINT_FILE"
+if [ $? -ne 0 ]; then
+  echo "The work stopped but the pause message was incomplete — some fields I need"
+  echo "to present the decision to you are missing. I can't ask you the right"
+  echo "question until this is fixed. Details above."
   exit 1
 fi
 ```
 If malformed, the workflow halts. The agent must produce a valid checkpoint artifact to proceed.
 
-4. **Present to user:**
+4. **Present to user** — plain language, from the checkpoint fields:
    ```
-   ## Checkpoint: [Type]
+   ## I need your input to continue
 
-   **Plan:** 03-03 Dashboard Layout
-   **Progress:** 2/3 tasks complete
+   **What's been built so far ({plan_id}: {plan_name}):**
+   {completed_tasks_table from checkpoint — what tasks are done}
 
-   [Checkpoint Details from agent return]
-   [Awaiting section from agent return]
-   [Why blocked / uncertainty / resume condition]
+   **Why I've stopped:**
+   {why_blocked — in the agent's own words, already plain}
+
+   **What I'm uncertain about:**
+   {what_is_uncertain}
+
+   {If choices exist:}
+   **Your options:**
+   {choices, one per line}
+
+   {If allow_freeform is true:}
+   You can also describe what you want in your own words.
+
+   **Once you respond, I'll:**
+   {resume_condition — what picking an option unlocks}
    ```
+
+   Bad: "Checkpoint: human-verify. Progress: 2/3."
+   Good: "I've built the data model and API endpoints. I've stopped because I need you to check the layout before I wire up the frontend — the visual alignment is something only you can judge. Go to localhost:3000/dashboard and tell me if it looks right."
 
 4.5. **Transition CHECKPOINT.md and STATE.md to awaiting-response** (after presenting to user, before waiting for response):
    ```bash
@@ -341,22 +384,20 @@ If malformed, the workflow halts. The agent must produce a valid checkpoint arti
 </step>
 
 <step name="aggregate_results">
-After all waves:
+After all waves, produce a completion summary that leads with what was actually built — not just that it's done:
 
 ```markdown
-## Phase {X}: {Name} Execution Complete
+## Phase {X}: {Name} — Done
 
-**Waves:** {N} | **Plans:** {M}/{total} complete
+[2-3 sentences in plain English: what this phase delivered, what is now possible that wasn't before, and what it connects to next. Read the SUMMARY.md one-liners to construct this. Example: "The authentication system is now live — users can sign up, log in, and reset passwords. Sessions persist across page reloads. The dashboard phase can now build on top of authenticated routes."]
 
-| Wave | Plans | Status |
-|------|-------|--------|
-| 1 | plan-01, plan-02 | ✓ Complete |
+**{M}/{total} plans complete across {N} waves**
+
+| Wave | Plans | What was built |
+|------|-------|----------------|
+| 1 | plan-01, plan-02 | [from SUMMARY.md one-liners] |
 | CP | plan-03 | ✓ Verified |
-| 2 | plan-04 | ✓ Complete |
-
-### Plan Details
-1. **03-01**: [one-liner from SUMMARY.md]
-2. **03-02**: [one-liner from SUMMARY.md]
+| 2 | plan-04 | [from SUMMARY.md one-liner] |
 
 ### Issues Encountered
 [Aggregate from SUMMARYs, or "None"]

@@ -91,6 +91,8 @@
  *                                      Check unresolved ambiguity / guidance-only carry-forward rules in research output
  *   verify checkpoint-response <file>
  *                                      Validate checkpoint return structure for orchestrator handoff
+ *   verify orphaned-state <phase>
+ *                                      Detect interrupted execution (plans with summary but later plans without)
  *
  * Template Fill:
  *   template fill summary --phase N    Create pre-filled SUMMARY.md
@@ -336,7 +338,7 @@ async function main() {
           name: nameIdx !== -1 ? args[nameIdx + 1] : null,
           type: typeIdx !== -1 ? args[typeIdx + 1] : 'execute',
           wave: waveIdx !== -1 ? args[waveIdx + 1] : '1',
-          fields: fieldsIdx !== -1 ? JSON.parse(args[fieldsIdx + 1]) : {},
+          fields: fieldsIdx !== -1 ? (() => { try { return JSON.parse(args[fieldsIdx + 1]); } catch { error('Invalid JSON for --fields: ' + args[fieldsIdx + 1]); } })() : {},
         }, raw);
       } else {
         error('Unknown template subcommand. Available: select, fill');
@@ -390,8 +392,14 @@ async function main() {
         verify.cmdVerifyCheckpointResponse(cwd, args[2], raw);
       } else if (subcommand === 'cross-plan-data-contracts') {
         verify.cmdVerifyCrossPlanDataContracts(cwd, args[2], raw);
+      } else if (subcommand === 'requirement-coverage') {
+        verify.cmdVerifyRequirementCoverage(cwd, args[2], raw);
+      } else if (subcommand === 'dead-exports') {
+        verify.cmdVerifyDeadExports(cwd, args[2], raw);
+      } else if (subcommand === 'orphaned-state') {
+        verify.cmdVerifyOrphanedState(cwd, args[2], raw);
       } else {
-        error('Unknown verify subcommand. Available: plan-structure, phase-completeness, references, commits, artifacts, key-links, context-contract, research-contract, checkpoint-response, cross-plan-data-contracts');
+        error('Unknown verify subcommand. Available: plan-structure, phase-completeness, references, commits, artifacts, key-links, context-contract, research-contract, checkpoint-response, cross-plan-data-contracts, requirement-coverage, dead-exports, orphaned-state');
       }
       break;
     }
@@ -642,15 +650,20 @@ async function main() {
       const phaseIndex = args.indexOf('--phase');
 
       const provider = providerIndex !== -1 ? args[providerIndex + 1] : null;
-      const providerResponse = responseJsonIndex !== -1
-        ? JSON.parse(args[responseJsonIndex + 1])
-        : responseFileIndex !== -1
-          ? JSON.parse(fs.readFileSync(args[responseFileIndex + 1], 'utf8'))
-          : undefined;
+      let providerResponse;
+      if (responseJsonIndex !== -1) {
+        try { providerResponse = JSON.parse(args[responseJsonIndex + 1]); }
+        catch { error('Invalid JSON for --provider-response-json'); }
+      } else if (responseFileIndex !== -1) {
+        try { providerResponse = JSON.parse(fs.readFileSync(args[responseFileIndex + 1], 'utf8')); }
+        catch (e) { error('Could not read/parse --provider-response-file: ' + e.message); }
+      }
 
-      const ambientContext = ambientContextIndex !== -1
-        ? JSON.parse(args[ambientContextIndex + 1])
-        : null;
+      let ambientContext = null;
+      if (ambientContextIndex !== -1) {
+        try { ambientContext = JSON.parse(args[ambientContextIndex + 1]); }
+        catch { error('Invalid JSON for --ambient-context'); }
+      }
       const phase = phaseIndex !== -1 ? args[phaseIndex + 1] : null;
 
       if (subcommand === 'interpret') {
