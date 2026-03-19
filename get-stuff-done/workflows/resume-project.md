@@ -11,7 +11,7 @@ Instantly restore full project context so "Where were we?" has an immediate, com
 </purpose>
 
 <required_reading>
-@/home/bamn/get-stuff-done/get-stuff-done/references/continuation-format.md
+@$HOME/.claude/get-stuff-done/references/continuation-format.md
 </required_reading>
 
 <process>

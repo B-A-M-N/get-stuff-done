@@ -18,8 +18,8 @@ Then verify each level against the actual codebase.
 </core_principle>
 
 <required_reading>
-@/home/bamn/get-stuff-done/get-stuff-done/references/verification-patterns.md
-@/home/bamn/get-stuff-done/get-stuff-done/templates/verification-report.md
+@$HOME/.claude/get-stuff-done/references/verification-patterns.md
+@$HOME/.claude/get-stuff-done/templates/verification-report.md
 </required_reading>
 
 <process>

@@ -8,17 +8,17 @@ Standalone research command. For most workflows, use `/gsd:plan-phase` which int
 
 ## Step 0: Resolve Model Profile
 
-@/home/bamn/get-stuff-done/get-stuff-done/references/model-profile-resolution.md
+@$HOME/.claude/get-stuff-done/references/model-profile-resolution.md
 
 Resolve model for:
 - `gsd-phase-researcher`
 
 ## Step 1: Normalize and Validate Phase
 
-@/home/bamn/get-stuff-done/get-stuff-done/references/phase-argument-parsing.md
+@$HOME/.claude/get-stuff-done/references/phase-argument-parsing.md
 
 ```bash
-PHASE_INFO=$(node "/home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" roadmap get-phase "${PHASE}")
+PHASE_INFO=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" roadmap get-phase "${PHASE}")
 ```
 
 If `found` is false: Error and exit.
@@ -34,7 +34,7 @@ If exists: Offer update/view/skip options.
 ## Step 3: Gather Phase Context
 
 ```bash
-INIT=$(node "/home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" init phase-op "${PHASE}")
+INIT=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" init phase-op "${PHASE}")
 if [[ "$INIT" == @file:* ]]; then INIT=$(cat "${INIT#@file:}"); fi
 # Extract: phase_dir, padded_phase, phase_number, state_path, requirements_path, context_path
 ```
@@ -42,7 +42,7 @@ if [[ "$INIT" == @file:* ]]; then INIT=$(cat "${INIT#@file:}"); fi
 ### Clarification Gate
 
 ```bash
-BLOCKED=$(node "/home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" state get clarification_status --raw)
+BLOCKED=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" state get clarification_status --raw)
 if [[ "$BLOCKED" == "blocked" ]]; then
   echo "ERROR: Project is currently BLOCKED. Use /gsd:discuss-phase to resolve ambiguities before researching."
   exit 1
@@ -93,7 +93,7 @@ Write to: .planning/phases/${PHASE}-{slug}/${PHASE}-RESEARCH.md
 - `## RESEARCH COMPLETE` — run the research-contract validator before presenting the result:
 
 ```bash
-node "/home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" verify research-contract "$context_path" --research "$research_path"
+node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" verify research-contract "$context_path" --research "$research_path"
 ```
 
 If the result is invalid:

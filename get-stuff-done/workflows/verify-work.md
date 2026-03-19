@@ -21,7 +21,7 @@ Narrative-first verification is additive:
 </philosophy>
 
 <template>
-@/home/bamn/get-stuff-done/get-stuff-done/templates/UAT.md
+@$HOME/.claude/get-stuff-done/templates/UAT.md
 </template>
 
 <process>
@@ -407,7 +407,7 @@ Spawning parallel debug agents to investigate each issue.
 ```
 
 - Load diagnose-issues workflow
-- Follow @/home/bamn/get-stuff-done/get-stuff-done/workflows/lib/diagnose-issues.md
+- Follow @$HOME/.claude/get-stuff-done/workflows/lib/diagnose-issues.md
 - Spawn parallel debug agents for each issue
 - Collect root causes
 - Update UAT.md with root causes
