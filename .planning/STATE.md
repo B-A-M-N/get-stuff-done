@@ -1,12 +1,12 @@
 ---
 gsd_state_version: 1.0
-milestone: v0.1
-milestone_name: milestone
-status: planning
-stopped_at: Completed 16-03-PLAN.md
+milestone: v0.2.0
+milestone_name: Orchestration Integrity
+status: complete
+stopped_at: Milestone v0.2.0 Complete
 checkpoint_status: 
 checkpoint_path: 
-last_updated: "2026-03-18T22:30:00.000Z"
+last_updated: "2026-03-18T22:45:00.000Z"
 last_activity: 2026-03-18 — Milestone v0.2.0 Orchestration Integrity complete and verified.
 progress:
   total_phases: 7
@@ -14,7 +14,7 @@ progress:
   total_plans: 19
   completed_plans: 19
   percent: 100
-  ---
+---
 
 # Project State
 
@@ -31,7 +31,7 @@ Milestone: `v0.2.0`
 Phase: 21 of 21 (Brownfield Resilience)
 Plan: 4 of 4 in current phase
 Status: Complete
-Last activity: 2026-03-18 — Brownfield Mega Audit (Phase 21) complete and verified.
+Last activity: 2026-03-18 — Milestone v0.2.0 Orchestration Integrity fully implemented and audit-verified.
 
 Progress: [████████████] 100%
 
@@ -39,23 +39,23 @@ Progress: [████████████] 100%
 
 **Velocity:**
 
-- Total plans completed: 0
-- Average duration: -
-- Total execution time: -
+- Total plans completed: 19
+- Average duration: 15min
+- Total execution time: 285min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| - | - | - | - |
+| 15 | 4 | 20min | 5min |
+| 16 | 4 | 30min | 7min |
+| 17 | 2 | 25min | 12min |
+| 18 | 2 | 25min | 12min |
+| 19 | 1 | 25min | 25min |
+| 20 | 1 | 30min | 30min |
+| 21 | 4 | 60min | 15min |
 
 *Updated after each plan completion*
-| Phase 15-schema-foundation P02 | 3min | 1 tasks | 1 files |
-| Phase 15-schema-foundation P01 | 9min | 1 tasks | 2 files |
-| Phase 15-schema-foundation P03 | 6min | 2 tasks | 3 files |
-| Phase 15-schema-foundation P04 | 2min | 2 tasks | 2 files |
-| Phase 16 P02 | 5min | 1 tasks | 1 files |
-| Phase 16 P03 | 15 min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -68,25 +68,23 @@ Progress: [████████████] 100%
 - standalone packages/itl module
 - 100% line coverage gate on ITL runtime and package surfaces
 
-### v0.2.0 Brownfield Audit Findings
+### v0.2.0 Orchestration Integrity
 
-- No runtime gate on clarification_status: blocked — any workflow runs past it
-- No persistent checkpoint artifact — payloads validated in-flight then discarded
-- autonomous.md has zero blocked-state awareness
-- SUMMARY.md unvalidated against any schema
-- 5 orphaned workflow files not wired to commands/gsd/
+- **Schema Foundation:** Zod schemas for all execution artifacts (SCHEMA-01/04/05)
+- **Checkpoint Lifecycle:** Persistent CHECKPOINT.md and STATE.md tracking (CHECKPOINT-01/02/03)
+- **Runtime Gates:** Mandatory entry gates in all workflows (ENFORCE-01/02/03/04/05)
+- **Context Enrichment:** Pre-flight state harvesting for auto-resolution (CONTEXT-01/02/03/04)
+- **Surface Hardening:** Library extraction and /gsd:diagnose (SURFACE-01/02/03)
+- **Full Coverage:** E2E loop tests and Brownfield Mega Audit (TEST-01/02/03/04/05)
 
 ### Decisions
 
-for v0.2.0.
-
-- [Phase 15-schema-foundation]: itl-schema.cjs: additive named exports only — 5 sub-schemas accessible as top-level exports and via schemas.{}; clarificationPromptSchema added to schemas.{} namespace for consistency
-- [Phase 15-schema-foundation]: Zod v4 uses error option (not required_error/errorMap) for custom field messages — schema updated to v4 API
-- [Phase 15-schema-foundation]: checkpointResponseSchema uses z.preprocess(parseKeyValueText) to coerce raw agent key:value text into object before Zod validation
-- [Phase 15-schema-foundation]: Error messages in checkpointResponseSchema match legacy verify.cjs strings exactly for checkpoint-validator.test.cjs compatibility
-- [Phase 15-schema-foundation]: cmdVerifyCheckpointResponse now delegates entirely to checkpointResponseSchema.safeParse — no manual regex or field loop retained
-- [Phase 15-schema-foundation]: On success, fields is result.data (schema-coerced); on failure, fields is empty {} to avoid partial-state consumer errors
-- [Phase 15-schema-foundation]: Zod v4 safeParse failures: always use result.error.issues (not result.error.errors)
+- [Phase 15]: Zod v4 migration for better error reporting and schema composition.
+- [Phase 16]: Standardize on frontmatter as the machine-readable source of truth for all artifacts.
+- [Phase 17]: Use `gsd-tools state json` as the gate mechanism for bash-based workflows.
+- [Phase 18]: Implement token-aware truncation for context harvesting to support massive legacy projects.
+- [Phase 19]: Extract internal sub-processes to `lib/` to clean up the primary workflow surface.
+- [Phase 21]: Implement "Legacy Compliance" mode in schemas to ensure backward compatibility.
 
 ### Blockers/Concerns
 
@@ -94,8 +92,8 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-17T16:00:08.892Z
-Stopped at: Completed 16-03-PLAN.md
+Last session: 2026-03-18T22:45:00.000Z
+Stopped at: Milestone v0.2.0 Complete
 Resume file: None
-Checkpoint Status: pending
-Checkpoint Path: .planning/phases/16-checkpoint-artifact-lifecycle/CHECKPOINT.md
+Checkpoint Status: None
+Checkpoint Path: None

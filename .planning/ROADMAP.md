@@ -3,7 +3,7 @@
 ## Milestones
 
 - [x] **v0.1.0 Intent Translation Layer** - Phases 1-14 (shipped 2026-03-17)
-- [ ] **v0.2.0 Orchestration Integrity** - Phases 15-21 (in progress)
+- [x] **v0.2.0 Orchestration Integrity** - Phases 15-21 (shipped 2026-03-18)
 
 ## Archived Milestones
 
