@@ -499,13 +499,16 @@ function parseStateSnapshot(content) {
 
   // Extract decisions (table or list)
   const decisions = [];
-  const decisionsSectionMatch = content.match(/##\s*Decisions\s*\n([\s\S]*?)(?=\n##|\n$|$)/i);
+  const decisionsSectionMatch = content.match(/##\s*Decisions.*?\n([\s\S]*?)(?=\n##|\n$|$)/i);
   if (decisionsSectionMatch) {
     const sectionBody = decisionsSectionMatch[1].trim();
     if (sectionBody.includes('|')) {
       const rows = sectionBody.split('\n').filter(r => r.includes('|'));
       for (const row of rows) {
         const cells = row.split('|').map(c => c.trim()).filter(Boolean);
+        // Skip header and separator
+        if (cells[0].toLowerCase() === 'phase' || cells[0].startsWith('---')) continue;
+        
         if (cells.length >= 2) {
           decisions.push({
             phase: cells[0],
@@ -617,14 +620,24 @@ function harvestAmbientContext(cwd, phaseNumber) {
     constraints: [],
     active_requirements: [],
     phase_decisions: [],
+    truncated: false,
   };
+
+  const MAX_ITEMS = 20;
+  const MAX_DECISIONS = 30;
 
   // 1. STATE.md Decisions
   const statePath = path.join(planningDir, 'STATE.md');
   if (fs.existsSync(statePath)) {
     const stateContent = fs.readFileSync(statePath, 'utf-8');
     const snapshot = parseStateSnapshot(stateContent);
-    context.decisions = snapshot.decisions || [];
+    const allDecisions = snapshot.decisions || [];
+    if (allDecisions.length > MAX_DECISIONS) {
+      context.decisions = allDecisions.slice(-MAX_DECISIONS); // Keep newest
+      context.truncated = true;
+    } else {
+      context.decisions = allDecisions;
+    }
   }
 
   // 2. PROJECT.md Goals & Constraints
@@ -633,11 +646,23 @@ function harvestAmbientContext(cwd, phaseNumber) {
     const projectContent = fs.readFileSync(projectPath, 'utf-8');
     const goalsMatch = projectContent.match(/##\s*Goals\s*\n([\s\S]*?)(?=\n##|$)/i);
     if (goalsMatch) {
-      context.project_goals = goalsMatch[1].match(/^-\s+(.+)$/gm)?.map(s => s.replace(/^-\s+/, '').trim()) || [];
+      const allGoals = goalsMatch[1].match(/^-\s+(.+)$/gm)?.map(s => s.replace(/^-\s+/, '').trim()) || [];
+      if (allGoals.length > MAX_ITEMS) {
+        context.project_goals = allGoals.slice(0, MAX_ITEMS);
+        context.truncated = true;
+      } else {
+        context.project_goals = allGoals;
+      }
     }
     const constraintsMatch = projectContent.match(/##\s*(?:Constraints|Non-negotiables)\s*\n([\s\S]*?)(?=\n##|$)/i);
     if (constraintsMatch) {
-      context.constraints = constraintsMatch[1].match(/^-\s+(.+)$/gm)?.map(s => s.replace(/^-\s+/, '').trim()) || [];
+      const allConstraints = constraintsMatch[1].match(/^-\s+(.+)$/gm)?.map(s => s.replace(/^-\s+/, '').trim()) || [];
+      if (allConstraints.length > MAX_ITEMS) {
+        context.constraints = allConstraints.slice(0, MAX_ITEMS);
+        context.truncated = true;
+      } else {
+        context.constraints = allConstraints;
+      }
     }
   }
 
@@ -647,10 +672,17 @@ function harvestAmbientContext(cwd, phaseNumber) {
     const reqContent = fs.readFileSync(reqPath, 'utf-8');
     const activeMatch = reqContent.match(/##\s*v[\d.]+\s+Requirements\s*\n([\s\S]*?)(?=\n##|$)/i);
     if (activeMatch) {
-      context.active_requirements = activeMatch[1].match(/^-\s+\[ \]\s+\*\*([A-Z0-9-]+)\*\*:\s*(.+)$/gm)?.map(s => {
+      const allReqs = activeMatch[1].match(/^-\s+\[ \]\s+\*\*([A-Z0-9-]+)\*\*:\s*(.+)$/gm)?.map(s => {
         const m = s.match(/^\s*-\s+\[ \]\s+\*\*([A-Z0-9-]+)\*\*:\s*(.+)$/);
         return m ? { id: m[1], text: m[2].trim() } : null;
       }).filter(Boolean) || [];
+      
+      if (allReqs.length > MAX_ITEMS) {
+        context.active_requirements = allReqs.slice(0, MAX_ITEMS);
+        context.truncated = true;
+      } else {
+        context.active_requirements = allReqs;
+      }
     }
   }
 
@@ -666,7 +698,13 @@ function harvestAmbientContext(cwd, phaseNumber) {
           const phaseContent = fs.readFileSync(phaseContextPath, 'utf-8');
           const decisionsMatch = phaseContent.match(/##\s*Decisions\s*\n([\s\S]*?)(?=\n##|$)/i);
           if (decisionsMatch) {
-            context.phase_decisions = decisionsMatch[1].match(/^-\s+(.+)$/gm)?.map(s => s.replace(/^-\s+/, '').trim()) || [];
+            const allPhaseDecisions = decisionsMatch[1].match(/^-\s+(.+)$/gm)?.map(s => s.replace(/^-\s+/, '').trim()) || [];
+            if (allPhaseDecisions.length > MAX_ITEMS) {
+              context.phase_decisions = allPhaseDecisions.slice(-MAX_ITEMS);
+              context.truncated = true;
+            } else {
+              context.phase_decisions = allPhaseDecisions;
+            }
           }
         }
       }

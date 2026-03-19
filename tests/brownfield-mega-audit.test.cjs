@@ -75,3 +75,42 @@ test('Orphaned Blocked State: state json reports correctly', () => {
     cleanup(tmpDir);
   }
 });
+
+test('Scale Test: Massive Context Ingestion truncation', () => {
+  const tmpDir = createTempProject();
+  try {
+    const planningDir = path.join(tmpDir, '.planning');
+    
+    // Setup: Massive PROJECT.md with 100 goals
+    const goals = Array.from({ length: 100 }, (_, i) => `- Goal ${i}`).join('\n');
+    fs.writeFileSync(
+      path.join(planningDir, 'PROJECT.md'),
+      `# Project\n\n## Goals\n${goals}\n`
+    );
+
+    // Setup: Massive STATE.md with 100 decisions
+    const decisions = Array.from({ length: 100 }, (_, i) => `- [Phase 01]: Decision ${i}`).join('\n');
+    fs.writeFileSync(
+      path.join(planningDir, 'STATE.md'),
+      `# State\n\n## Decisions\n${decisions}\n`
+    );
+
+    // Setup: Massive REQUIREMENTS.md with 100 requirements
+    const reqs = Array.from({ length: 100 }, (_, i) => `- [ ] **REQ-${i}**: Requirement ${i}`).join('\n');
+    fs.writeFileSync(
+      path.join(planningDir, 'REQUIREMENTS.md'),
+      `# Requirements\n\n## v0.1.0 Requirements\n${reqs}\n`
+    );
+
+    const result = runGsdTools(['state', 'harvest-context'], tmpDir);
+    assert.ok(result.success);
+    
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.truncated, true, 'Result should be marked as truncated');
+    assert.strictEqual(output.project_goals.length, 20, 'Goals should be limited to 20');
+    assert.strictEqual(output.decisions.length, 30, 'Decisions should be limited to 30');
+    assert.strictEqual(output.active_requirements.length, 20, 'Requirements should be limited to 20');
+  } finally {
+    cleanup(tmpDir);
+  }
+});
