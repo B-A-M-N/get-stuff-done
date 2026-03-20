@@ -5,12 +5,13 @@
 const fs = require('fs');
 const path = require('path');
 const { output, error } = require('./core.cjs');
-const { buildProviderRequest, getInterpretationAdapter, interpretNarrativeWithAdapter } = require('./itl-adapters.cjs');
-const { assessAmbiguity, assessInvariantLockability } = require('./itl-ambiguity.cjs');
+const { buildProviderRequest, getInterpretationAdapter, interpretNarrativeWithAdapter, challengeInterpretationWithAdapter } = require('./itl-adapters.cjs');
+const { assessAmbiguity, assessInvariantLockability, auditInferences } = require('./itl-ambiguity.cjs');
 const { renderInterpretationSummary } = require('./itl-summary.cjs');
 const { recordInterpretation, getLatestInterpretation } = require('./itl-audit.cjs');
 const {
   parseAmbiguity,
+  parseAdversarialChallenge,
   parseLockability,
   parseInterpretationResult,
   parseInitializationSeed,
@@ -22,6 +23,28 @@ function getProjectInitialized(cwd, explicitValue) {
   if (explicitValue === 'true') return true;
   if (explicitValue === 'false') return false;
   return fs.existsSync(path.join(cwd, '.planning', 'PROJECT.md'));
+}
+
+function buildDefaultAdversarialResult(summary = 'No model adversarial challenge requested.') {
+  return parseAdversarialChallenge({
+    summary,
+    findings: [],
+    requires_escalation: false,
+  });
+}
+
+function normalizeChallengeFindingToAmbiguity(finding) {
+  return {
+    type: `model-${finding.type}`,
+    severity: finding.severity,
+    message: finding.message,
+    evidence: {
+      source: 'model-adversarial-pass',
+      evidence: finding.evidence ?? null,
+      target_field: finding.target_field || null,
+      suggested_action: finding.suggested_action || null,
+    },
+  };
 }
 
 function buildInterpretationResult(cwd, options) {
@@ -41,7 +64,31 @@ function buildInterpretationResult(cwd, options) {
     provider_response: options.provider_response,
     ambient_context: ambientContext,
   }, options.adapter || adapter);
-  const ambiguity = parseAmbiguity(assessAmbiguity(interpretation));
+
+  const codeAdversarialFindings = auditInferences(interpretation);
+  const challengeRequested = Boolean(
+    options.adversarial_adapter
+    || options.adversarial_provider
+    || options.adversarial_provider_response !== undefined
+  );
+  const adversarialProvider = options.adversarial_provider || provider;
+  const adversarial = challengeRequested
+    ? challengeInterpretationWithAdapter({
+        narrative,
+        interpretation,
+        project_initialized: projectInitialized,
+        provider_response: options.adversarial_provider_response,
+      }, options.adversarial_adapter || getInterpretationAdapter(adversarialProvider))
+    : buildDefaultAdversarialResult();
+  const modelAdversarialFindings = adversarial.findings.map(normalizeChallengeFindingToAmbiguity);
+  const rawAmbiguity = assessAmbiguity(interpretation);
+  const ambiguity = parseAmbiguity({
+    ...rawAmbiguity,
+    findings: [...rawAmbiguity.findings, ...codeAdversarialFindings, ...modelAdversarialFindings],
+    requires_escalation: rawAmbiguity.requires_escalation
+      || codeAdversarialFindings.some(f => f.severity === 'high')
+      || adversarial.requires_escalation,
+  });
   const lockability = parseLockability(assessInvariantLockability(interpretation, ambiguity));
   const summary = renderInterpretationSummary(interpretation, ambiguity);
   const provider_request = buildProviderRequest({
@@ -59,6 +106,7 @@ function buildInterpretationResult(cwd, options) {
     narrative,
     interpretation,
     ambiguity,
+    adversarial,
     lockability,
     summary,
     provider_request,

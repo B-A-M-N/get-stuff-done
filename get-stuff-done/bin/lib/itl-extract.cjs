@@ -1,12 +1,17 @@
 /**
- * ITL Extract — heuristic narrative extraction for Phase 2.
+ * ITL Extract — deterministic narrative extraction for Phase 2.
  */
 
 const { normalizeInterpretation } = require('./itl-schema.cjs');
 
+function stripBulletPrefix(line) {
+  return String(line || '').replace(/^\s*(?:[-*+]\s+|\d+[.)]\s+)/, '').trim();
+}
+
 function splitNarrative(narrative) {
   return String(narrative || '')
     .split(/\r?\n+/)
+    .map(stripBulletPrefix)
     .flatMap(line => line.split(/(?<=[.!?])\s+/))
     .map(line => line.trim())
     .filter(Boolean);
@@ -19,6 +24,14 @@ function pushUnique(target, value) {
   }
 }
 
+function addInference(target, sentence, field, confidence = 0.72) {
+  if (!sentence) return;
+  if (target.some(item => item.text.toLowerCase() === sentence.toLowerCase() && item.field === field)) {
+    return;
+  }
+  target.push({ text: sentence, evidence: sentence, confidence, field });
+}
+
 function inferRouteHint(narrative, projectInitialized) {
   const text = String(narrative || '').toLowerCase();
   if (!projectInitialized) return 'new-project';
@@ -26,6 +39,11 @@ function inferRouteHint(narrative, projectInitialized) {
     return 'new-project';
   }
   return 'quick';
+}
+
+function extractSuccessClause(sentence) {
+  const match = sentence.match(/\b(?:so that|in order to)\b\s*(.+)$/i);
+  return match ? match[1].trim() : '';
 }
 
 function extractIntentFromNarrative(narrative, options = {}) {
@@ -40,6 +58,7 @@ function extractIntentFromNarrative(narrative, options = {}) {
     risks: [],
     unknowns: [],
     assumptions: [],
+    inferences: [],
     route_hint: inferRouteHint(narrative, options.project_initialized),
     project_initialized: Boolean(options.project_initialized),
     metadata: {
@@ -75,16 +94,26 @@ function extractIntentFromNarrative(narrative, options = {}) {
       pushUnique(interpretation.risks, sentence);
     }
 
-    if (/\b(not sure|unsure|unknown|maybe|probably|somehow|something|stuff|whatever)\b/.test(lower)) {
+    if (/\b(not sure|unsure|unknown|maybe|probably|somehow|something|stuff|whatever|roughly|kind of|sort of|etc\.?|and so on)\b/.test(lower)) {
       pushUnique(interpretation.unknowns, sentence);
+    }
+
+    const successClause = extractSuccessClause(sentence);
+    if (successClause) {
+      pushUnique(interpretation.success_criteria, successClause);
     }
   }
 
-  if (interpretation.goals.length === 0 && interpretation.narrative) {
-    pushUnique(interpretation.assumptions, 'Primary goal inferred from the full narrative because no explicit goal sentence was detected.');
+  if (interpretation.goals.length === 0 && sentences[0]) {
+    addInference(interpretation.inferences, sentences[0], 'goals', 0.74);
+    pushUnique(interpretation.assumptions, 'Primary goal inferred from the opening narrative because no explicit goal sentence was detected.');
   }
 
   if (interpretation.success_criteria.length === 0) {
+    const candidate = sentences.find(sentence => /\b(user|users|team|operator|admin|customer)\b/i.test(sentence));
+    if (candidate) {
+      addInference(interpretation.inferences, candidate, 'success_criteria', 0.71);
+    }
     pushUnique(interpretation.assumptions, 'Success criteria are incomplete and may need clarification before execution.');
   }
 

@@ -71,7 +71,7 @@ That's what this is. No enterprise roleplay bullshit. Just an incredibly effecti
 
 I agree with everything above. But when I used it, I ran into two problems the original doesn't solve.
 
-**Context capture is too structured.** The discuss-phase asks you to identify "gray areas" in predefined categories. If you already think that way, great. But most people don't. They have an idea, a rough picture in their head, and a bunch of implicit preferences they've never articulated. Asking someone to categorize gray areas before they've even said what they're building puts the burden in the wrong place. This fork flips it: you describe what you're imagining in plain language, and the system extracts the decisions. You don't need to arrive with the right vocabulary.
+**Context capture is too structured.** The discuss-phase asks you to identify "gray areas" in predefined categories. If you already think that way, great. But most people don't. They have an idea, a rough picture in their head, and a bunch of implicit preferences they've never articulated. Asking someone to categorize gray areas before they've even said what they're building puts the burden in the wrong place. This fork flips it: you describe what you're imagining in plain language, and the system extracts the decisions with a deterministic interpretation layer that is intentionally conservative rather than magical. You don't need to arrive with the right vocabulary.
 
 **Agents leap ahead.** The original GSD is good at executing plans. It's less disciplined about stopping between them. An agent completes a phase and immediately starts deciding what comes next — researching, planning, sometimes executing — before you've had a chance to redirect. By the time you notice, it's several steps into something you didn't ask for. This fork adds explicit flow controls at every phase transition. The system presents options and stops. It waits for your response, classifies your intent, and only proceeds when you've confirmed the direction. If you need a fresh context and have to `/clear`, your decision survives the reset — the next session knows exactly what you chose.
 
@@ -302,7 +302,7 @@ When execution completes, the system presents the next recommended action and st
 - Redirect → say what you actually want ("research before planning", "skip to phase 3") and it saves your decision
 - Unrelated question → the session continues normally, no GSD command runs
 
-**Cross-session continuity.** If you redirect and need a fresh context (`/clear`), your decision is saved to `.planning/.gsd-next.json`. A `UserPromptSubmit` hook automatically injects it into your next session. Just say "continue" — the system knows exactly what you asked for.
+**Cross-session continuity.** If you redirect and need a fresh context (`/clear`), your decision is saved to `.planning/.gsd-next.json`. When the target runtime supports the installed `UserPromptSubmit` continuity hook, that decision is injected into your next session automatically. Just say "continue" — the system resumes from the saved command instead of guessing.
 
 **How Wave Execution Works:**
 
@@ -486,7 +486,7 @@ GSD prevents this. Phase transitions use an explicit wait-and-classify pattern:
 
 In `yolo` mode, auto-advance chains steps. In `interactive` mode (default), nothing happens without your say-so.
 
-The cross-session scratch pad extends this discipline across context resets. Your redirected decision survives `/clear`. The hook injects it into the next session automatically. The system always knows where you left off and what you chose — without needing to re-explain.
+The cross-session scratch pad extends this discipline across context resets. Your redirected decision survives `/clear`. On runtimes where the continuity hook is installed, the saved command is injected into the next session automatically. The system resumes from that artifact instead of relying on memory or re-explanation.
 
 ### Atomic Git Commits
 

@@ -5,6 +5,10 @@
 const fs = require('fs');
 const path = require('path');
 const { output, error } = require('./core.cjs');
+
+function getGsdHomeDir() {
+  return process.env.GSD_HOME || require('os').homedir();
+}
 const {
   VALID_PROFILES,
   getAgentToModelMapForProfile,
@@ -15,7 +19,7 @@ const VALID_CONFIG_KEYS = new Set([
   'mode', 'granularity', 'parallelization', 'commit_docs', 'model_profile',
   'search_gitignored', 'brave_search',
   'workflow.research', 'workflow.plan_check', 'workflow.verifier',
-  'workflow.nyquist_validation', 'workflow.ui_phase', 'workflow.ui_safety_gate',
+  'workflow.nyquist_validation', 'workflow.adversarial_test_harness', 'workflow.ui_phase', 'workflow.ui_safety_gate',
   'workflow._auto_chain_active',
   'git.branching_strategy', 'git.phase_branch_template', 'git.milestone_branch_template',
   'planning.commit_docs', 'planning.search_gitignored',
@@ -59,7 +63,7 @@ function ensureConfigFile(cwd) {
   }
 
   // Detect Brave Search API key availability
-  const homedir = require('os').homedir();
+  const homedir = getGsdHomeDir();
   const braveKeyFile = path.join(homedir, '.gsd', 'brave_api_key');
   const hasBraveSearch = !!(process.env.BRAVE_API_KEY || fs.existsSync(braveKeyFile));
 
@@ -96,6 +100,9 @@ function ensureConfigFile(cwd) {
       plan_check: true,
       verifier: true,
       nyquist_validation: true,
+      adversarial_test_harness: true,
+      ui_phase: true,
+      ui_safety_gate: true,
     },
     parallelization: true,
     brave_search: hasBraveSearch,

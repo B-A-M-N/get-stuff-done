@@ -14,22 +14,22 @@ const TOOLS_PATH = path.join(__dirname, '..', 'get-stuff-done', 'bin', 'gsd-tool
  * @param {string|string[]} args - Command string (shell-interpreted) or array
  *   of arguments (shell-bypassed via execFileSync, safe for JSON and dollar signs).
  * @param {string} cwd - Working directory.
+ * @param {{ env?: Record<string, string> }} options - Optional child-process overrides.
  */
-function runGsdTools(args, cwd = process.cwd()) {
+function runGsdTools(args, cwd = process.cwd(), options = {}) {
+  const execOptions = {
+    cwd,
+    encoding: 'utf-8',
+    stdio: ['pipe', 'pipe', 'pipe'],
+    ...(options.env ? { env: { ...process.env, ...options.env } } : {}),
+  };
+
   try {
     let result;
     if (Array.isArray(args)) {
-      result = execFileSync(process.execPath, [TOOLS_PATH, ...args], {
-        cwd,
-        encoding: 'utf-8',
-        stdio: ['pipe', 'pipe', 'pipe'],
-      });
+      result = execFileSync(process.execPath, [TOOLS_PATH, ...args], execOptions);
     } else {
-      result = execSync(`node "${TOOLS_PATH}" ${args}`, {
-        cwd,
-        encoding: 'utf-8',
-        stdio: ['pipe', 'pipe', 'pipe'],
-      });
+      result = execSync(`node "${TOOLS_PATH}" ${args}`, execOptions);
     }
     return { success: true, output: result.trim() };
   } catch (err) {

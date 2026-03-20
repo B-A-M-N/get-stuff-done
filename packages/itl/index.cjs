@@ -48,6 +48,14 @@ function buildMetadata(input = {}, options = {}) {
 }
 
 const routeHintSchema = z.enum(['new-project', 'quick']);
+
+const inferenceItemSchema = z.object({
+  text: z.string().min(1),
+  evidence: z.string().min(1),
+  confidence: z.number().min(0).max(1),
+  field: z.enum(['goals', 'constraints', 'preferences', 'anti_requirements', 'success_criteria', 'risks']),
+});
+
 const interpretationSchema = z.object({
   narrative: z.string(),
   goals: z.array(z.string()),
@@ -58,6 +66,7 @@ const interpretationSchema = z.object({
   risks: z.array(z.string()),
   unknowns: z.array(z.string()),
   assumptions: z.array(z.string()),
+  inferences: z.array(inferenceItemSchema).default([]),
   route_hint: routeHintSchema,
   project_initialized: z.boolean(),
   metadata: z.object({
@@ -79,6 +88,7 @@ const ambiguitySchema = z.object({
     message: z.string().min(1),
     evidence: z.any().nullable(),
   })),
+  requires_escalation: z.boolean().default(false),
 });
 
 const lockabilitySchema = z.object({
@@ -121,15 +131,21 @@ function normalizeInterpretation(input = {}, options = {}) {
     risks: normalizeStringList(source.risks),
     unknowns: normalizeStringList(source.unknowns),
     assumptions: normalizeStringList(source.assumptions),
+    inferences: Array.isArray(source.inferences) ? source.inferences : [],
     route_hint: routeHint,
     project_initialized: Boolean(projectInitialized),
     metadata: buildMetadata(source, options),
   });
 }
 
+function stripBulletPrefix(line) {
+  return String(line || '').replace(/^\s*(?:[-*+]\s+|\d+[.)]\s+)/, '').trim();
+}
+
 function splitNarrative(narrative) {
   return String(narrative || '')
     .split(/\r?\n+/)
+    .map(stripBulletPrefix)
     .flatMap(line => line.split(/(?<=[.!?])\s+/))
     .map(line => line.trim())
     .filter(Boolean);
@@ -142,6 +158,14 @@ function pushUnique(target, value) {
   }
 }
 
+function addInference(target, sentence, field, confidence = 0.72) {
+  if (!sentence) return;
+  if (target.some(item => item.text.toLowerCase() === sentence.toLowerCase() && item.field === field)) {
+    return;
+  }
+  target.push({ text: sentence, evidence: sentence, confidence, field });
+}
+
 function inferRouteHint(narrative, projectInitialized) {
   const text = String(narrative || '').toLowerCase();
   if (!projectInitialized) return 'new-project';
@@ -149,6 +173,11 @@ function inferRouteHint(narrative, projectInitialized) {
     return 'new-project';
   }
   return 'quick';
+}
+
+function extractSuccessClause(sentence) {
+  const match = sentence.match(/\b(?:so that|in order to)\b\s*(.+)$/i);
+  return match ? match[1].trim() : '';
 }
 
 function extractIntentFromNarrative(narrative, options = {}) {
@@ -163,6 +192,7 @@ function extractIntentFromNarrative(narrative, options = {}) {
     risks: [],
     unknowns: [],
     assumptions: [],
+    inferences: [],
     route_hint: inferRouteHint(narrative, options.project_initialized),
     project_initialized: Boolean(options.project_initialized),
     metadata: {
@@ -180,13 +210,19 @@ function extractIntentFromNarrative(narrative, options = {}) {
     if (/\b(don't want|do not want|should not|must not|avoid|not include|without)\b/.test(lower)) pushUnique(interpretation.anti_requirements, sentence);
     if (/\b(should|success|done when|able to|user can|users can|needs to be able to)\b/.test(lower)) pushUnique(interpretation.success_criteria, sentence);
     if (/\b(risk|concern|worried|afraid|regression|latency|security|breaking)\b/.test(lower)) pushUnique(interpretation.risks, sentence);
-    if (/\b(not sure|unsure|unknown|maybe|probably|somehow|something|stuff|whatever)\b/.test(lower)) pushUnique(interpretation.unknowns, sentence);
+    if (/\b(not sure|unsure|unknown|maybe|probably|somehow|something|stuff|whatever|roughly|kind of|sort of|etc\.?|and so on)\b/.test(lower)) pushUnique(interpretation.unknowns, sentence);
+
+    const successClause = extractSuccessClause(sentence);
+    if (successClause) pushUnique(interpretation.success_criteria, successClause);
   }
 
-  if (interpretation.goals.length === 0 && interpretation.narrative) {
-    pushUnique(interpretation.assumptions, 'Primary goal inferred from the full narrative because no explicit goal sentence was detected.');
+  if (interpretation.goals.length === 0 && sentences[0]) {
+    addInference(interpretation.inferences, sentences[0], 'goals', 0.74);
+    pushUnique(interpretation.assumptions, 'Primary goal inferred from the opening narrative because no explicit goal sentence was detected.');
   }
   if (interpretation.success_criteria.length === 0) {
+    const candidate = sentences.find(sentence => /\b(user|users|team|operator|admin|customer)\b/i.test(sentence));
+    if (candidate) addInference(interpretation.inferences, candidate, 'success_criteria', 0.71);
     pushUnique(interpretation.assumptions, 'Success criteria are incomplete and may need clarification before execution.');
   }
 
@@ -235,14 +271,17 @@ function assessAmbiguity(interpretation) {
     if (hasText(searchable, check.left) && hasText(searchable, check.right)) addFinding(findings, check.type, check.severity, check.message, null);
   }
 
+  const ESCALATION_THRESHOLD = 0.20;
   const score = Math.min(1, findings.reduce((total, finding) => total + (finding.severity === 'high' ? 0.55 : 0.25), 0));
   const severity = findings.some(f => f.severity === 'high') ? 'high' : findings.length > 0 ? 'medium' : 'low';
+  const finalScore = Number(score.toFixed(2));
   return ambiguitySchema.parse({
     is_ambiguous: severity !== 'low',
     severity,
-    score: Number(score.toFixed(2)),
-    confidence: Number(Math.max(0.05, 1 - score).toFixed(2)),
+    score: finalScore,
+    confidence: Number(Math.max(0.05, 1 - finalScore).toFixed(2)),
     findings,
+    requires_escalation: finalScore > ESCALATION_THRESHOLD,
   });
 }
 
@@ -290,14 +329,31 @@ function renderSection(title, items) {
   return `## ${title}\n` + items.map(item => `- ${item}`).join('\n');
 }
 
+function renderInferences(inferences) {
+  if (!inferences || inferences.length === 0) return '## Inferences\n- None identified';
+  return '## Inferences\n' + inferences.map(inf => {
+    const pct = Math.round(inf.confidence * 100);
+    return `- [${inf.field}, ${pct}% confidence] ${inf.text}\n  _Evidence: "${inf.evidence}"_`;
+  }).join('\n');
+}
+
 function renderInterpretationSummary(interpretation, ambiguity) {
   const route = interpretation.route_hint === 'new-project' ? '/dostuff:new-project' : '/dostuff:quick';
+  const escalationNote = ambiguity.requires_escalation
+    ? `**Escalation required** — ambiguity score ${Math.round(ambiguity.score * 100)}% exceeds threshold. Human clarification needed before proceeding.`
+    : null;
+
   const lines = [
     '# Intent Interpretation Summary',
     '',
     `**Suggested route:** ${route}`,
     `**Project initialized:** ${interpretation.project_initialized ? 'Yes' : 'No'}`,
     `**Ambiguity:** ${ambiguity.severity} (confidence ${ambiguity.confidence})`,
+  ];
+
+  if (escalationNote) lines.push('', escalationNote);
+
+  lines.push(
     '',
     renderSection('Goals', interpretation.goals),
     '',
@@ -311,10 +367,13 @@ function renderInterpretationSummary(interpretation, ambiguity) {
     '',
     renderSection('Risks', interpretation.risks),
     '',
+    renderInferences(interpretation.inferences),
+    '',
     renderSection('Unknowns', interpretation.unknowns),
     '',
     renderSection('Assumptions', interpretation.assumptions),
-  ];
+  );
+
   if (ambiguity.findings.length > 0) {
     lines.push('', '## Ambiguity Findings');
     for (const finding of ambiguity.findings) lines.push(`- [${finding.severity}] ${finding.message}`);
@@ -423,6 +482,7 @@ module.exports = {
   getSupportedProviders: () => [...SUPPORTED_PROVIDERS],
   schemas: {
     interpretation: interpretationSchema,
+    inference: inferenceItemSchema,
     ambiguity: ambiguitySchema,
     lockability: lockabilitySchema,
     result: resultSchema,

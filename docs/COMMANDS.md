@@ -114,7 +114,7 @@ Research, plan, and verify a phase.
 This means the planner gets richer narrative/context handoff while still keeping PLAN.md and validation as the planning contracts.
 
 Invariant safety note: inferred constraints remain guidance until they pass the adversarial ambiguity gate; they are not automatically promoted to locked invariants.
-Audit note: the adversarial gate now exists in the ITL layer, but full downstream workflow enforcement is not claimed unless a workflow explicitly consumes that result.
+Audit note: plan-phase now runs the immediate research/context contract gates before broader plan checking, but full downstream workflow-by-workflow lockability enforcement is still being audited and tightened. full downstream workflow enforcement is not claimed yet. Disable `workflow.adversarial_test_harness` only if you intentionally want to bypass the local gate.
 
 ```bash
 /gsd:plan-phase 1                   # Research + plan + verify phase 1
@@ -149,8 +149,9 @@ Coverage baseline note:
 Canonical ITL note:
 - ITL runtime payloads now pass through Zod-backed canonical validation before seed or interpretation results are emitted.
 - The current deterministic extractor is already routed through the provider registry and adapter seam introduced in Phase 12.
+- That local path is still a bounded heuristic interpreter, now with richer bullet/goal/success extraction and conservative evidence-backed inferences.
 - Supported provider adapters now include Claude, Gemini, Kimi, and OpenAI.
-- Default local development remains deterministic; live provider calls are not required for the normal test path.
+- Default local development remains deterministic; provider handling in tests is fixture-normalized unless live-provider wiring is added explicitly.
 - The extracted standalone package lives at `packages/itl` and exposes `interpret_narrative(input_text, context_data)` as the primary public API.
 
 ---

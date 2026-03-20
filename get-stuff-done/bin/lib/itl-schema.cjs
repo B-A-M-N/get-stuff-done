@@ -61,6 +61,22 @@ const interpretationMetadataSchema = z.object({
   narrative_length: z.number().int().nonnegative(),
 });
 
+const inferenceFieldSchema = z.enum([
+  'goals',
+  'constraints',
+  'preferences',
+  'anti_requirements',
+  'success_criteria',
+  'risks',
+]);
+
+const inferenceItemSchema = z.object({
+  text: z.string().min(1),
+  evidence: z.string().min(1),
+  confidence: z.number().min(0).max(1),
+  field: inferenceFieldSchema,
+});
+
 const interpretationSchema = z.object({
   narrative: z.string(),
   goals: z.array(z.string()),
@@ -71,6 +87,7 @@ const interpretationSchema = z.object({
   risks: z.array(z.string()),
   unknowns: z.array(z.string()),
   assumptions: z.array(z.string()),
+  inferences: z.array(inferenceItemSchema).default([]),
   route_hint: routeHintSchema,
   project_initialized: z.boolean(),
   metadata: interpretationMetadataSchema,
@@ -89,6 +106,27 @@ const ambiguitySchema = z.object({
   score: z.number().min(0).max(1),
   confidence: z.number().min(0).max(1),
   findings: z.array(ambiguityFindingSchema),
+  requires_escalation: z.boolean().default(false),
+});
+
+const adversarialChallengeFindingSchema = z.object({
+  type: z.string().min(1),
+  severity: z.enum(['low', 'medium', 'high']),
+  message: z.string().min(1),
+  evidence: z.any().nullable().default(null),
+  target_field: inferenceFieldSchema.optional(),
+  suggested_action: z.enum([
+    'downgrade-to-unknown',
+    'remove-unsupported-claim',
+    'request-clarification',
+    'flag-contradiction',
+  ]).optional(),
+});
+
+const adversarialChallengeSchema = z.object({
+  summary: z.string().min(1),
+  findings: z.array(adversarialChallengeFindingSchema).default([]),
+  requires_escalation: z.boolean().default(false),
 });
 
 const lockabilityFindingSchema = z.object({
@@ -125,6 +163,7 @@ const interpretationResultSchema = z.object({
   narrative: z.string().min(1),
   interpretation: interpretationSchema,
   ambiguity: ambiguitySchema,
+  adversarial: adversarialChallengeSchema,
   lockability: lockabilitySchema,
   summary: z.string().min(1),
   provider_request: providerRequestSchema,
@@ -252,6 +291,7 @@ function normalizeInterpretation(input = {}, options = {}) {
     risks: normalizeStringList(source.risks),
     unknowns: normalizeStringList(source.unknowns),
     assumptions: normalizeStringList(source.assumptions),
+    inferences: Array.isArray(source.inferences) ? source.inferences : [],
     route_hint: routeHint,
     project_initialized: Boolean(projectInitialized),
     metadata: buildMetadata(source, options),
@@ -264,6 +304,17 @@ function parseInterpretation(input, options = {}) {
 
 function parseAmbiguity(input) {
   return ambiguitySchema.parse(input);
+}
+
+function parseAdversarialChallenge(input = {}) {
+  const parsed = adversarialChallengeSchema.parse(input);
+  return adversarialChallengeSchema.parse({
+    ...parsed,
+    requires_escalation: Boolean(
+      parsed.requires_escalation
+      || parsed.findings.some(finding => finding.severity === 'medium' || finding.severity === 'high')
+    ),
+  });
 }
 
 function parseLockability(input) {
@@ -296,6 +347,7 @@ module.exports = {
   normalizeInterpretation,
   parseInterpretation,
   parseAmbiguity,
+  parseAdversarialChallenge,
   parseLockability,
   parseAuditRecord,
   parseInterpretationResult,
@@ -304,8 +356,10 @@ module.exports = {
   parseVerificationSeed,
   schemas: {
     routeHintSchema,
+    inferenceItemSchema,
     interpretationSchema,
     ambiguitySchema,
+    adversarialChallengeSchema,
     lockabilitySchema,
     auditRecordSchema,
     providerRequestSchema,
@@ -317,8 +371,10 @@ module.exports = {
     clarificationPromptSchema,
     stringListField,
   },
+  inferenceItemSchema,
   interpretationSchema,
   ambiguitySchema,
+  adversarialChallengeSchema,
   lockabilitySchema,
   clarificationCheckpointSchema,
   clarificationPromptSchema,

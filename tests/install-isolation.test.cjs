@@ -83,6 +83,9 @@ describe('coexistence-safe install isolation', () => {
     const sessionStartCommands = installedSettings.hooks.SessionStart.flatMap(entry =>
       Array.isArray(entry.hooks) ? entry.hooks.map(hook => hook.command) : []
     );
+    const userPromptSubmitCommands = installedSettings.hooks.UserPromptSubmit.flatMap(entry =>
+      Array.isArray(entry.hooks) ? entry.hooks.map(hook => hook.command) : []
+    );
 
     assert.ok(fs.existsSync(legacyHookPath));
     assert.ok(fs.existsSync(legacyCommandPath));
@@ -90,6 +93,7 @@ describe('coexistence-safe install isolation', () => {
     assert.ok(fs.existsSync(path.join(claudeDir, 'commands', 'dostuff', 'new-project.md')));
     assert.ok(sessionStartCommands.includes('node .claude/hooks/gsd-check-update.js'));
     assert.ok(sessionStartCommands.some(command => command.includes('dostuff-check-update.js')));
+    assert.ok(userPromptSubmitCommands.some(command => command.includes('next-step consume')));
     assert.strictEqual(installedSettings.statusLine.command, 'node .claude/hooks/gsd-statusline.js');
 
     uninstall(false, 'claude');
@@ -98,12 +102,16 @@ describe('coexistence-safe install isolation', () => {
     const remainingSessionStartCommands = afterUninstallSettings.hooks.SessionStart.flatMap(entry =>
       Array.isArray(entry.hooks) ? entry.hooks.map(hook => hook.command) : []
     );
+    const remainingUserPromptSubmitCommands = (afterUninstallSettings.hooks.UserPromptSubmit || []).flatMap(entry =>
+      Array.isArray(entry.hooks) ? entry.hooks.map(hook => hook.command) : []
+    );
 
     assert.ok(fs.existsSync(legacyHookPath));
     assert.ok(fs.existsSync(legacyCommandPath));
     assert.ok(!fs.existsSync(path.join(claudeDir, 'hooks', 'dostuff-statusline.js')));
     assert.ok(!fs.existsSync(path.join(claudeDir, 'commands', 'dostuff')));
     assert.ok(remainingSessionStartCommands.includes('node .claude/hooks/gsd-check-update.js'));
+    assert.strictEqual(remainingUserPromptSubmitCommands.length, 0);
     assert.strictEqual(afterUninstallSettings.statusLine.command, 'node .claude/hooks/gsd-statusline.js');
   });
 });

@@ -8,6 +8,10 @@ const { execSync } = require('child_process');
 const { loadConfig, resolveModelInternal, findPhaseInternal, getRoadmapPhaseInternal, pathExistsInternal, generateSlugInternal, getMilestoneInfo, getMilestonePhaseFilter, stripShippedMilestones, normalizePhaseName, toPosixPath, output, error } = require('./core.cjs');
 const { extractFrontmatter } = require('./frontmatter.cjs');
 
+function getGsdHomeDir() {
+  return process.env.GSD_HOME || require('os').homedir();
+}
+
 /**
  * Extract clarification_status from STATE.md frontmatter.
  */
@@ -124,6 +128,7 @@ function cmdInitPlanPhase(cwd, phase, raw) {
     research_enabled: config.research,
     plan_checker_enabled: config.plan_checker,
     nyquist_validation_enabled: config.nyquist_validation,
+    adversarial_test_harness_enabled: config.adversarial_test_harness,
     commit_docs: config.commit_docs,
 
     // Phase info
@@ -185,7 +190,7 @@ function cmdInitNewProject(cwd, raw) {
   const config = loadConfig(cwd);
 
   // Detect Brave Search API key availability
-  const homedir = require('os').homedir();
+  const homedir = getGsdHomeDir();
   const braveKeyFile = path.join(homedir, '.gsd', 'brave_api_key');
   const hasBraveSearch = !!(process.env.BRAVE_API_KEY || fs.existsSync(braveKeyFile));
 

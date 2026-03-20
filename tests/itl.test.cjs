@@ -8,19 +8,22 @@ const {
   normalizeInterpretation,
   parseInterpretation,
   parseAmbiguity,
+  parseAdversarialChallenge,
   parseLockability,
   parseInitializationSeed,
 } = require('../get-stuff-done/bin/lib/itl-schema.cjs');
 const {
   validateAdapter,
+  buildAdversarialRequest,
   buildProviderRequest,
   getDefaultInterpretationAdapter,
   getInterpretationAdapter,
   getSupportedProviders,
   interpretNarrativeWithAdapter,
+  challengeInterpretationWithAdapter,
 } = require('../get-stuff-done/bin/lib/itl-adapters.cjs');
 const { extractIntentFromNarrative } = require('../get-stuff-done/bin/lib/itl-extract.cjs');
-const { assessAmbiguity, assessInvariantLockability } = require('../get-stuff-done/bin/lib/itl-ambiguity.cjs');
+const { assessAmbiguity, assessInvariantLockability, auditInferences, ESCALATION_THRESHOLD } = require('../get-stuff-done/bin/lib/itl-ambiguity.cjs');
 const { renderInterpretationSummary } = require('../get-stuff-done/bin/lib/itl-summary.cjs');
 const { getAuditDbPath, getLatestInterpretation } = require('../get-stuff-done/bin/lib/itl-audit.cjs');
 const { buildInterpretationResult, buildInitializationSeed, buildDiscussPhaseSeed, buildVerificationSeed } = require('../get-stuff-done/bin/lib/itl.cjs');
@@ -142,6 +145,11 @@ describe('ITL schema', () => {
       narrative: interpretation.narrative,
       interpretation,
       ambiguity,
+      adversarial: parseAdversarialChallenge({
+        summary: 'No model challenge requested.',
+        findings: [],
+        requires_escalation: false,
+      }),
       lockability,
       summary: 'Summary',
       provider_request: {
@@ -211,6 +219,17 @@ describe('ITL adapters', () => {
     assert.strictEqual(interpretation.metadata.source, 'heuristic-extractor');
     assert.strictEqual(interpretation.route_hint, 'quick');
   });
+  test('default adapter preserves bullet narratives and emits conservative inferences', () => {
+    const interpretation = interpretNarrativeWithAdapter({
+      narrative: `- Keep setup local only\n- So that users can onboard quickly`,
+      project_initialized: false,
+    }, getDefaultInterpretationAdapter());
+
+    assert.ok(interpretation.constraints.includes('Keep setup local only'));
+    assert.ok(interpretation.success_criteria.includes('users can onboard quickly'));
+    assert.ok(Array.isArray(interpretation.inferences));
+  });
+
 
   test('provider adapters build provider-specific request payloads', () => {
     const input = {
@@ -225,6 +244,32 @@ describe('ITL adapters', () => {
 
     assert.strictEqual(claudeRequest.provider, 'claude');
     assert.ok(typeof claudeRequest.system === 'string');
+    assert.strictEqual(openaiRequest.provider, 'openai');
+    assert.ok(openaiRequest.response_format);
+    assert.strictEqual(geminiRequest.provider, 'gemini');
+    assert.ok(geminiRequest.systemInstruction);
+    assert.strictEqual(kimiRequest.provider, 'kimi');
+    assert.ok(Array.isArray(kimiRequest.messages));
+  });
+
+  test('provider adapters build adversarial request payloads', () => {
+    const input = {
+      narrative: 'Add CSV export to the dashboard.',
+      project_initialized: true,
+      interpretation: normalizeInterpretation({
+        narrative: 'Add CSV export to the dashboard.',
+        goals: ['Add CSV export to the dashboard.'],
+        success_criteria: ['Users can export dashboard data as CSV.'],
+      }, { project_initialized: true }),
+    };
+
+    const claudeRequest = buildAdversarialRequest(input, 'claude');
+    const openaiRequest = buildAdversarialRequest(input, 'openai');
+    const geminiRequest = buildAdversarialRequest(input, 'gemini');
+    const kimiRequest = buildAdversarialRequest(input, 'kimi');
+
+    assert.strictEqual(claudeRequest.provider, 'claude');
+    assert.ok(String(claudeRequest.messages[0].content).includes('CHALLENGE the interpretation'));
     assert.strictEqual(openaiRequest.provider, 'openai');
     assert.ok(openaiRequest.response_format);
     assert.strictEqual(geminiRequest.provider, 'gemini');
@@ -362,6 +407,66 @@ describe('ITL adapters', () => {
 
     assert.strictEqual(openai.metadata.provider, 'openai');
     assert.strictEqual(openai.route_hint, 'quick');
+  });
+
+
+  test('provider adapters normalize adversarial challenge responses through the challenge schema', () => {
+    const interpretation = normalizeInterpretation({
+      narrative: 'I need a database.',
+      goals: ['I need a database.'],
+    }, { project_initialized: true });
+
+    const claudeChallenge = challengeInterpretationWithAdapter({
+      narrative: 'I need a database.',
+      interpretation,
+      project_initialized: true,
+      provider_response: {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({
+            summary: 'The interpretation overreaches.',
+            findings: [{
+              type: 'unsupported-technology',
+              severity: 'high',
+              message: 'The interpretation should not lock to PostgreSQL.',
+              evidence: 'database',
+              target_field: 'constraints',
+              suggested_action: 'downgrade-to-unknown',
+            }],
+            requires_escalation: true,
+          }),
+        }],
+      },
+    }, getInterpretationAdapter('claude'));
+
+    assert.strictEqual(claudeChallenge.requires_escalation, true);
+    assert.strictEqual(claudeChallenge.findings[0].type, 'unsupported-technology');
+  });
+
+  test('adversarial challenge parser rejects malformed model challenge payloads', () => {
+    const interpretation = normalizeInterpretation({
+      narrative: 'I need a database.',
+      goals: ['I need a database.'],
+    }, { project_initialized: true });
+
+    assert.throws(() => challengeInterpretationWithAdapter({
+      narrative: 'I need a database.',
+      interpretation,
+      project_initialized: true,
+      provider_response: {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({
+            findings: [{
+              type: 'unsupported-technology',
+              severity: 'critical',
+              message: 'Bad severity should fail.',
+              evidence: 'database',
+            }],
+          }),
+        }],
+      },
+    }, getInterpretationAdapter('claude')), ZodError);
   });
 
   test('provider adapters fall back to deterministic extraction when no provider response is supplied', () => {
@@ -564,6 +669,17 @@ describe('ITL audit and gsd-tools integration', () => {
     assert.ok(output.summary.includes('Intent Interpretation Summary'));
     assert.ok('lockability' in output, 'lockability result present');
     assert.ok(fs.existsSync(path.join(tmpDir, output.audit.db_path)), 'audit sqlite file should exist');
+  });
+
+
+  test('itl interpret includes a default adversarial report when no model challenge is requested', () => {
+    const output = buildInterpretationResult(tmpDir, {
+      text: 'I want to build a narrative-first intake flow.',
+      project_initialized: 'true',
+    });
+
+    assert.strictEqual(output.adversarial.requires_escalation, false);
+    assert.deepStrictEqual(output.adversarial.findings, []);
   });
 
   test('itl latest returns the most recent interpretation record', () => {
@@ -929,5 +1045,281 @@ describe('ITL command wrappers', () => {
     assert.deepStrictEqual(output.clarification_questions, [
       'Clarify this point: Need a sharper definition of the migration boundary.',
     ]);
+  });
+});
+
+describe('ITL inference schema', () => {
+  test('interpretation schema accepts valid inferences array', () => {
+    const result = normalizeInterpretation({
+      narrative: 'I need a login page.',
+      goals: ['I need a login page.'],
+      inferences: [
+        {
+          text: 'Authentication state must be managed across sessions.',
+          evidence: 'login page',
+          confidence: 0.85,
+          field: 'constraints',
+        },
+      ],
+    }, { project_initialized: true });
+
+    assert.strictEqual(result.inferences.length, 1);
+    assert.strictEqual(result.inferences[0].field, 'constraints');
+    assert.strictEqual(result.inferences[0].confidence, 0.85);
+  });
+
+  test('interpretation schema defaults inferences to empty array when absent', () => {
+    const result = normalizeInterpretation({
+      narrative: 'Add CSV export.',
+      goals: ['Add CSV export.'],
+    }, { project_initialized: true });
+
+    assert.deepStrictEqual(result.inferences, []);
+  });
+
+  test('inference item schema rejects missing evidence', () => {
+    assert.throws(() => normalizeInterpretation({
+      narrative: 'Build a thing.',
+      goals: ['Build a thing.'],
+      inferences: [{ text: 'Some inference.', confidence: 0.9, field: 'constraints' }],
+    }, { project_initialized: true }), ZodError);
+  });
+
+  test('inference item schema rejects confidence out of range', () => {
+    assert.throws(() => normalizeInterpretation({
+      narrative: 'Build a thing.',
+      goals: [],
+      inferences: [{ text: 'Some inference.', evidence: 'thing', confidence: 1.5, field: 'goals' }],
+    }, { project_initialized: false }), ZodError);
+  });
+
+  test('inference item schema rejects invalid field enum', () => {
+    assert.throws(() => normalizeInterpretation({
+      narrative: 'Build a thing.',
+      goals: [],
+      inferences: [{ text: 'Some inference.', evidence: 'thing', confidence: 0.8, field: 'unknowns' }],
+    }, { project_initialized: false }), ZodError);
+  });
+});
+
+describe('ITL adversarial inference audit', () => {
+  test('auditInferences returns empty findings for valid inferences with traceable evidence', () => {
+    const interpretation = normalizeInterpretation({
+      narrative: 'I need a login page that works on mobile.',
+      goals: ['I need a login page that works on mobile.'],
+      inferences: [
+        {
+          text: 'Mobile viewport support is required.',
+          evidence: 'works on mobile',
+          confidence: 0.9,
+          field: 'constraints',
+        },
+      ],
+    }, { project_initialized: true });
+
+    const findings = auditInferences(interpretation);
+    assert.deepStrictEqual(findings, []);
+  });
+
+  test('auditInferences flags evidence not present in narrative', () => {
+    const interpretation = normalizeInterpretation({
+      narrative: 'Build a dashboard.',
+      goals: ['Build a dashboard.'],
+      inferences: [
+        {
+          text: 'Users must be able to export data.',
+          evidence: 'export functionality',
+          confidence: 0.8,
+          field: 'success_criteria',
+        },
+      ],
+    }, { project_initialized: true });
+
+    const findings = auditInferences(interpretation);
+    assert.ok(findings.some(f => f.type === 'evidence-not-in-narrative'));
+    assert.ok(findings.some(f => f.severity === 'high'));
+  });
+
+  test('auditInferences flags specificity hallucination for technology not in narrative', () => {
+    const interpretation = normalizeInterpretation({
+      narrative: 'I need a database to store user records.',
+      goals: ['I need a database to store user records.'],
+      inferences: [
+        {
+          text: 'PostgreSQL should be used for the database.',
+          evidence: 'database',
+          confidence: 0.8,
+          field: 'constraints',
+        },
+      ],
+    }, { project_initialized: true });
+
+    const findings = auditInferences(interpretation);
+    assert.ok(findings.some(f => f.type === 'specificity-hallucination'));
+  });
+
+  test('auditInferences flags low-confidence inferences that should be unknowns', () => {
+    const interpretation = normalizeInterpretation({
+      narrative: 'Build something for the team.',
+      goals: ['Build something for the team.'],
+      inferences: [
+        {
+          text: 'The team has five or more members.',
+          evidence: 'team',
+          confidence: 0.3,
+          field: 'constraints',
+        },
+      ],
+    }, { project_initialized: true });
+
+    const findings = auditInferences(interpretation);
+    assert.ok(findings.some(f => f.type === 'low-confidence-inference'));
+  });
+
+  test('adversarial findings propagate into ambiguity via buildInterpretationResult', () => {
+    const tmpDir = require('./helpers.cjs').createTempProject();
+    try {
+      const result = buildInterpretationResult(tmpDir, {
+        text: 'I need a database.',
+        project_initialized: 'true',
+        provider_response: {
+          content: [{
+            type: 'text',
+            text: JSON.stringify({
+              narrative: 'I need a database.',
+              goals: ['I need a database.'],
+              constraints: [],
+              preferences: [],
+              anti_requirements: [],
+              success_criteria: [],
+              risks: [],
+              unknowns: [],
+              assumptions: [],
+              inferences: [{
+                text: 'PostgreSQL should be used.',
+                evidence: 'fabricated evidence not in narrative',
+                confidence: 0.85,
+                field: 'constraints',
+              }],
+              route_hint: 'quick',
+              project_initialized: true,
+            }),
+          }],
+        },
+        provider: 'claude',
+      });
+
+      assert.ok(result.ambiguity.findings.some(f => f.type === 'evidence-not-in-narrative' || f.type === 'specificity-hallucination'));
+      assert.strictEqual(result.ambiguity.requires_escalation, true);
+    } finally {
+      require('./helpers.cjs').cleanup(tmpDir);
+    }
+  });
+
+
+  test('model adversarial findings propagate into ambiguity without rewriting the interpretation', () => {
+    const tmpDir = require('./helpers.cjs').createTempProject();
+    try {
+      const result = buildInterpretationResult(tmpDir, {
+        text: 'I need a database.',
+        project_initialized: 'true',
+        provider_response: {
+          content: [{
+            type: 'text',
+            text: JSON.stringify({
+              narrative: 'I need a database.',
+              goals: ['I need a database.'],
+              constraints: [],
+              preferences: [],
+              anti_requirements: [],
+              success_criteria: [],
+              risks: [],
+              unknowns: [],
+              assumptions: [],
+              inferences: [],
+              route_hint: 'quick',
+              project_initialized: true,
+            }),
+          }],
+        },
+        provider: 'claude',
+        adversarial_provider: 'claude',
+        adversarial_provider_response: {
+          content: [{
+            type: 'text',
+            text: JSON.stringify({
+              summary: 'The interpretation should stay generic.',
+              findings: [{
+                type: 'missing-unknown',
+                severity: 'medium',
+                message: 'The database type is unspecified and should remain unresolved.',
+                evidence: 'database',
+                target_field: 'constraints',
+                suggested_action: 'request-clarification',
+              }],
+              requires_escalation: true,
+            }),
+          }],
+        },
+      });
+
+      assert.strictEqual(result.adversarial.requires_escalation, true);
+      assert.ok(result.ambiguity.findings.some(f => f.type === 'model-missing-unknown'));
+      assert.deepStrictEqual(result.interpretation.constraints, []);
+      assert.strictEqual(result.ambiguity.requires_escalation, true);
+    } finally {
+      require('./helpers.cjs').cleanup(tmpDir);
+    }
+  });
+});
+
+describe('ITL ambiguity escalation threshold', () => {
+  test('ESCALATION_THRESHOLD is 0.20', () => {
+    assert.strictEqual(ESCALATION_THRESHOLD, 0.20);
+  });
+
+  test('clean narrative with no findings does not require escalation', () => {
+    const interpretation = extractIntentFromNarrative(
+      'I want to add CSV export to the dashboard. Users should be able to download their data.',
+      { project_initialized: true }
+    );
+    const ambiguity = assessAmbiguity(interpretation);
+
+    assert.strictEqual(ambiguity.requires_escalation, false);
+  });
+
+  test('any medium or high finding triggers escalation', () => {
+    const interpretation = extractIntentFromNarrative(
+      'I need this done quickly, but it also has to be comprehensive with 100% coverage.',
+      { project_initialized: true }
+    );
+    const ambiguity = assessAmbiguity(interpretation);
+
+    assert.ok(ambiguity.score > ESCALATION_THRESHOLD);
+    assert.strictEqual(ambiguity.requires_escalation, true);
+  });
+
+  test('requires_escalation surfaces in summary when threshold exceeded', () => {
+    const interpretation = extractIntentFromNarrative(
+      'Maybe build something somehow.',
+      { project_initialized: true }
+    );
+    const ambiguity = assessAmbiguity(interpretation);
+    const summary = renderInterpretationSummary(interpretation, ambiguity);
+
+    assert.strictEqual(ambiguity.requires_escalation, true);
+    assert.ok(summary.includes('Escalation required'));
+  });
+
+  test('requires_escalation is false and not shown in summary for unambiguous narratives', () => {
+    const interpretation = extractIntentFromNarrative(
+      'Add a CSV export button to the reporting page. Users should be able to download the current view as a CSV file.',
+      { project_initialized: true }
+    );
+    const ambiguity = assessAmbiguity(interpretation);
+    const summary = renderInterpretationSummary(interpretation, ambiguity);
+
+    assert.strictEqual(ambiguity.requires_escalation, false);
+    assert.ok(!summary.includes('Escalation required'));
   });
 });

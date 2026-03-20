@@ -23,6 +23,16 @@ describe('standalone itl package', () => {
     assert.ok(result.summary.includes('Intent Interpretation Summary'));
     assert.ok(Array.isArray(result.ambiguity.findings));
   });
+  test('interpret_narrative handles bullet-heavy deterministic narratives', () => {
+    const result = pkg.interpret_narrative(
+      `- Keep everything local only\n- So that operators can onboard quickly`,
+      { project_initialized: false }
+    );
+
+    assert.ok(result.interpretation.constraints.includes('Keep everything local only'));
+    assert.ok(result.interpretation.success_criteria.includes('operators can onboard quickly'));
+  });
+
 
   test('standalone package supports provider-aware fixture normalization', () => {
     const result = pkg.interpret_narrative('Ignored because provider fixture is supplied.', {
