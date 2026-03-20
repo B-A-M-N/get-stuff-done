@@ -42,6 +42,60 @@ function validPlanContent({ wave = 1, dependsOn = '[]', autonomous = 'true', ext
   ].join('\n');
 }
 
+function qualityPlanContent({
+  phase = '01-test',
+  plan = '01',
+  wave = 1,
+  dependsOn = '[]',
+  requirements = '[REQ-1]',
+  filesModified = '[src/feature.ts, src/feature.test.ts]',
+  includeRisk = true,
+  includeAssumption = false,
+  missingReadFirst = false,
+  missingAcceptance = false,
+} = {}) {
+  return [
+    '---',
+    `phase: ${phase}`,
+    `plan: ${plan}`,
+    'type: execute',
+    `wave: ${wave}`,
+    `depends_on: ${dependsOn}`,
+    `requirements: ${requirements}`,
+    `files_modified: ${filesModified}`,
+    'autonomous: true',
+    'must_haves:',
+    '  truths:',
+    '    - "feature works for the user"',
+    '  artifacts:',
+    '    - path: "src/feature.ts"',
+    '      provides: "feature implementation"',
+    '  key_links:',
+    '    - from: "src/feature.ts"',
+    '      to: "src/feature.test.ts"',
+    '      via: "test import"',
+    '      pattern: "feature"',
+    '---',
+    '',
+    '# Plan',
+    '',
+    includeRisk ? 'Risk: rollback to existing feature toggle if integration fails.' : 'Notes: implementation details only.',
+    includeAssumption ? 'Assumption: API payload shape remains provisional until backend confirms it.' : 'Execution notes: proceed with confirmed inputs.',
+    '',
+    '<tasks>',
+    '<task type="auto">',
+    '  <name>Build feature</name>',
+    '  <files>src/feature.ts</files>',
+    missingReadFirst ? '' : '  <read_first>src/feature.ts\nsrc/feature.test.ts</read_first>',
+    '  <action>Implement feature() and wire it to the exported entrypoint used by src/feature.test.ts.</action>',
+    missingAcceptance ? '' : '  <acceptance_criteria>src/feature.ts contains function feature(\nsrc/feature.test.ts exits 0</acceptance_criteria>',
+    '  <verify><automated>node --test src/feature.test.ts</automated></verify>',
+    '  <done>Feature implementation and test wiring are complete.</done>',
+    '</task>',
+    '</tasks>',
+  ].filter(Boolean).join('\n');
+}
+
 describe('validate consistency command', () => {
   let tmpDir;
 
@@ -297,6 +351,93 @@ describe('verify plan-structure command', () => {
       output.error.includes('File not found'),
       `Expected "File not found" in error: ${output.error}`
     );
+  });
+});
+
+describe('verify plan-quality command', () => {
+  let tmpDir;
+
+  beforeEach(() => {
+    tmpDir = createTempProject();
+    fs.writeFileSync(path.join(tmpDir, '.planning', 'ROADMAP.md'), '# Roadmap\n\n### Phase 1: Test\n**Goal**: Ship feature\n**Requirements**: REQ-1\n');
+    fs.mkdirSync(path.join(tmpDir, '.planning', 'phases', '01-test'), { recursive: true });
+  });
+
+  afterEach(() => {
+    cleanup(tmpDir);
+  });
+
+  test('passes balanced plans with explicit verification and risk coverage', () => {
+    const phaseDir = path.join(tmpDir, '.planning', 'phases', '01-test');
+    fs.writeFileSync(path.join(phaseDir, '01-01-PLAN.md'), qualityPlanContent());
+
+    const result = runGsdTools(['verify', 'plan-quality', '01'], tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.status, 'passed');
+    assert.strictEqual(output.scores.goal_alignment.score, 5);
+    assert.ok(output.issues.length === 0, `Expected no issues: ${JSON.stringify(output.issues)}`);
+  });
+
+  test('blocks when roadmap requirements are uncovered', () => {
+    const phaseDir = path.join(tmpDir, '.planning', 'phases', '01-test');
+    fs.writeFileSync(path.join(phaseDir, '01-01-PLAN.md'), qualityPlanContent({ requirements: '[REQ-2]' }));
+
+    const result = runGsdTools(['verify', 'plan-quality', '01'], tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.status, 'blocked');
+    assert.ok(output.issues.some(issue => issue.severity === 'blocker' && issue.dimension === 'goal_alignment'));
+  });
+
+  test('returns revise when task atomicity and verification proxies are weak', () => {
+    const phaseDir = path.join(tmpDir, '.planning', 'phases', '01-test');
+    fs.writeFileSync(path.join(phaseDir, '01-01-PLAN.md'), qualityPlanContent({ includeRisk: false, missingReadFirst: true, missingAcceptance: true }));
+
+    const result = runGsdTools(['verify', 'plan-quality', '01'], tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.status, 'revise');
+    assert.ok(output.issues.some(issue => issue.dimension === 'task_atomicity'));
+    assert.ok(output.issues.some(issue => issue.dimension === 'verification_strength'));
+    assert.ok(output.scores.task_atomicity.score < 5);
+  });
+
+  test('returns revise when upstream ambiguity is not carried forward', () => {
+    const phaseDir = path.join(tmpDir, '.planning', 'phases', '01-test');
+    fs.writeFileSync(path.join(phaseDir, '01-CONTEXT.md'), '# Context\n\n## Unresolved Ambiguities\n- API payload shape is still unsettled\n');
+    fs.writeFileSync(path.join(phaseDir, '01-01-PLAN.md'), qualityPlanContent({ includeAssumption: false }));
+
+    const result = runGsdTools(['verify', 'plan-quality', '01'], tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.status, 'revise');
+    assert.ok(output.issues.some(issue => issue.dimension === 'assumption_honesty'));
+    assert.strictEqual(output.scores.assumption_honesty.score, 2);
+  });
+
+  test('blocks when research surfaces domain contract categories that no plan materializes', () => {
+    const phaseDir = path.join(tmpDir, '.planning', 'phases', '01-test');
+    fs.writeFileSync(path.join(phaseDir, '01-RESEARCH.md'), [
+      '## Invariants',
+      '- Feature output must stay JSON-serializable.',
+      '',
+      '## Policy Rules',
+      '- Never emit partial success when validation fails.',
+      '',
+      '## Executable Checks',
+      '- Run node --test src/feature.test.ts before handoff.',
+    ].join('\n'));
+    fs.writeFileSync(path.join(phaseDir, '01-01-PLAN.md'), qualityPlanContent());
+
+    const result = runGsdTools(['verify', 'plan-quality', '01'], tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.status, 'blocked');
+    assert.ok(output.issues.some(issue => issue.dimension === 'contract_materialization' && issue.severity === 'blocker'));
+    assert.ok(output.uncovered_contract_categories.includes('invariants'));
+    assert.ok(output.uncovered_contract_categories.includes('policy_rules'));
+    assert.ok(output.scores.contract_materialization.score <= 2);
   });
 });
 

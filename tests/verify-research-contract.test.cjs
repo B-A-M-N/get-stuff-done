@@ -81,6 +81,8 @@ describe('verify research-contract command', () => {
         );
         assert.strictEqual(calls.length, 1);
         assert.strictEqual(calls[0].result.valid, true);
+        assert.ok(calls[0].result.domain_contract);
+        assert.ok(calls[0].result.domain_contract.open_questions.includes('Whether pagination should be automatic.'));
       });
     } finally {
       cleanup(tmpDir);

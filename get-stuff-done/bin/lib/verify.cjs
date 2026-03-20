@@ -5,7 +5,7 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-const { safeReadFile, normalizePhaseName, execGit, findPhaseInternal, getMilestoneInfo, stripShippedMilestones, output, error } = require('./core.cjs');
+const { safeReadFile, loadConfig, normalizePhaseName, execGit, findPhaseInternal, getRoadmapPhaseInternal, getMilestoneInfo, stripShippedMilestones, output, error } = require('./core.cjs');
 const { extractFrontmatter, parseMustHavesBlock } = require('./frontmatter.cjs');
 const { writeStateMd } = require('./state.cjs');
 const { checkpointResponseSchema, executionSummarySchema } = require('./artifact-schema.cjs');
@@ -228,6 +228,454 @@ function cmdVerifyPlanStructure(cwd, filePath, raw) {
     tasks,
     frontmatter_fields: Object.keys(fm),
   }, raw, errors.length === 0 ? 'valid' : 'invalid');
+}
+
+function normalizeFrontmatterArray(value) {
+  if (Array.isArray(value)) return value.map(v => String(v).trim()).filter(Boolean);
+  if (value === undefined || value === null || value === false) return [];
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return [];
+    if (trimmed === '[]') return [];
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      return trimmed.slice(1, -1).split(',').map(v => v.trim().replace(/^['"]|['"]$/g, '')).filter(Boolean);
+    }
+    return trimmed.split(',').map(v => v.trim().replace(/^['"]|['"]$/g, '')).filter(Boolean);
+  }
+  return [String(value).trim()].filter(Boolean);
+}
+
+function getTagText(block, tagName) {
+  const open = `<${tagName}>`;
+  const close = `</${tagName}>`;
+  const startIdx = block.indexOf(open);
+  if (startIdx === -1) return '';
+  const endIdx = block.indexOf(close, startIdx + open.length);
+  if (endIdx === -1) return '';
+  return block.slice(startIdx + open.length, endIdx).trim();
+}
+
+function splitXmlList(text) {
+  if (!text) return [];
+  return text
+    .split(/\r?\n|,/)
+    .map(line => line.replace(/^[\s*-]+/, '').replace(/`/g, '').trim())
+    .filter(Boolean);
+}
+
+function hasExplicitPlanDirective(content, labels = []) {
+  return labels.some(label => new RegExp(`^${label}:\s*.+$`, 'im').test(content));
+}
+
+function hasExplicitSection(content, headings = []) {
+  return headings.some(heading => new RegExp(`^##\s+${heading}\s*$`, 'im').test(content));
+}
+
+function hasDeterministicRiskCoverage(content, tasks = []) {
+  if (hasExplicitSection(content, ['Risks', 'Risk Coverage', 'Rollback', 'Fallback', 'Guardrails', 'Failure Modes'])) {
+    return true;
+  }
+  if (hasExplicitPlanDirective(content, ['Risk', 'Rollback', 'Fallback', 'Guardrail', 'Failure Mode'])) {
+    return true;
+  }
+  return tasks.some(task => /<risk>[\s\S]*?<\/risk>|<rollback>[\s\S]*?<\/rollback>|<fallback>[\s\S]*?<\/fallback>|<guardrail>[\s\S]*?<\/guardrail>/i.test(task.raw || ''));
+}
+
+function hasDeterministicAssumptionCarryForward(content, tasks = []) {
+  if (hasExplicitSection(content, ['Assumptions', 'Open Questions', 'Deferred Work', 'Defer Notes', 'Unknowns'])) {
+    return true;
+  }
+  if (hasExplicitPlanDirective(content, ['Assumption', 'Open Question', 'Deferred', 'Unknown'])) {
+    return true;
+  }
+  return tasks.some(task => /<assumption>[\s\S]*?<\/assumption>|<open_question>[\s\S]*?<\/open_question>|<deferred>[\s\S]*?<\/deferred>|<unknown>[\s\S]*?<\/unknown>/i.test(task.raw || ''));
+}
+
+function parsePlanQualityTasks(content) {
+  const tasks = [];
+  const taskPattern = /<task\b[^>]*>([\s\S]*?)<\/task>/g;
+  let taskMatch;
+  while ((taskMatch = taskPattern.exec(content)) !== null) {
+    const taskOpenTag = taskMatch[0].match(/^<task[^>]*>/)?.[0] || '<task>';
+    const taskContent = taskMatch[1];
+    const typeMatch = taskOpenTag.match(/type=["']([^"']+)["']/i);
+    const taskType = typeMatch ? typeMatch[1].trim() : 'auto';
+    const name = getTagText(taskContent, 'name') || 'unnamed';
+    const files = splitXmlList(getTagText(taskContent, 'files'));
+    const readFirst = splitXmlList(getTagText(taskContent, 'read_first'));
+    const action = getTagText(taskContent, 'action');
+    const verify = getTagText(taskContent, 'verify');
+    const done = getTagText(taskContent, 'done');
+    const acceptanceCriteria = splitXmlList(getTagText(taskContent, 'acceptance_criteria'));
+    tasks.push({
+      name,
+      type: taskType,
+      files,
+      read_first: readFirst,
+      acceptance_criteria: acceptanceCriteria,
+      action,
+      verify,
+      done,
+      raw: taskContent,
+      hasFiles: files.length > 0,
+      hasReadFirst: readFirst.length > 0,
+      hasAcceptanceCriteria: acceptanceCriteria.length > 0,
+      hasAction: !!action,
+      hasVerify: !!verify,
+      hasDone: !!done,
+      isCheckpoint: taskType.startsWith('checkpoint:'),
+    });
+  }
+  return tasks;
+}
+
+function extractPhaseRequirementIdsFromSection(section) {
+  const reqMatch = section.match(/^\*\*Requirements\*\*:[^\S\n]*([^\n]*)$/m);
+  if (!reqMatch) return [];
+  return reqMatch[1].replace(/[\[\]]/g, '').split(',').map(s => s.trim()).filter(Boolean).filter(id => id !== 'TBD');
+}
+
+function detectCycle(edges) {
+  const visiting = new Set();
+  const visited = new Set();
+
+  function visit(node) {
+    if (visiting.has(node)) return true;
+    if (visited.has(node)) return false;
+    visiting.add(node);
+    for (const dep of edges.get(node) || []) {
+      if (visit(dep)) return true;
+    }
+    visiting.delete(node);
+    visited.add(node);
+    return false;
+  }
+
+  for (const node of edges.keys()) {
+    if (visit(node)) return true;
+  }
+  return false;
+}
+
+function buildPlanQualitySummary(status, issues, dimensionScores) {
+  const blockers = issues.filter(issue => issue.severity === 'blocker').length;
+  const warnings = issues.filter(issue => issue.severity !== 'blocker').length;
+  const lowScores = Object.values(dimensionScores).filter(entry => entry.score < 3).length;
+  if (status === 'blocked') return `Blocked: ${blockers} blocker(s), ${warnings} revision issue(s), ${lowScores} low-score dimension(s)`;
+  if (status === 'revise') return `Revise: ${warnings} quality issue(s), ${lowScores} dimension(s) below threshold`;
+  return 'Passed: plan quality thresholds met';
+}
+
+function extractBulletSection(content, heading) {
+  const headingPattern = new RegExp(`^#{2,3}\\s+${heading}\\s*$`, 'im');
+  const match = content.match(headingPattern);
+  if (!match || match.index === undefined) return [];
+  const start = match.index + match[0].length;
+  const rest = content.slice(start);
+  const nextHeadingMatch = rest.match(/\n#{2,3}\s+/);
+  const block = nextHeadingMatch ? rest.slice(0, nextHeadingMatch.index) : rest;
+  return block
+    .split('\n')
+    .map(line => line.trim())
+    .filter(line => line.startsWith('- '))
+    .map(line => line.slice(2).trim())
+    .filter(Boolean)
+    .filter(line => !/^none\b/i.test(line));
+}
+
+function buildDomainContract(contextContent = '', researchContent = '') {
+  const contract = {
+    locked_decisions: extractTaggedBullets(contextContent, 'decisions'),
+    unresolved_ambiguities: extractHeadingBullets(contextContent, 'Unresolved Ambiguities'),
+    interpreted_assumptions: extractHeadingBullets(contextContent, 'Interpreted Assumptions'),
+    open_questions: extractBulletSection(researchContent, 'Open Questions'),
+    invariants: extractBulletSection(researchContent, 'Invariants'),
+    allowed_state_transitions: extractBulletSection(researchContent, 'Allowed State Transitions'),
+    forbidden_states: extractBulletSection(researchContent, 'Forbidden States'),
+    test_oracles: extractBulletSection(researchContent, 'Test Oracles'),
+    truth_tables: extractBulletSection(researchContent, 'Truth Tables'),
+    policy_rules: extractBulletSection(researchContent, 'Policy Rules'),
+    executable_checks: extractBulletSection(researchContent, 'Executable Checks'),
+  };
+
+  contract.non_empty_categories = Object.entries(contract)
+    .filter(([key, value]) => key !== 'non_empty_categories' && Array.isArray(value) && value.length > 0)
+    .map(([key]) => key);
+
+  return contract;
+}
+
+function hasPlanCoverageForContractCategory(content, tasks, category) {
+  const categoryMatchers = {
+    invariants: () => hasExplicitSection(content, ['Invariants']) || hasExplicitPlanDirective(content, ['Invariant']),
+    allowed_state_transitions: () => hasExplicitSection(content, ['Allowed State Transitions']) || hasExplicitPlanDirective(content, ['Allowed State Transition']),
+    forbidden_states: () => hasExplicitSection(content, ['Forbidden States']) || hasExplicitPlanDirective(content, ['Forbidden State']),
+    test_oracles: () => hasExplicitSection(content, ['Test Oracles']) || hasExplicitPlanDirective(content, ['Test Oracle']),
+    truth_tables: () => hasExplicitSection(content, ['Truth Tables']) || hasExplicitPlanDirective(content, ['Truth Table']),
+    policy_rules: () => hasExplicitSection(content, ['Policy Rules']) || hasExplicitPlanDirective(content, ['Policy Rule']),
+    executable_checks: () => hasExplicitSection(content, ['Executable Checks']) || hasExplicitPlanDirective(content, ['Executable Check']),
+    open_questions: () => hasExplicitSection(content, ['Open Questions']) || hasExplicitPlanDirective(content, ['Open Question']),
+    unresolved_ambiguities: () => hasExplicitSection(content, ['Open Questions', 'Unknowns']) || hasExplicitPlanDirective(content, ['Open Question', 'Unknown']),
+    interpreted_assumptions: () => hasExplicitSection(content, ['Assumptions']) || hasExplicitPlanDirective(content, ['Assumption']),
+    locked_decisions: () => hasExplicitSection(content, ['Implementation Decisions', 'Locked Decisions']) || hasExplicitPlanDirective(content, ['Decision', 'Locked Decision']),
+  };
+
+  const matcher = categoryMatchers[category];
+  if (!matcher) return false;
+  if (matcher()) return true;
+
+  if (category === 'executable_checks') return tasks.some(task => task.hasVerify);
+  if (category === 'test_oracles') return tasks.some(task => task.hasAcceptanceCriteria);
+  return false;
+}
+
+function cmdVerifyPlanQuality(cwd, phase, raw) {
+  if (!phase) { error('phase required'); }
+  const phaseInfo = findPhaseInternal(cwd, phase);
+  if (!phaseInfo || !phaseInfo.found) {
+    output({ phase, status: 'blocked', error: 'Phase not found', issues: [{ dimension: 'goal_alignment', severity: 'blocker', description: `Phase ${phase} not found`, fix_hint: 'Check ROADMAP.md or run /gsd:progress' }] }, raw, 'blocked');
+    return;
+  }
+
+  const phaseDir = path.join(cwd, phaseInfo.directory);
+  let phaseFiles = [];
+  try { phaseFiles = fs.readdirSync(phaseDir); } catch {}
+  const planFiles = phaseFiles.filter(f => f.endsWith('-PLAN.md')).sort();
+  if (planFiles.length === 0) {
+    output({ phase: phaseInfo.phase_number, status: 'blocked', issues: [{ dimension: 'goal_alignment', severity: 'blocker', description: `Phase ${phaseInfo.phase_number} has no PLAN.md artifacts`, fix_hint: `Run /gsd:plan-phase ${phaseInfo.phase_number}` }], scores: {}, summary: 'Blocked: no plans found' }, raw, 'blocked');
+    return;
+  }
+
+  const roadmapPhase = getRoadmapPhaseInternal(cwd, String(Number.parseInt(String(phaseInfo.phase_number).split('.')[0], 10)));
+  const roadmapSection = roadmapPhase?.section || '';
+  const requiredIds = extractPhaseRequirementIdsFromSection(roadmapSection);
+  const contextFile = phaseFiles.find(f => f.endsWith('-CONTEXT.md') || f === 'CONTEXT.md');
+  const researchFile = phaseFiles.find(f => f.endsWith('-RESEARCH.md') || f === 'RESEARCH.md');
+  const contextContent = contextFile ? safeReadFile(path.join(phaseDir, contextFile)) || '' : '';
+  const researchContent = researchFile ? safeReadFile(path.join(phaseDir, researchFile)) || '' : '';
+  const domainContract = buildDomainContract(contextContent, researchContent);
+  const ambiguitySignals = domainContract.unresolved_ambiguities.length > 0
+    || domainContract.interpreted_assumptions.length > 0
+    || domainContract.open_questions.length > 0
+    || /open question|unresolved|assumption|unknown/i.test(researchContent);
+
+  const planSet = new Set();
+  const dependencies = new Map();
+  const issues = [];
+  const metrics = {
+    plan_count: planFiles.length,
+    task_count: 0,
+    executable_task_count: 0,
+    tasks_missing_read_first: 0,
+    tasks_missing_acceptance_criteria: 0,
+    tasks_missing_verify: 0,
+    plans_missing_requirements: 0,
+    plans_missing_truths: 0,
+    plans_missing_key_links: 0,
+    plans_missing_artifacts: 0,
+    plans_with_risk_contracts: 0,
+    plans_with_assumption_contracts: 0,
+    oversized_plans: 0,
+    large_file_plans: 0,
+    contract_categories_total: 0,
+    contract_categories_covered: 0,
+  };
+  const plans = [];
+
+  for (const file of planFiles) {
+    const fullPath = path.join(phaseDir, file);
+    const content = safeReadFile(fullPath) || '';
+    const fm = extractFrontmatter(content);
+    const planId = String(fm.plan || file.replace(/.*-(\d+)-PLAN\.md$/, '$1').replace('-PLAN.md', ''));
+    const dependsOn = normalizeFrontmatterArray(fm.depends_on);
+    const filesModified = normalizeFrontmatterArray(fm.files_modified);
+    const requirements = normalizeFrontmatterArray(fm.requirements);
+    const truths = parseMustHavesBlock(content, 'truths');
+    const artifacts = parseMustHavesBlock(content, 'artifacts');
+    const keyLinks = parseMustHavesBlock(content, 'key_links');
+    const tasks = parsePlanQualityTasks(content);
+    const executableTasks = tasks.filter(task => !task.isCheckpoint);
+    const hasRiskContract = hasDeterministicRiskCoverage(content, tasks);
+    const hasAssumptionContract = hasDeterministicAssumptionCarryForward(content, tasks);
+    const coveredContractCategories = domainContract.non_empty_categories.filter(category => hasPlanCoverageForContractCategory(content, tasks, category));
+    const wave = Number.parseInt(String(fm.wave || '1'), 10) || 1;
+
+    planSet.add(planId);
+    dependencies.set(planId, dependsOn);
+    metrics.task_count += tasks.length;
+    metrics.executable_task_count += executableTasks.length;
+    if (hasRiskContract) metrics.plans_with_risk_contracts += 1;
+    if (hasAssumptionContract) metrics.plans_with_assumption_contracts += 1;
+    if (requirements.length === 0) metrics.plans_missing_requirements += 1;
+    if (truths.length === 0) metrics.plans_missing_truths += 1;
+    if (artifacts.length === 0) metrics.plans_missing_artifacts += 1;
+    if (keyLinks.length === 0) metrics.plans_missing_key_links += 1;
+    if (executableTasks.length > 4) metrics.oversized_plans += 1;
+    if (filesModified.length > 10) metrics.large_file_plans += 1;
+    metrics.contract_categories_total += domainContract.non_empty_categories.length;
+    metrics.contract_categories_covered += coveredContractCategories.length;
+
+    for (const task of executableTasks) {
+      if (!task.hasReadFirst) metrics.tasks_missing_read_first += 1;
+      if (!task.hasAcceptanceCriteria) metrics.tasks_missing_acceptance_criteria += 1;
+      if (!task.hasVerify) metrics.tasks_missing_verify += 1;
+    }
+
+    if (requirements.length === 0) {
+      issues.push({ dimension: 'goal_alignment', severity: 'warning', plan: planId, description: `Plan ${planId} is missing requirements frontmatter`, fix_hint: 'Add roadmap requirement IDs to requirements: [...]' });
+    }
+    if (truths.length === 0) {
+      issues.push({ dimension: 'goal_alignment', severity: 'warning', plan: planId, description: `Plan ${planId} is missing must_haves.truths`, fix_hint: 'Add user-observable truths to must_haves.truths' });
+    }
+    if (artifacts.length === 0) {
+      issues.push({ dimension: 'verification_strength', severity: 'warning', plan: planId, description: `Plan ${planId} is missing must_haves.artifacts`, fix_hint: 'List the artifacts this plan must produce' });
+    }
+    if (keyLinks.length === 0) {
+      issues.push({ dimension: 'verification_strength', severity: 'warning', plan: planId, description: `Plan ${planId} is missing must_haves.key_links`, fix_hint: 'Describe how the artifacts wire together or justify why none are needed' });
+    }
+    if (executableTasks.length === 0) {
+      issues.push({ dimension: 'task_atomicity', severity: 'blocker', plan: planId, description: `Plan ${planId} has no executable tasks`, fix_hint: 'Add at least one executable task before checkpoints' });
+    }
+    if (executableTasks.length > 4) {
+      issues.push({ dimension: 'scope_fit', severity: executableTasks.length >= 6 ? 'blocker' : 'warning', plan: planId, description: `Plan ${planId} has ${executableTasks.length} executable tasks`, fix_hint: 'Split the plan into smaller units (target 2-4 tasks)' });
+    }
+    if (filesModified.length > 10) {
+      issues.push({ dimension: 'scope_fit', severity: filesModified.length >= 15 ? 'blocker' : 'warning', plan: planId, description: `Plan ${planId} touches ${filesModified.length} files in files_modified`, fix_hint: 'Reduce file scope or split the work into another plan' });
+    }
+    if (!hasRiskContract) {
+      issues.push({ dimension: 'risk_coverage', severity: 'warning', plan: planId, description: `Plan ${planId} does not surface risk, fallback, or defer language`, fix_hint: 'Add an explicit Risk:/Rollback:/Fallback:/Guardrail: line or a dedicated risk section' });
+    }
+    for (const task of executableTasks) {
+      if (!task.hasReadFirst) issues.push({ dimension: 'task_atomicity', severity: 'warning', plan: planId, description: `Task '${task.name}' is missing <read_first>`, fix_hint: 'List the source-of-truth files the executor must read first' });
+      if (!task.hasAcceptanceCriteria) issues.push({ dimension: 'verification_strength', severity: 'warning', plan: planId, description: `Task '${task.name}' is missing <acceptance_criteria>`, fix_hint: 'Add grep/testable acceptance criteria' });
+      if (!task.hasVerify) issues.push({ dimension: 'verification_strength', severity: 'warning', plan: planId, description: `Task '${task.name}' is missing <verify>`, fix_hint: 'Add an explicit verification command or output check' });
+    }
+    if (wave > 1 && dependsOn.length === 0) {
+      issues.push({ dimension: 'dependency_clarity', severity: 'warning', plan: planId, description: `Plan ${planId} is in wave ${wave} but has no depends_on entries`, fix_hint: 'Either move it to wave 1 or declare its dependencies' });
+    }
+
+    plans.push({
+      plan: planId,
+      file,
+      wave,
+      depends_on: dependsOn,
+      files_modified: filesModified.length,
+      requirements,
+      truths: truths.length,
+      artifacts: artifacts.length,
+      key_links: keyLinks.length,
+      task_count: tasks.length,
+      executable_task_count: executableTasks.length,
+      has_risk_contract: hasRiskContract,
+      has_assumption_contract: hasAssumptionContract,
+      covered_contract_categories: coveredContractCategories,
+    });
+  }
+
+  const coveredRequirements = new Set(plans.flatMap(plan => plan.requirements));
+  const missingRequirementIds = requiredIds.filter(id => !coveredRequirements.has(id));
+  if (missingRequirementIds.length > 0) {
+    issues.push({ dimension: 'goal_alignment', severity: 'blocker', description: `Phase requirements not covered by any plan: ${missingRequirementIds.join(', ')}`, fix_hint: 'Add the missing requirement IDs to plan frontmatter and cover them with tasks' });
+  }
+
+  for (const plan of plans) {
+    for (const dep of plan.depends_on) {
+      if (!planSet.has(dep)) {
+        issues.push({ dimension: 'dependency_clarity', severity: 'blocker', plan: plan.plan, description: `Plan ${plan.plan} depends on missing plan '${dep}'`, fix_hint: 'Fix depends_on or create the missing upstream plan' });
+      }
+      const depPlan = plans.find(candidate => candidate.plan === dep);
+      if (depPlan && depPlan.wave >= plan.wave) {
+        issues.push({ dimension: 'dependency_clarity', severity: 'warning', plan: plan.plan, description: `Plan ${plan.plan} is in wave ${plan.wave} but depends on plan ${dep} in wave ${depPlan.wave}`, fix_hint: 'Move the dependent plan to a later wave than its dependencies' });
+      }
+    }
+  }
+
+  if (detectCycle(dependencies)) {
+    issues.push({ dimension: 'dependency_clarity', severity: 'blocker', description: 'Circular dependency detected across plans', fix_hint: 'Break the cycle by reordering or splitting dependencies' });
+  }
+
+  if (ambiguitySignals && metrics.plans_with_assumption_contracts === 0) {
+    issues.push({ dimension: 'assumption_honesty', severity: 'warning', description: 'Context or research contains unresolved ambiguity, but no plan preserves that ambiguity as assumptions/defer/pause language', fix_hint: 'Add an explicit Assumption:/Open Question:/Deferred: line or dedicated assumptions section before hardening scope' });
+  }
+
+  const uncoveredContractCategories = domainContract.non_empty_categories.filter(
+    category => !plans.some(plan => plan.covered_contract_categories.includes(category))
+  );
+  for (const category of uncoveredContractCategories) {
+    issues.push({
+      dimension: 'contract_materialization',
+      severity: ['invariants', 'forbidden_states', 'policy_rules', 'executable_checks'].includes(category) ? 'blocker' : 'warning',
+      description: `Surfaced domain contract category '${category}' is not carried into any plan`,
+      fix_hint: `Add an explicit ${category.replace(/_/g, ' ')} section/directive or executable task coverage to at least one plan`,
+    });
+  }
+
+  const executableTasks = Math.max(metrics.executable_task_count, 1);
+  const plansCount = Math.max(metrics.plan_count, 1);
+  const taskAtomicityCoverage = 1 - ((metrics.tasks_missing_read_first + metrics.tasks_missing_acceptance_criteria) / (executableTasks * 2));
+  const verificationCoverage = 1 - ((metrics.tasks_missing_acceptance_criteria + metrics.tasks_missing_verify + metrics.plans_missing_key_links + metrics.plans_missing_artifacts) / ((executableTasks * 2) + (plansCount * 2)));
+  const contractCoverage = domainContract.non_empty_categories.length === 0
+    ? 1
+    : (domainContract.non_empty_categories.length - uncoveredContractCategories.length) / domainContract.non_empty_categories.length;
+
+  const dimensionScores = {
+    goal_alignment: {
+      score: missingRequirementIds.length > 0 ? 1 : (metrics.plans_missing_requirements > 0 || metrics.plans_missing_truths > 0 ? 3 : 5),
+      max: 5,
+      evidence: [`${requiredIds.length} roadmap requirement(s)`, `${coveredRequirements.size} covered requirement ID(s)`, `${plansCount - metrics.plans_missing_truths}/${plansCount} plan(s) with must_haves.truths`],
+    },
+    scope_fit: {
+      score: metrics.oversized_plans > 0 || metrics.large_file_plans > 0 ? ((metrics.oversized_plans > 0 && metrics.large_file_plans > 0) ? 2 : 3) : 5,
+      max: 5,
+      evidence: [`${metrics.oversized_plans} oversized plan(s)`, `${metrics.large_file_plans} large file-scope plan(s)`],
+    },
+    task_atomicity: {
+      score: taskAtomicityCoverage >= 0.95 ? 5 : taskAtomicityCoverage >= 0.8 ? 4 : taskAtomicityCoverage >= 0.65 ? 3 : 2,
+      max: 5,
+      evidence: [`${metrics.tasks_missing_read_first} task(s) missing read_first`, `${metrics.tasks_missing_acceptance_criteria} task(s) missing acceptance_criteria`],
+    },
+    dependency_clarity: {
+      score: issues.some(issue => issue.dimension === 'dependency_clarity' && issue.severity === 'blocker') ? 1 : issues.some(issue => issue.dimension === 'dependency_clarity') ? 3 : 5,
+      max: 5,
+      evidence: [`${plansCount} plan(s) in dependency graph`, `${issues.filter(issue => issue.dimension === 'dependency_clarity').length} dependency issue(s)`],
+    },
+    verification_strength: {
+      score: verificationCoverage >= 0.95 ? 5 : verificationCoverage >= 0.8 ? 4 : verificationCoverage >= 0.65 ? 3 : 2,
+      max: 5,
+      evidence: [`${metrics.tasks_missing_verify} task(s) missing verify`, `${metrics.plans_missing_artifacts} plan(s) missing artifacts`, `${metrics.plans_missing_key_links} plan(s) missing key_links`],
+    },
+    risk_coverage: {
+      score: metrics.plans_with_risk_contracts === plansCount ? 5 : metrics.plans_with_risk_contracts > 0 ? 3 : 2,
+      max: 5,
+      evidence: [`${metrics.plans_with_risk_contracts}/${plansCount} plan(s) declare explicit risk coverage`],
+    },
+    assumption_honesty: {
+      score: ambiguitySignals ? (metrics.plans_with_assumption_contracts > 0 ? 5 : 2) : 4,
+      max: 5,
+      evidence: [ambiguitySignals ? 'Upstream ambiguity signals detected' : 'No upstream ambiguity signals detected', `${metrics.plans_with_assumption_contracts}/${plansCount} plan(s) preserve explicit assumption or defer contracts`],
+    },
+    contract_materialization: {
+      score: contractCoverage >= 0.95 ? 5 : contractCoverage >= 0.8 ? 4 : contractCoverage >= 0.6 ? 3 : contractCoverage > 0 ? 2 : 1,
+      max: 5,
+      evidence: [
+        `${domainContract.non_empty_categories.length} surfaced contract categor${domainContract.non_empty_categories.length === 1 ? 'y' : 'ies'}`,
+        `${domainContract.non_empty_categories.length - uncoveredContractCategories.length}/${domainContract.non_empty_categories.length || 1} categor${domainContract.non_empty_categories.length === 1 ? 'y' : 'ies'} carried into plans`,
+      ],
+    },
+  };
+
+  const status = issues.some(issue => issue.severity === 'blocker') ? 'blocked' : (issues.length > 0 || Object.values(dimensionScores).some(entry => entry.score < 3)) ? 'revise' : 'passed';
+  output({
+    phase: phaseInfo.phase_number,
+    status,
+    summary: buildPlanQualitySummary(status, issues, dimensionScores),
+    scores: dimensionScores,
+    issues,
+    metrics,
+    plans,
+    domain_contract: domainContract,
+    uncovered_contract_categories: uncoveredContractCategories,
+  }, raw, status);
 }
 
 function cmdVerifyCheckpointResponse(cwd, filePath, raw) {
@@ -488,7 +936,7 @@ function extractTaggedBullets(content, tagName) {
 }
 
 function extractHeadingBullets(content, heading) {
-  const pattern = new RegExp(`###\\s+${heading}\\s*\\n([\\s\\S]*?)(?=\\n###\\s+|\\n</|$)`, 'i');
+  const pattern = new RegExp(`#{2,3}\\s+${heading}\\s*\\n([\\s\\S]*?)(?=\\n#{2,3}\\s+|\\n</|$)`, 'i');
   const match = content.match(pattern);
   if (!match) return [];
   return match[1]
@@ -527,6 +975,7 @@ function cmdVerifyContextContract(cwd, contextFilePath, planFilePath, raw) {
   const implementationDecisions = extractTaggedBullets(contextContent, 'decisions');
   const unresolvedAmbiguities = extractHeadingBullets(contextContent, 'Unresolved Ambiguities');
   const interpretedAssumptions = extractHeadingBullets(contextContent, 'Interpreted Assumptions');
+  const domainContract = buildDomainContract(contextContent, '');
   const errors = [];
   const warnings = [];
 
@@ -558,6 +1007,7 @@ function cmdVerifyContextContract(cwd, contextFilePath, planFilePath, raw) {
       interpreted_assumptions: interpretedAssumptions,
       implementation_decisions: implementationDecisions,
     },
+    domain_contract: domainContract,
     plan,
     errors,
     warnings,
@@ -577,6 +1027,7 @@ function cmdVerifyResearchContract(cwd, contextFilePath, researchFilePath, raw) 
 
   const unresolvedAmbiguities = extractHeadingBullets(contextContent, 'Unresolved Ambiguities');
   const interpretedAssumptions = extractHeadingBullets(contextContent, 'Interpreted Assumptions');
+  const domainContract = buildDomainContract(contextContent, researchContent);
   const errors = [];
   const warnings = [];
 
@@ -594,6 +1045,9 @@ function cmdVerifyResearchContract(cwd, contextFilePath, researchFilePath, raw) 
   if (!/open question|unresolved|assumption|investigate|unknown/i.test(researchContent)) {
     warnings.push('RESEARCH.md does not visibly carry forward open-question / assumption language.');
   }
+  if (domainContract.non_empty_categories.length === 0 && (unresolvedAmbiguities.length > 0 || interpretedAssumptions.length > 0)) {
+    warnings.push('RESEARCH.md carries context ambiguity forward, but does not materialize any domain contract sections such as Invariants, Policy Rules, Test Oracles, or Executable Checks.');
+  }
 
   output({
     valid: errors.length === 0,
@@ -606,6 +1060,7 @@ function cmdVerifyResearchContract(cwd, contextFilePath, researchFilePath, raw) 
       path: researchFilePath,
       checked: true,
     },
+    domain_contract: domainContract,
     errors,
     warnings,
   }, raw, errors.length === 0 ? 'valid' : 'invalid');
@@ -732,6 +1187,43 @@ function cmdValidateConsistency(cwd, raw) {
   output({ passed, errors, warnings, warning_count: warnings.length }, raw, passed ? 'passed' : 'failed');
 }
 
+function normalizeHealthPhaseId(token) {
+  if (!token) return null;
+  return token.split('.').map(segment => {
+    const parsed = Number.parseInt(segment, 10);
+    return Number.isNaN(parsed) ? segment : String(parsed);
+  }).join('.');
+}
+
+function readHealthStateMarkers(stateContent) {
+  const markers = {
+    nyquistBypass: new Map(),
+    uiSpecBypass: new Map(),
+    adversarialBypass: new Map(),
+  };
+  if (!stateContent) return markers;
+
+  for (const line of stateContent.split('\n')) {
+    const match = line.match(/^\s*-\s+\[Phase\s+([^\]]+)\]:\s+(.+?)\s*(?:—\s*(.+))?$/i);
+    if (!match) continue;
+    const phase = normalizeHealthPhaseId(match[1].trim());
+    const summary = match[2].trim();
+    const rationale = (match[3] || '').trim();
+    const target = summary.startsWith('Nyquist bypass accepted')
+      ? markers.nyquistBypass
+      : summary.startsWith('UI-SPEC bypass accepted')
+        ? markers.uiSpecBypass
+        : summary.startsWith('Adversarial harness bypassed')
+          ? markers.adversarialBypass
+          : null;
+    if (!target || !phase) continue;
+    if (!target.has(phase)) target.set(phase, []);
+    target.get(phase).push({ summary, rationale });
+  }
+
+  return markers;
+}
+
 function cmdValidateHealth(cwd, options, raw) {
   // Guard: detect if CWD is the home directory (likely accidental)
   const resolved = path.resolve(cwd);
@@ -798,11 +1290,13 @@ function cmdValidateHealth(cwd, options, raw) {
   }
 
   // ─── Check 4: STATE.md exists and references valid phases ─────────────────
+  let healthStateMarkers = { nyquistBypass: new Map(), uiSpecBypass: new Map(), adversarialBypass: new Map() };
   if (!fs.existsSync(statePath)) {
     addIssue('error', 'E004', 'STATE.md not found', 'Run /gsd:health --repair to regenerate', true);
     repairs.push('regenerateState');
   } else {
     const stateContent = fs.readFileSync(statePath, 'utf-8');
+    healthStateMarkers = readHealthStateMarkers(stateContent);
     // Extract phase references from STATE.md
     const phaseRefs = [...stateContent.matchAll(/[Pp]hase\s+(\d+(?:\.\d+)*)/g)].map(m => m[1]);
     // Get disk phases
@@ -901,11 +1395,29 @@ function cmdValidateHealth(cwd, options, raw) {
         const researchFile = phaseFiles.find(f => f.endsWith('-RESEARCH.md'));
         const researchContent = fs.readFileSync(path.join(phasesDir, e.name, researchFile), 'utf-8');
         if (researchContent.includes('## Validation Architecture')) {
-          addIssue('warning', 'W009', `Phase ${e.name}: has Validation Architecture in RESEARCH.md but no VALIDATION.md`, 'Re-run /gsd:plan-phase with --research to regenerate');
+          const phaseMatch = e.name.match(/^(\d+(?:\.\d+)*)/);
+          const phaseId = normalizeHealthPhaseId(phaseMatch ? phaseMatch[1] : e.name);
+          const bypasses = healthStateMarkers.nyquistBypass.get(phaseId) || [];
+          if (bypasses.length > 0) {
+            const reason = bypasses[bypasses.length - 1].rationale || 'reason=unspecified';
+            addIssue('info', 'I002', `Phase ${e.name}: Nyquist bypass recorded in STATE.md (${reason})`, 'No action required unless the bypass was accidental');
+          } else {
+            addIssue('warning', 'W009', `Phase ${e.name}: has Validation Architecture in RESEARCH.md but no VALIDATION.md`, 'Re-run /gsd:plan-phase with --research to regenerate');
+          }
         }
       }
     }
   } catch {}
+
+  // ─── Check 7c: Accepted degraded-mode bypasses ───────────────────────────
+  for (const [phase, entries] of healthStateMarkers.uiSpecBypass.entries()) {
+    const reason = entries[entries.length - 1]?.rationale || 'reason=unspecified';
+    addIssue('info', 'I003', `Phase ${phase}: UI-SPEC bypass recorded in STATE.md (${reason})`, 'No action required unless the bypass was accidental');
+  }
+  for (const [phase, entries] of healthStateMarkers.adversarialBypass.entries()) {
+    const reason = entries[entries.length - 1]?.rationale || 'scope=unspecified';
+    addIssue('info', 'I004', `Phase ${phase}: adversarial harness bypass recorded in STATE.md (${reason})`, 'Re-enable workflow.adversarial_test_harness when you want contract gates enforced');
+  }
 
   // ─── Check 8: Run existing consistency checks ─────────────────────────────
   // Inline subset of cmdValidateConsistency
@@ -967,6 +1479,9 @@ function cmdValidateHealth(cwd, options, raw) {
                 plan_check: true,
                 verifier: true,
                 nyquist_validation: true,
+                adversarial_test_harness: true,
+                ui_phase: true,
+                ui_safety_gate: true,
               },
               parallelization: true,
               brave_search: false,
@@ -1006,8 +1521,17 @@ function cmdValidateHealth(cwd, options, raw) {
                 if (!configParsed.workflow) configParsed.workflow = {};
                 if (configParsed.workflow.nyquist_validation === undefined) {
                   configParsed.workflow.nyquist_validation = true;
-                  fs.writeFileSync(configPath, JSON.stringify(configParsed, null, 2), 'utf-8');
                 }
+                if (configParsed.workflow.adversarial_test_harness === undefined) {
+                  configParsed.workflow.adversarial_test_harness = true;
+                }
+                if (configParsed.workflow.ui_phase === undefined) {
+                  configParsed.workflow.ui_phase = true;
+                }
+                if (configParsed.workflow.ui_safety_gate === undefined) {
+                  configParsed.workflow.ui_safety_gate = true;
+                }
+                fs.writeFileSync(configPath, JSON.stringify(configParsed, null, 2), 'utf-8');
                 repairActions.push({ action: repair, success: true, path: 'config.json' });
               } catch (err) {
                 repairActions.push({ action: repair, success: false, error: err.message });
@@ -1043,6 +1567,286 @@ function cmdValidateHealth(cwd, options, raw) {
     repairable_count: repairableCount,
     repairs_performed: repairActions.length > 0 ? repairActions : undefined,
   }, raw);
+}
+
+function pushWorkflowGate(gates, gate) {
+  gates.push(gate);
+}
+
+function buildWorkflowReadinessSummary(status, gates) {
+  const blocks = gates.filter(g => g.state === 'block').length;
+  const warnings = gates.filter(g => g.state === 'warn').length;
+  const acknowledged = gates.filter(g => g.state === 'acknowledged').length;
+  if (status === 'blocked') return `Blocked: ${blocks} blocking gate(s), ${warnings} degraded gate(s), ${acknowledged} acknowledged bypass(es)`;
+  if (status === 'degraded') return `Degraded: ${warnings} gate(s) need an explicit decision, ${acknowledged} already acknowledged`;
+  if (acknowledged > 0) return `Ready with ${acknowledged} acknowledged bypass(es) already recorded`;
+  return 'Ready';
+}
+
+function getWorkflowPhaseMarkers(markers, phaseNumber) {
+  const exact = String(phaseNumber);
+  const normalized = String(Number.parseInt(String(phaseNumber).split('.')[0], 10));
+  return {
+    ui: markers.uiSpecBypass.get(exact) || markers.uiSpecBypass.get(normalized) || [],
+    nyquist: markers.nyquistBypass.get(exact) || markers.nyquistBypass.get(normalized) || [],
+    adversarial: markers.adversarialBypass.get(exact) || markers.adversarialBypass.get(normalized) || [],
+  };
+}
+
+function cmdVerifyWorkflowReadiness(cwd, workflow, options = {}, raw) {
+  if (!workflow) error('workflow required');
+  if (!['plan-phase', 'execute-phase'].includes(workflow)) {
+    error('Unsupported workflow for workflow-readiness. Available: plan-phase, execute-phase');
+  }
+  if (!options.phase) error('phase required for workflow-readiness');
+
+  const config = loadConfig(cwd);
+  const phaseInfo = findPhaseInternal(cwd, options.phase);
+  const gates = [];
+
+  if (!phaseInfo) {
+    pushWorkflowGate(gates, {
+      code: 'R001',
+      state: 'block',
+      severity: 'error',
+      title: 'Phase Not Found',
+      message: `Phase ${options.phase} could not be resolved on disk or in the active roadmap context.`,
+      resolutions: [
+        { label: 'Check progress', command: '/gsd:progress' },
+        { label: 'Inspect roadmap', command: '/gsd:stats' },
+      ],
+    });
+    const result = { workflow, phase: options.phase, status: 'blocked', gates, summary: buildWorkflowReadinessSummary('blocked', gates) };
+    output(result, raw, 'blocked');
+    return;
+  }
+
+  const phaseDir = path.join(cwd, phaseInfo.directory);
+  let phaseFiles = [];
+  try { phaseFiles = fs.readdirSync(phaseDir); } catch {}
+  const statePath = path.join(cwd, '.planning', 'STATE.md');
+  const stateExists = fs.existsSync(statePath);
+  const planningExists = fs.existsSync(path.join(cwd, '.planning'));
+  const stateContent = safeReadFile(statePath) || '';
+  const markers = getWorkflowPhaseMarkers(readHealthStateMarkers(stateContent), phaseInfo.phase_number);
+  const clarificationBlocked = /Clarification Status:\s*blocked/i.test(stateContent) || /\*\*Clarification Status:\*\*\s*blocked/i.test(stateContent);
+
+  if (clarificationBlocked) {
+    pushWorkflowGate(gates, {
+      code: 'R002',
+      state: 'block',
+      severity: 'error',
+      title: 'Clarification Blocked',
+      message: workflow === 'execute-phase'
+        ? `Clarification status is blocked for Phase ${phaseInfo.phase_number}. Execution should not proceed until ambiguity is resolved.`
+        : `Clarification status is blocked for Phase ${phaseInfo.phase_number}. Planning should not proceed until ambiguity is resolved.`,
+      resolutions: [
+        { label: 'Resolve with discuss-phase', command: `/gsd:discuss-phase ${phaseInfo.phase_number}` },
+      ],
+    });
+  }
+
+  if (workflow === 'execute-phase') {
+    const planFiles = phaseFiles.filter(f => f.endsWith('-PLAN.md')).sort();
+    const summaryBases = new Set(
+      phaseFiles
+        .filter(f => f.endsWith('-SUMMARY.md'))
+        .map(f => f.replace('-SUMMARY.md', ''))
+    );
+    const planBases = planFiles.map(f => f.replace('-PLAN.md', ''));
+    const plansWithSummary = planBases.filter(base => summaryBases.has(base));
+    const plansWithoutSummary = planBases.filter(base => !summaryBases.has(base));
+
+    if (planFiles.length === 0) {
+      pushWorkflowGate(gates, {
+        code: 'R007',
+        state: 'block',
+        severity: 'error',
+        title: 'No Plans Found',
+        message: `Phase ${phaseInfo.phase_number} has no plan artifacts to execute.`,
+        resolutions: [
+          { label: 'Plan the phase first', command: `/gsd:plan-phase ${phaseInfo.phase_number}` },
+          { label: 'Inspect progress', command: '/gsd:progress' },
+        ],
+      });
+    }
+
+    if (planningExists && !stateExists) {
+      pushWorkflowGate(gates, {
+        code: 'R008',
+        state: 'warn',
+        severity: 'warning',
+        title: 'STATE.md Missing',
+        message: 'The planning workspace exists but STATE.md is missing, so resume context and phase tracking may be incomplete.',
+        resolutions: [
+          { label: 'Repair planning state', command: '/gsd:health --repair' },
+          { label: 'Continue from disk artifacts', command: `/gsd:execute-phase ${phaseInfo.phase_number}` },
+        ],
+      });
+    }
+
+    if (plansWithSummary.length > 0 && plansWithoutSummary.length > 0) {
+      pushWorkflowGate(gates, {
+        code: 'R009',
+        state: 'acknowledged',
+        severity: 'info',
+        title: 'Resuming Incomplete Execution',
+        message: `Phase ${phaseInfo.phase_number} already has ${plansWithSummary.length} completed plan(s); this run will skip them and resume the ${plansWithoutSummary.length} incomplete plan(s).`,
+        resolutions: [
+          { label: 'Continue execution', command: `/gsd:execute-phase ${phaseInfo.phase_number}` },
+        ],
+      });
+    }
+
+    const status = gates.some(g => g.state === 'block') ? 'blocked' : gates.some(g => g.state === 'warn') ? 'degraded' : 'ready';
+    const result = {
+      workflow,
+      phase: phaseInfo.phase_number,
+      status,
+      gates,
+      summary: buildWorkflowReadinessSummary(status, gates),
+    };
+    output(result, raw, status);
+    return;
+  }
+
+  const roadmapPhaseNum = String(Number.parseInt(String(phaseInfo.phase_number).split('.')[0], 10));
+  const roadmapSection = getRoadmapPhaseInternal(cwd, roadmapPhaseNum)?.section || '';
+  const hasUiIndicators = /UI|interface|frontend|component|layout|page|screen|view|form|dashboard|widget/i.test(roadmapSection);
+  const hasUiSpec = phaseFiles.some(f => f.endsWith('-UI-SPEC.md'));
+  const hasContextArtifact = phaseInfo.has_context || phaseFiles.some(f => f.endsWith('-CONTEXT.md') || f === 'CONTEXT.md');
+  if (config.ui_safety_gate && hasUiIndicators && !hasUiSpec) {
+    if (markers.ui.length > 0) {
+      const reason = markers.ui[markers.ui.length - 1].rationale || 'reason=unspecified';
+      pushWorkflowGate(gates, {
+        code: 'R003',
+        state: 'acknowledged',
+        severity: 'info',
+        title: 'UI Gate Bypassed',
+        message: `Frontend indicators were detected without UI-SPEC.md, but an explicit bypass is already recorded (${reason}).`,
+        resolutions: [
+          { label: 'Generate UI-SPEC later', command: `/gsd:ui-phase ${phaseInfo.phase_number}` },
+        ],
+      });
+    } else {
+      pushWorkflowGate(gates, {
+        code: 'R003',
+        state: 'warn',
+        severity: 'warning',
+        title: 'Missing UI-SPEC',
+        message: `Frontend indicators were detected for Phase ${phaseInfo.phase_number}, but no UI-SPEC.md is present.`,
+        resolutions: [
+          { label: 'Generate UI-SPEC first', command: `/gsd:ui-phase ${phaseInfo.phase_number}` },
+          { label: 'Continue without UI-SPEC', record_decision: { summary: 'UI-SPEC bypass accepted', rationale: 'reason=continue-without-ui-spec' } },
+          { label: 'Mark as non-frontend', record_decision: { summary: 'UI-SPEC bypass accepted', rationale: 'reason=frontend-indicator-dismissed' } },
+        ],
+      });
+    }
+  }
+
+  const explicitSkipResearch = !!options.skip_research;
+  const explicitResearch = !!options.research;
+  const noResearchPath = config.nyquist_validation && (explicitSkipResearch || (!config.research && !phaseInfo.has_research && !explicitResearch));
+  const hasResearch = phaseFiles.some(f => f.endsWith('-RESEARCH.md'));
+  const hasValidation = phaseFiles.some(f => f.endsWith('-VALIDATION.md'));
+  const researchFile = phaseFiles.find(f => f.endsWith('-RESEARCH.md'));
+  const researchContent = researchFile ? fs.readFileSync(path.join(phaseDir, researchFile), 'utf-8') : '';
+  const hasValidationArchitecture = researchContent.includes('## Validation Architecture');
+  if (config.nyquist_validation) {
+    if (noResearchPath) {
+      if (markers.nyquist.length > 0) {
+        const reason = markers.nyquist[markers.nyquist.length - 1].rationale || 'reason=unspecified';
+        pushWorkflowGate(gates, {
+          code: 'R004',
+          state: 'acknowledged',
+          severity: 'info',
+          title: 'Nyquist Bypassed',
+          message: `Nyquist is not applicable for this no-research path, and an explicit bypass is already recorded (${reason}).`,
+          resolutions: [
+            { label: 'Run with research later', command: `/gsd:plan-phase ${phaseInfo.phase_number} --research` },
+          ],
+        });
+      } else {
+        pushWorkflowGate(gates, {
+          code: 'R004',
+          state: 'warn',
+          severity: 'warning',
+          title: 'Nyquist Not Available In No-Research Path',
+          message: 'Nyquist validation is enabled, but this run is on a no-research path so VALIDATION.md cannot be generated automatically.',
+          resolutions: [
+            { label: 'Run with research', command: `/gsd:plan-phase ${phaseInfo.phase_number} --research` },
+            { label: 'Disable Nyquist', command: 'node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" config-set workflow.nyquist_validation false' },
+            { label: 'Continue without Nyquist', record_decision: { summary: 'Nyquist bypass accepted', rationale: 'reason=no-research-path' } },
+          ],
+        });
+      }
+    } else if (hasResearch && hasValidationArchitecture && !hasValidation) {
+      if (markers.nyquist.length > 0) {
+        const reason = markers.nyquist[markers.nyquist.length - 1].rationale || 'reason=unspecified';
+        pushWorkflowGate(gates, {
+          code: 'R005',
+          state: 'acknowledged',
+          severity: 'info',
+          title: 'Missing VALIDATION Acknowledged',
+          message: `RESEARCH.md contains Validation Architecture but VALIDATION.md is missing; an explicit bypass is already recorded (${reason}).`,
+          resolutions: [
+            { label: 'Regenerate with research', command: `/gsd:plan-phase ${phaseInfo.phase_number} --research` },
+          ],
+        });
+      } else {
+        pushWorkflowGate(gates, {
+          code: 'R005',
+          state: 'warn',
+          severity: 'warning',
+          title: 'Missing VALIDATION Artifact',
+          message: `RESEARCH.md contains Validation Architecture for Phase ${phaseInfo.phase_number}, but no VALIDATION.md exists.`,
+          resolutions: [
+            { label: 'Regenerate with research', command: `/gsd:plan-phase ${phaseInfo.phase_number} --research` },
+            { label: 'Disable Nyquist', command: 'node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" config-set workflow.nyquist_validation false' },
+            { label: 'Continue anyway', record_decision: { summary: 'Nyquist bypass accepted', rationale: 'reason=missing-validation-artifact' } },
+          ],
+        });
+      }
+    }
+  }
+
+  if (hasContextArtifact && !config.adversarial_test_harness) {
+    if (markers.adversarial.length > 0) {
+      const reason = markers.adversarial[markers.adversarial.length - 1].rationale || 'scope=unspecified';
+      pushWorkflowGate(gates, {
+        code: 'R006',
+        state: 'acknowledged',
+        severity: 'info',
+        title: 'Adversarial Harness Bypassed',
+        message: `Context exists for Phase ${phaseInfo.phase_number}, but the adversarial harness is disabled and the bypass is already recorded (${reason}).`,
+        resolutions: [
+          { label: 'Re-enable harness', command: 'node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" config-set workflow.adversarial_test_harness true' },
+        ],
+      });
+    } else {
+      pushWorkflowGate(gates, {
+        code: 'R006',
+        state: 'warn',
+        severity: 'warning',
+        title: 'Adversarial Harness Disabled',
+        message: `CONTEXT.md exists for Phase ${phaseInfo.phase_number}, but workflow.adversarial_test_harness is disabled so contract gates will not run automatically.`,
+        resolutions: [
+          { label: 'Re-enable harness', command: 'node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" config-set workflow.adversarial_test_harness true' },
+          { label: 'Continue with bypass recorded', record_decision: { summary: 'Adversarial harness bypassed', rationale: 'scope=plan-phase-readiness' } },
+        ],
+      });
+    }
+  }
+
+  const status = gates.some(g => g.state === 'block') ? 'blocked' : gates.some(g => g.state === 'warn') ? 'degraded' : 'ready';
+  const result = {
+    workflow,
+    phase: phaseInfo.phase_number,
+    status,
+    gates,
+    summary: buildWorkflowReadinessSummary(status, gates),
+  };
+  output(result, raw, status);
 }
 
 function cmdVerifyRequirementCoverage(cwd, phase, raw) {
@@ -1397,6 +2201,8 @@ module.exports = {
   cmdVerifyRequirementCoverage,
   cmdVerifyCrossPlanDataContracts,
   cmdVerifyDeadExports,
+  cmdVerifyPlanQuality,
+  cmdVerifyWorkflowReadiness,
   cmdVerifyOrphanedState,
   cmdValidateConsistency,
   cmdValidateHealth,

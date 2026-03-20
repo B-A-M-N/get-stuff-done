@@ -74,6 +74,8 @@ describe('verify context-contract command', () => {
         verify.cmdVerifyContextContract(tmpDir, '.planning/phases/01-test/01-CONTEXT.md', null, false);
         assert.strictEqual(calls.length, 1);
         assert.strictEqual(calls[0].result.valid, true);
+        assert.ok(calls[0].result.domain_contract);
+        assert.ok(calls[0].result.domain_contract.unresolved_ambiguities.includes('Whether pagination should be automatic.'));
       });
     } finally {
       cleanup(tmpDir);
