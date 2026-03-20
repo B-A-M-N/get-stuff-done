@@ -139,6 +139,9 @@ Report final status.
 | W008 | warning | config.json: workflow.nyquist_validation absent (defaults to enabled but agents may skip) | Yes |
 | W009 | warning | Phase has Validation Architecture in RESEARCH.md but no VALIDATION.md | No |
 | I001 | info | Plan without SUMMARY (may be in progress) | No |
+| I002 | info | Nyquist bypass explicitly recorded in STATE.md for a phase | No |
+| I003 | info | UI-SPEC bypass explicitly recorded in STATE.md for a phase | No |
+| I004 | info | Adversarial harness bypass explicitly recorded in STATE.md for a phase | No |
 
 </error_codes>
 
@@ -150,6 +153,7 @@ Report final status.
 | resetConfig | Delete + recreate config.json | Loses custom settings |
 | regenerateState | Create STATE.md from ROADMAP structure | Loses session history |
 | addNyquistKey | Add workflow.nyquist_validation: true to config.json | None — matches existing default |
+| resetConfig/createConfig | Restores adversarial_test_harness, ui_phase, and ui_safety_gate defaults too | None for create; reset loses custom settings |
 
 **Not repairable (too risky):**
 - PROJECT.md, ROADMAP.md content

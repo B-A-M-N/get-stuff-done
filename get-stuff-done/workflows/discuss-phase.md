@@ -295,8 +295,8 @@ Tell me how you imagine Phase [X] working. Focus on the outcome, the feel, and a
 
 Then run:
 ```bash
-AMBIENT_CONTEXT=$(node "$HOME/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" state harvest-context --phase "${PHASE}" --raw)
-SEED=$(node "$HOME/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" itl discuss-seed --text "$NARRATIVE" --ambient-context "$AMBIENT_CONTEXT" --phase "${PHASE}")
+AMBIENT_CONTEXT=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" state harvest-context --phase "${PHASE}" --raw)
+SEED=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" itl discuss-seed --text "$NARRATIVE" --ambient-context "$AMBIENT_CONTEXT" --phase "${PHASE}")
 ```
 
 Use the returned JSON to capture:

@@ -61,6 +61,9 @@ describe('loadConfig', () => {
     assert.strictEqual(config.brave_search, false);
     assert.strictEqual(config.parallelization, true);
     assert.strictEqual(config.nyquist_validation, true);
+    assert.strictEqual(config.adversarial_test_harness, true);
+    assert.strictEqual(config.ui_phase, true);
+    assert.strictEqual(config.ui_safety_gate, true);
   });
 
   test('reads model_profile from config.json', () => {

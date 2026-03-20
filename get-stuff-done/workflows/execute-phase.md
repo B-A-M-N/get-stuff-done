@@ -57,6 +57,20 @@ fi
 
 Note: BLOCK-07 is advisory, not a hard stop — re-running execute-phase automatically skips completed plans (those with SUMMARY.md) and resumes from the first incomplete one. The block message surfaces the state clearly so the user knows what happened.
 
+**Workflow Readiness Gate:**
+Run an executable preflight before branching or state writes:
+```bash
+READINESS=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" verify workflow-readiness execute-phase --phase "$PHASE_ARG" --raw)
+READINESS_STATUS=$(printf '%s\n' "$READINESS" | jq -r '.status // "ready"')
+```
+
+Branch on `READINESS_STATUS`:
+- `blocked` → show `.summary`, list each gate's `message` plus `resolutions`, then stop.
+- `degraded` → show `.summary`, present the recovery/continue options from `resolutions`, and only continue if the user explicitly chooses a degraded path.
+- `ready` → continue. Acknowledged resume/info gates do not require another stop.
+
+This gate is the canonical enforcement point for execute readiness. The clarification and orphaned-state checks above remain useful operator messaging, but readiness decides whether the workflow is blocked, degraded, or clear to continue.
+
 When `parallelization` is false, plans within a wave execute sequentially.
 
 **REQUIRED — Sync chain flag with intent.** If user invoked manually (no `--auto`), clear the ephemeral chain flag from any previous interrupted `--auto` chain. This prevents stale `_auto_chain_active: true` from causing unwanted auto-advance. This does NOT touch `workflow.auto_advance` (the user's persistent settings preference). You MUST execute this bash block before any config reads:

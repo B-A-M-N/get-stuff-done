@@ -93,6 +93,9 @@
  *                                      Validate checkpoint return structure for orchestrator handoff
  *   verify orphaned-state <phase>
  *                                      Detect interrupted execution (plans with summary but later plans without)
+ *   verify workflow-readiness <workflow> --phase <N>
+ *                                      Evaluate workflow entry readiness with blocking vs degradable gates
+ *   verify plan-quality <phase>        Score plan quality and require revision when quality proxies fail
  *
  * Template Fill:
  *   template fill summary --phase N    Create pre-filled SUMMARY.md
@@ -399,8 +402,19 @@ async function main() {
         verify.cmdVerifyDeadExports(cwd, args[2], raw);
       } else if (subcommand === 'orphaned-state') {
         verify.cmdVerifyOrphanedState(cwd, args[2], raw);
+      } else if (subcommand === 'workflow-readiness') {
+        const phaseIdx = args.indexOf('--phase');
+        verify.cmdVerifyWorkflowReadiness(cwd, args[2], {
+          phase: phaseIdx !== -1 ? args[phaseIdx + 1] : null,
+          skip_research: args.includes('--skip-research'),
+          research: args.includes('--research'),
+          auto: args.includes('--auto'),
+          gaps: args.includes('--gaps'),
+        }, raw);
+      } else if (subcommand === 'plan-quality') {
+        verify.cmdVerifyPlanQuality(cwd, args[2], raw);
       } else {
-        error('Unknown verify subcommand. Available: plan-structure, phase-completeness, references, commits, artifacts, key-links, context-contract, research-contract, checkpoint-response, cross-plan-data-contracts, requirement-coverage, dead-exports, orphaned-state');
+        error('Unknown verify subcommand. Available: plan-structure, phase-completeness, references, commits, artifacts, key-links, context-contract, research-contract, checkpoint-response, cross-plan-data-contracts, requirement-coverage, dead-exports, orphaned-state, workflow-readiness, plan-quality');
       }
       break;
     }

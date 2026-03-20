@@ -96,10 +96,18 @@ Write to: .planning/phases/${PHASE}-{slug}/${PHASE}-RESEARCH.md
 node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" verify research-contract "$context_path" --research "$research_path"
 ```
 
-If the result is invalid:
+If `workflow.adversarial_test_harness` is enabled and the result is invalid:
 - show the issues clearly
 - revise the research before treating it as ready for planning
 - do not let unresolved ambiguity disappear through quiet research conclusions
+
+If `workflow.adversarial_test_harness` is disabled:
+
+```bash
+node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" state add-decision --phase "$PHASE" --summary "Adversarial harness bypassed" --rationale "scope=research-phase-contract"
+```
+
+Skip this contract gate and report that the adversarial harness was bypassed for this run.
 
 If the result is valid: display summary, offer: Plan/Dig deeper/Review/Done
 - `## CHECKPOINT REACHED` — Present to user, spawn continuation

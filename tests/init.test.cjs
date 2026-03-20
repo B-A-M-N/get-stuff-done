@@ -912,3 +912,33 @@ describe('cmdInitNewMilestone', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 // roadmap analyze command
 // ─────────────────────────────────────────────────────────────────────────────
+
+
+describe('init plan-phase adversarial harness flag', () => {
+  let tmpDir;
+
+  beforeEach(() => {
+    tmpDir = createTempProject();
+    fs.mkdirSync(path.join(tmpDir, '.planning', 'phases', '03-api'), { recursive: true });
+    runGsdTools('config-ensure-section', tmpDir);
+  });
+
+  afterEach(() => {
+    cleanup(tmpDir);
+  });
+
+  test('defaults adversarial_test_harness_enabled to true', () => {
+    const result = runGsdTools('init plan-phase 03', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.adversarial_test_harness_enabled, true);
+  });
+
+  test('reflects config-set workflow.adversarial_test_harness false', () => {
+    runGsdTools('config-set workflow.adversarial_test_harness false', tmpDir);
+    const result = runGsdTools('init plan-phase 03', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.adversarial_test_harness_enabled, false);
+  });
+});

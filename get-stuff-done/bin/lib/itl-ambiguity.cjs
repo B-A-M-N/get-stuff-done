@@ -2,6 +2,8 @@
  * ITL Ambiguity — ambiguity scoring helpers for narrative interpretation.
  */
 
+const ESCALATION_THRESHOLD = 0.20;
+
 function addFinding(findings, type, severity, message, evidence) {
   findings.push({ type, severity, message, evidence });
 }
@@ -80,13 +82,62 @@ function assessAmbiguity(interpretation) {
       ? 'medium'
       : 'low';
 
+  const finalScore = Number(score.toFixed(2));
+
   return {
     is_ambiguous: severity !== 'low',
     severity,
-    score: Number(score.toFixed(2)),
-    confidence: Number(Math.max(0.05, 1 - score).toFixed(2)),
+    score: finalScore,
+    confidence: Number(Math.max(0.05, 1 - finalScore).toFixed(2)),
     findings,
+    requires_escalation: finalScore > ESCALATION_THRESHOLD,
   };
+}
+
+/**
+ * Programmatic adversarial pass on LLM-generated inferences.
+ * Checks each inference for traceable evidence and specificity hallucination.
+ * Returns an array of adversarial findings (empty = clean).
+ */
+function auditInferences(interpretation) {
+  const narrative = String(interpretation.narrative || '');
+  const narrativeLower = narrative.toLowerCase();
+  const findings = [];
+
+  const SPECIFICITY_PATTERN = /\b(postgres|postgresql|mysql|sqlite|mongodb|redis|elasticsearch|docker|kubernetes|aws|gcp|azure|s3|lambda|react|vue|angular|svelte|typescript|graphql|rest|grpc|kafka|rabbitmq|nginx|webpack|vite)\b/i;
+
+  for (const inference of (interpretation.inferences || [])) {
+    const evidenceLower = String(inference.evidence || '').toLowerCase();
+
+    if (!evidenceLower || !narrativeLower.includes(evidenceLower)) {
+      findings.push({
+        type: 'evidence-not-in-narrative',
+        severity: 'high',
+        message: `Inference evidence cannot be located in the narrative: "${inference.evidence}"`,
+        evidence: inference,
+      });
+    }
+
+    if (SPECIFICITY_PATTERN.test(inference.text) && !SPECIFICITY_PATTERN.test(narrative)) {
+      findings.push({
+        type: 'specificity-hallucination',
+        severity: 'high',
+        message: `Inference introduces a specific technology not mentioned in the narrative: "${inference.text}"`,
+        evidence: inference,
+      });
+    }
+
+    if (inference.confidence < 0.5) {
+      findings.push({
+        type: 'low-confidence-inference',
+        severity: 'medium',
+        message: `Inference confidence is below threshold (${inference.confidence}): "${inference.text}" — should be in unknowns instead.`,
+        evidence: inference,
+      });
+    }
+  }
+
+  return findings;
 }
 
 function assessInvariantLockability(interpretation, ambiguity = assessAmbiguity(interpretation)) {
@@ -171,6 +222,8 @@ function assessInvariantLockability(interpretation, ambiguity = assessAmbiguity(
 }
 
 module.exports = {
+  ESCALATION_THRESHOLD,
   assessAmbiguity,
   assessInvariantLockability,
+  auditInferences,
 };

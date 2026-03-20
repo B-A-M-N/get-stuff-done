@@ -352,6 +352,16 @@ describe('convertClaudeToCopilotContent', () => {
       'hello world'
     );
   });
+
+  test('does not rewrite /gsd: fragments inside URLs', () => {
+    const input = 'docs https://example.com/gsd:health remain as-is';
+    assert.strictEqual(convertClaudeToCopilotContent(input), input);
+  });
+
+  test('does not rewrite gsd: fragments inside larger identifiers', () => {
+    const input = 'prefixgsd:health should stay prefixgsd:health';
+    assert.strictEqual(convertClaudeToCopilotContent(input), input);
+  });
 });
 
 // ─── convertClaudeCommandToCopilotSkill ─────────────────────────────────────────

@@ -180,6 +180,9 @@ Create `.planning/config.json` with mode set to "yolo":
     "plan_check": true|false,
     "verifier": true|false,
     "nyquist_validation": depth !== "quick",
+    "adversarial_test_harness": true,
+    "ui_phase": true,
+    "ui_safety_gate": true,
     "auto_advance": true
   }
 }
@@ -495,7 +498,10 @@ Create `.planning/config.json` with all settings:
     "research": true|false,
     "plan_check": true|false,
     "verifier": true|false,
-    "nyquist_validation": depth !== "quick"
+    "nyquist_validation": depth !== "quick",
+    "adversarial_test_harness": true,
+    "ui_phase": true,
+    "ui_safety_gate": true
   }
 }
 ```

@@ -20,7 +20,7 @@ Instantly restore full project context so "Where were we?" has an immediate, com
 Load all context in one call:
 
 ```bash
-INIT=$(node "$HOME/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" init resume)
+INIT=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" init resume)
 if [[ "$INIT" == @file:* ]]; then INIT=$(cat "${INIT#@file:}"); fi
 ```
 
@@ -64,7 +64,7 @@ After reading STATE.md in load_state, check for an active checkpoint before proc
 
 ```bash
 # Read checkpoint fields from STATE.md frontmatter (machine-readable, not body text)
-STATE_JSON=$(node "$HOME/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" state json 2>/dev/null || echo '{}')
+STATE_JSON=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" state json 2>/dev/null || echo '{}')
 CLARIFICATION_STATUS=$(echo "$STATE_JSON" | node -e "const d=require('fs').readFileSync('/dev/stdin','utf-8'); try { const j=JSON.parse(d); process.stdout.write(j.clarification_status || ''); } catch { }")
 LAST_CLARIFICATION_REASON=$(echo "$STATE_JSON" | node -e "const d=require('fs').readFileSync('/dev/stdin','utf-8'); try { const j=JSON.parse(d); process.stdout.write(j.last_clarification_reason || ''); } catch { }")
 
@@ -85,7 +85,7 @@ if [ "$CLARIFICATION_STATUS" == "blocked" ]; then
   echo ""
   if [ -z "$LAST_CLARIFICATION_REASON" ] || [ "$LAST_CLARIFICATION_REASON" == "None" ]; then
     echo "Alternatively, if this is a ghost block, force unblock with:"
-    echo "node \"$HOME/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs\" state record-session --clarification-status none"
+    echo "node \"$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs\" state record-session --clarification-status none"
   fi
   exit 0 # STOP
 fi
@@ -104,7 +104,7 @@ CHECKPOINT_PATH=$(echo "$STATE_JSON" | node -e "const d=require('fs').readFileSy
 # Step 1: Check if artifact file exists
 if [ -z "$CHECKPOINT_PATH" ] || [ ! -f "$CHECKPOINT_PATH" ]; then
   # File missing — recovery path
-  CURRENT_PLAN=$(node "$HOME/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" state get "Current Plan" --raw 2>/dev/null || echo "unknown")
+  CURRENT_PLAN=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" state get "Current Plan" --raw 2>/dev/null || echo "unknown")
   echo "CHECKPOINT FILE MISSING"
   echo "Status in STATE.md: $CHECKPOINT_STATUS"
   echo "Expected artifact: ${CHECKPOINT_PATH:-not set}"
@@ -140,7 +140,7 @@ VALID=$(echo "$VALIDATION" | node -e "const d=require('fs').readFileSync('/dev/s
 if [ "$VALID" != "true" ]; then
   # Invalid artifact — recovery path
   ERRORS=$(echo "$VALIDATION" | node -e "const d=require('fs').readFileSync('/dev/stdin','utf-8'); try{const j=JSON.parse(d); process.stdout.write(j.errors.join(', '));}catch{}")
-  CURRENT_PLAN=$(node "$HOME/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" state get "Current Plan" --raw 2>/dev/null || echo "unknown")
+  CURRENT_PLAN=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" state get "Current Plan" --raw 2>/dev/null || echo "unknown")
   echo "CHECKPOINT FILE INVALID"
   echo "Artifact: $CHECKPOINT_PATH"
   echo "Validation errors: $ERRORS"

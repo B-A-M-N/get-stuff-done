@@ -19,7 +19,7 @@ INIT=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" init plan-phase "$P
 if [[ "$INIT" == @file:* ]]; then INIT=$(cat "${INIT#@file:}"); fi
 ```
 
-Parse JSON for: `researcher_model`, `planner_model`, `checker_model`, `research_enabled`, `plan_checker_enabled`, `nyquist_validation_enabled`, `commit_docs`, `phase_found`, `phase_dir`, `phase_number`, `phase_name`, `phase_slug`, `padded_phase`, `has_research`, `has_context`, `has_plans`, `plan_count`, `planning_exists`, `roadmap_exists`, `phase_req_ids`.
+Parse JSON for: `researcher_model`, `planner_model`, `checker_model`, `research_enabled`, `plan_checker_enabled`, `nyquist_validation_enabled`, `adversarial_test_harness_enabled`, `commit_docs`, `phase_found`, `phase_dir`, `phase_number`, `phase_name`, `phase_slug`, `padded_phase`, `has_research`, `has_context`, `has_plans`, `plan_count`, `planning_exists`, `roadmap_exists`, `phase_req_ids`.
 
 **File paths (for <files_to_read> blocks):** `state_path`, `roadmap_path`, `requirements_path`, `context_path`, `research_path`, `verification_path`, `uat_path`. These are null if files don't exist.
 
@@ -38,6 +38,7 @@ fi
 
 PHASE_DIR=$(printf '%s\n' "$INIT" | jq -r '.phase_dir // empty')
 PADDED_PHASE=$(printf '%s\n' "$INIT" | jq -r '.padded_phase // empty')
+ADVERSARIAL_TEST_HARNESS_ENABLED=$(printf '%s\n' "$INIT" | jq -r '.adversarial_test_harness_enabled // "true"')
 ITL_JSON="${PHASE_DIR}/${PADDED_PHASE}-ITL.json"
 if [ -f "$ITL_JSON" ]; then
   echo "Using persistent ITL interpretation from: $ITL_JSON"
@@ -200,6 +201,26 @@ Use AskUserQuestion:
 If "Continue without context": Proceed to step 5.
 If "Run discuss-phase first": Display `/gsd:discuss-phase {X}` and exit workflow.
 
+## 4.8. Workflow Readiness Gate
+
+Run the executable readiness check before any planning-side effects:
+
+```bash
+READINESS_ARGS=(verify workflow-readiness plan-phase --phase "$PHASE")
+if printf '%s\n' "$ARGUMENTS" | grep -q -- '--skip-research'; then READINESS_ARGS+=(--skip-research); fi
+if printf '%s\n' "$ARGUMENTS" | grep -q -- '--research'; then READINESS_ARGS+=(--research); fi
+if printf '%s\n' "$ARGUMENTS" | grep -q -- '--auto'; then READINESS_ARGS+=(--auto); fi
+if printf '%s\n' "$ARGUMENTS" | grep -q -- '--gaps'; then READINESS_ARGS+=(--gaps); fi
+READINESS=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" "${READINESS_ARGS[@]}")
+READINESS_STATUS=$(printf '%s\n' "$READINESS" | jq -r '.status')
+```
+
+If `READINESS_STATUS` is `blocked`: display `.summary`, show `.gates[].resolutions[]`, and stop before continuing.
+
+If `READINESS_STATUS` is `degraded`: display `.summary` and `.gates[]` before continuing so the user can explicitly choose a viable path forward. Treat any `record_decision` resolution as the canonical acknowledgement to write into `STATE.md` if the user proceeds.
+
+If `READINESS_STATUS` is `ready`: continue silently.
+
 ## 5. Handle Research
 
 **Skip if:** `--gaps` flag or `--skip-research` flag.
@@ -225,9 +246,21 @@ AskUserQuestion([
 ])
 ```
 
-If user selects "Skip research": skip to step 6.
+If user selects "Skip research":
 
-**If `--auto` and `research_enabled` is false:** Skip research silently (preserves automated behavior).
+```bash
+node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" state add-decision --phase "$PHASE" --summary "Nyquist bypass accepted" --rationale "reason=skip-research-before-planning"
+```
+
+Then skip to step 6.
+
+**If `--auto` and `research_enabled` is false:**
+
+```bash
+node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" state add-decision --phase "$PHASE" --summary "Nyquist bypass accepted" --rationale "reason=research-disabled-auto-plan"
+```
+
+Skip research silently (preserves automated behavior).
 
 Display banner:
 ```
@@ -285,25 +318,35 @@ Task(
 - **`## RESEARCH COMPLETE`:**
 
 ```bash
-# Verify research contract (ENFORCE-05 / BLOCK-04)
-VERIFY_RESEARCH=$(node "$HOME/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" verify research-contract "$CONTEXT_PATH" --research "$RESEARCH_PATH" --raw)
-if [ "$VERIFY_RESEARCH" != "true" ]; then
+# Verify research contract only when the adversarial harness is active.
+if [ -n "$CONTEXT_PATH" ] && [ "$ADVERSARIAL_TEST_HARNESS_ENABLED" = "true" ]; then
+  VERIFY_RESEARCH=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" verify research-contract "$CONTEXT_PATH" --research "$RESEARCH_PATH" --raw)
+  if [ "$VERIFY_RESEARCH" != "true" ]; then
   echo "╔══════════════════════════════════════════════════════════════╗"
   echo "║  BLOCK-04: Failed Research Contract                          ║"
   echo "╚══════════════════════════════════════════════════════════════╝"
   echo ""
   echo "⚠ Research Contract Violation Detected!"
-  node "$HOME/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs" verify research-contract "$CONTEXT_PATH" --research "$RESEARCH_PATH"
+    node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" verify research-contract "$CONTEXT_PATH" --research "$RESEARCH_PATH"
 
-  # AskUserQuestion:
+    # AskUserQuestion:
   # - header: "Research Contract"
-  # - question: "Research for Phase {X} violates the contract (e.g. lost ambiguities). How to proceed?"
-  # - options:
-  #   - "Revise research" — Re-spawn researcher with identified issues
-  #   - "Skip research" — Proceed to planning with warning
-  #   - "Abort" — Exit workflow
+    # - question: "Research for Phase {X} violates the contract (e.g. lost ambiguities). How to proceed?"
+    # - options:
+    #   - "Revise research" — Re-spawn researcher with identified issues
+    #   - "Skip research" — Proceed to planning with warning
+    #   - "Abort" — Exit workflow
+  fi
 fi
 ```
+
+If `adversarial_test_harness_enabled` is false:
+
+```bash
+node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" state add-decision --phase "$PHASE" --summary "Adversarial harness bypassed" --rationale "scope=research-contract"
+```
+
+Skip this contract gate and continue.
 
 Display confirmation, continue to step 6
 - **`## RESEARCH BLOCKED`:** Display blocker, offer: 1) Provide context, 2) Skip research, 3) Abort
@@ -319,7 +362,16 @@ If `research_enabled` is false and `nyquist_validation_enabled` is true: warn "N
 - `has_research` is false
 - no `--research` flag was provided
 
-In that case: **skip validation-strategy creation entirely**. Do **not** expect `RESEARCH.md` or `VALIDATION.md` for this run, and continue to Step 6.
+In that case:
+- **skip validation-strategy creation entirely**
+- do **not** expect `RESEARCH.md` or `VALIDATION.md` for this run
+- record the bypass explicitly:
+
+```bash
+node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" state add-decision --phase "$PHASE" --summary "Nyquist bypass accepted" --rationale "reason=no-research-path"
+```
+
+Then continue to Step 6.
 
 ```bash
 grep -l "## Validation Architecture" "${PHASE_DIR}"/*-RESEARCH.md 2>/dev/null
@@ -373,8 +425,20 @@ Use AskUserQuestion:
 - question: "Phase {N} has frontend indicators but no UI-SPEC.md. Generate a design contract before planning?"
 - options:
   - "Generate UI-SPEC first" → Display: "Run `/gsd:ui-phase {N}` then re-run `/gsd:plan-phase {N}`". Exit workflow.
-  - "Continue without UI-SPEC" → Continue to step 6.
-  - "Not a frontend phase" → Continue to step 6.
+  - "Continue without UI-SPEC" →
+
+    ```bash
+    node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" state add-decision --phase "$PHASE" --summary "UI-SPEC bypass accepted" --rationale "reason=continue-without-ui-spec"
+    ```
+
+    Continue to step 6.
+  - "Not a frontend phase" →
+
+    ```bash
+    node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" state add-decision --phase "$PHASE" --summary "UI-SPEC bypass accepted" --rationale "reason=frontend-indicator-dismissed"
+    ```
+
+    Continue to step 6.
 
 **If `HAS_UI` is 1 (no frontend indicators):** Skip silently to step 6.
 
@@ -422,6 +486,12 @@ If missing and Nyquist is still enabled/applicable — ask user:
 2. Disable Nyquist with the exact command:
    `node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" config-set workflow.nyquist_validation false`
 3. Continue anyway (plans fail Dimension 8)
+
+If user selects 2 or 3, record the bypass before continuing:
+
+```bash
+node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" state add-decision --phase "$PHASE" --summary "Nyquist bypass accepted" --rationale "reason=missing-validation-artifact"
+```
 
 Proceed to Step 8 only if user selects 2 or 3.
 
@@ -536,7 +606,7 @@ Task(
 
 ## 9.5. Verify Context Contract
 
-Skip if `context_path` is null.
+Skip if `context_path` is null OR `adversarial_test_harness_enabled` is false.
 
 For each generated plan, run:
 
@@ -556,9 +626,30 @@ If any plan fails this check:
 - revise the affected plans before continuing
 - do not skip this gate unless the user explicitly chooses to proceed with known contract violations
 
-If all plans pass:
-- If `--skip-verify` or `plan_checker_enabled` is false (from init): skip to step 13.
-- Otherwise: continue to step 10.
+If `adversarial_test_harness_enabled` is false:
+
+```bash
+node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" state add-decision --phase "$PHASE" --summary "Adversarial harness bypassed" --rationale "scope=context-contract"
+```
+
+Skip this contract gate and continue to the broader plan checker flow.
+
+If all plans pass: continue to step 9.6 before any broader checker run.
+
+## 9.6. Verify Plan Quality (Executable)
+
+Run the executable quality proxy gate:
+```bash
+PLAN_QUALITY=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" verify plan-quality "$PHASE" --raw)
+PLAN_QUALITY_STATUS=$(printf '%s\n' "$PLAN_QUALITY" | jq -r '.status // "passed"')
+```
+
+Branch on `PLAN_QUALITY_STATUS`:
+- `blocked` → show `.summary` and `.issues`, then send those issues into the revision loop immediately. Do not continue to the broader checker until blockers are fixed.
+- `revise` → show `.summary`, the dimension scores, and `.issues`, then send them into the revision loop as structured quality issues.
+- `passed` → if `--skip-verify` or `plan_checker_enabled` is false, skip to step 13. Otherwise continue to step 10.
+
+This gate is for measurable plan quality proxies: scope fit, task atomicity, dependency clarity, verification strength, goal alignment, risk coverage, and assumption honesty. It does not replace the broader plan checker; it filters out plans that are structurally valid but still too weak to trust.
 
 ## 10. Spawn gsd-plan-checker Agent
 
@@ -632,7 +723,7 @@ Revision prompt:
 - {context_path} (USER DECISIONS from /gsd:discuss-phase)
 </files_to_read>
 
-**Checker issues:** {structured_issues_from_checker}
+**Checker / quality issues:** {structured_issues_from_checker_or_quality_gate}
 </revision_context>
 
 <instructions>

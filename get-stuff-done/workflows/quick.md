@@ -515,6 +515,14 @@ Task(
 )
 ```
 
+If `workflow.adversarial_test_harness` is enabled and `${DISCUSS_MODE}` produced a CONTEXT.md, run `verify context-contract` on `${QUICK_DIR}/${quick_id}-PLAN.md` before spawning the plan checker. If invalid: revise before broader checking.
+
+If `workflow.adversarial_test_harness` is disabled and `${DISCUSS_MODE}` produced a CONTEXT.md, record the bypass before broader checking:
+
+```bash
+node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" state add-decision --phase "quick" --summary "Adversarial harness bypassed" --rationale "scope=quick-context-contract"
+```
+
 **Handle checker return:**
 
 - **`## VERIFICATION PASSED`:** Display confirmation, proceed to step 6.

@@ -86,6 +86,7 @@ All workflow toggles follow the **absent = enabled** pattern. If a key is missin
 | `workflow.verifier` | boolean | `true` | Post-execution verification against phase goals |
 | `workflow.auto_advance` | boolean | `false` | Auto-chain discuss → plan → execute without stopping |
 | `workflow.nyquist_validation` | boolean | `true` | Test coverage mapping during plan-phase research |
+| `workflow.adversarial_test_harness` | boolean | `true` | Enforce research/context contract gates that keep unresolved ambiguity and guidance-only inferences visible |
 | `workflow.ui_phase` | boolean | `true` | Generate UI design contracts for frontend phases |
 | `workflow.ui_safety_gate` | boolean | `true` | Prompt to run /gsd:ui-phase for frontend phases during plan-phase |
 | `workflow.node_repair` | boolean | `true` | Autonomous task repair on verification failure |

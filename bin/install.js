@@ -657,6 +657,40 @@ function convertCopilotToolName(claudeTool) {
   return claudeTool.toLowerCase();
 }
 
+function replaceWithCapturedPrefix(content, pattern, replacement) {
+  return content.replace(pattern, (_, prefix = '') => `${prefix}${replacement}`);
+}
+
+function convertClaudePathReferences(content, replacements) {
+  let updated = String(content || '');
+  const prefix = '(^|[^A-Za-z0-9_~$./-])';
+
+  updated = replaceWithCapturedPrefix(updated, new RegExp(`${prefix}\\$HOME/\\.claude/`, 'g'), replacements.home);
+  updated = replaceWithCapturedPrefix(updated, new RegExp(`${prefix}~/\\.claude/`, 'g'), replacements.tilde);
+  updated = replaceWithCapturedPrefix(updated, new RegExp(`${prefix}\\./\\.claude/`, 'g'), replacements.dot);
+  updated = replaceWithCapturedPrefix(updated, new RegExp(`${prefix}\\.claude/`, 'g'), replacements.bare);
+
+  return updated;
+}
+
+function convertClaudeCommandReferences(content, options = {}) {
+  let updated = String(content || '');
+  const {
+    slashReplacement = '/gsd-$1',
+    bareReplacement = 'gsd-$1',
+  } = options;
+
+  updated = updated.replace(/(^|[^A-Za-z0-9_/$-])\/gsd:([a-z0-9-]+)/g, (_, prefix = '', commandName) => {
+    return `${prefix}${slashReplacement.replace('$1', commandName)}`;
+  });
+
+  updated = updated.replace(/(^|[^A-Za-z0-9_/$-])gsd:([a-z0-9-]+)/g, (_, prefix = '', commandName) => {
+    return `${prefix}${bareReplacement.replace('$1', commandName)}`;
+  });
+
+  return updated;
+}
+
 /**
  * Apply Copilot-specific content conversion — CONV-06 (paths) + CONV-07 (command names).
  * Path mappings depend on install mode:
@@ -667,20 +701,27 @@ function convertCopilotToolName(claudeTool) {
  * @param {boolean} [isGlobal=false] - Whether this is a global install
  */
 function convertClaudeToCopilotContent(content, isGlobal = false) {
-  let c = content;
-  // CONV-06: Path replacement — most specific first to avoid substring matches
-  if (isGlobal) {
-    c = c.replace(/\$HOME\/\.claude\//g, '$HOME/.copilot/');
-    c = c.replace(/~\/\.claude\//g, '~/.copilot/');
-  } else {
-    c = c.replace(/\$HOME\/\.claude\//g, '.github/');
-    c = c.replace(/~\/\.claude\//g, '.github/');
-  }
-  c = c.replace(/\.\/\.claude\//g, './.github/');
-  c = c.replace(/\.claude\//g, '.github/');
-  // CONV-07: Command name conversion (all gsd: references → gsd-)
-  c = c.replace(/gsd:/g, 'gsd-');
-  return c;
+  const pathReplacements = isGlobal
+    ? {
+        home: '$HOME/.copilot/',
+        tilde: '~/.copilot/',
+        dot: './.github/',
+        bare: '.github/',
+      }
+    : {
+        home: '.github/',
+        tilde: '.github/',
+        dot: './.github/',
+        bare: '.github/',
+      };
+
+  return convertClaudeCommandReferences(
+    convertClaudePathReferences(content, pathReplacements),
+    {
+      slashReplacement: '/gsd-$1',
+      bareReplacement: 'gsd-$1',
+    }
+  );
 }
 
 /**
@@ -847,10 +888,11 @@ function extractFrontmatterField(frontmatter, fieldName) {
 }
 
 function convertSlashCommandsToCodexSkillMentions(content) {
-  let converted = content.replace(/\/gsd:([a-z0-9-]+)/gi, (_, commandName) => {
-    return `$gsd-${String(commandName).toLowerCase()}`;
+  let converted = String(content || '');
+  converted = converted.replace(/(^|[^A-Za-z0-9_/$-])\/gsd:([a-z0-9-]+)/gi, (_, prefix = '', commandName) => {
+    return `${prefix}$gsd-${String(commandName).toLowerCase()}`;
   });
-  converted = converted.replace(/\/gsd-help\b/g, '$gsd-help');
+  converted = converted.replace(/(^|[^A-Za-z0-9_/$-])\/gsd-help\b/g, (_, prefix = '') => `${prefix}$gsd-help`);
   return converted;
 }
 

@@ -40,7 +40,16 @@ function writeMinimalStateMd(tmpDir, content) {
 function writeValidConfigJson(tmpDir) {
   fs.writeFileSync(
     path.join(tmpDir, '.planning', 'config.json'),
-    JSON.stringify({ model_profile: 'balanced', commit_docs: true }, null, 2)
+    JSON.stringify({
+      model_profile: 'balanced',
+      commit_docs: true,
+      workflow: {
+        nyquist_validation: true,
+        adversarial_test_harness: true,
+        ui_phase: true,
+        ui_safety_gate: true,
+      },
+    }, null, 2)
   );
 }
 
@@ -470,6 +479,53 @@ describe('validate health command', () => {
       !output.warnings.some(w => w.code === 'W009'),
       `Should not have W009: ${JSON.stringify(output.warnings)}`
     );
+  });
+
+  test('suppresses W009 and emits info when Nyquist bypass was explicitly recorded', () => {
+    writeMinimalProjectMd(tmpDir);
+    writeMinimalRoadmap(tmpDir, ['1']);
+    writeMinimalStateMd(
+      tmpDir,
+      '# Session State\n\n## Decisions\n\n- [Phase 1]: Nyquist bypass accepted — reason=no-research-path\n'
+    );
+    writeValidConfigJson(tmpDir);
+    const phaseDir = path.join(tmpDir, '.planning', 'phases', '01-setup');
+    fs.mkdirSync(phaseDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(phaseDir, '01-RESEARCH.md'),
+      '# Research\n\n## Validation Architecture\n\nSome validation content.\n'
+    );
+
+    const result = runGsdTools('validate health', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const output = JSON.parse(result.output);
+    assert.ok(
+      !output.warnings.some(w => w.code === 'W009'),
+      `Should not have W009 when bypass recorded: ${JSON.stringify(output.warnings)}`
+    );
+    assert.ok(
+      output.info.some(i => i.code === 'I002'),
+      `Expected I002 in info: ${JSON.stringify(output.info)}`
+    );
+  });
+
+  test('reports UI-SPEC and adversarial bypasses as info only', () => {
+    writeMinimalProjectMd(tmpDir);
+    writeMinimalRoadmap(tmpDir, ['1']);
+    writeMinimalStateMd(
+      tmpDir,
+      '# Session State\n\n## Decisions\n\n- [Phase 1]: UI-SPEC bypass accepted — reason=continue-without-ui-spec\n- [Phase 1]: Adversarial harness bypassed — scope=context-contract\n'
+    );
+    writeValidConfigJson(tmpDir);
+    fs.mkdirSync(path.join(tmpDir, '.planning', 'phases', '01-a'), { recursive: true });
+
+    const result = runGsdTools('validate health', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const output = JSON.parse(result.output);
+    assert.ok(output.info.some(i => i.code === 'I003'), `Expected I003: ${JSON.stringify(output.info)}`);
+    assert.ok(output.info.some(i => i.code === 'I004'), `Expected I004: ${JSON.stringify(output.info)}`);
   });
 
   // ─── Overall status ────────────────────────────────────────────────────────

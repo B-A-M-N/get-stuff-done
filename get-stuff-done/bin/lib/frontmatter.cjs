@@ -188,68 +188,70 @@ function spliceFrontmatter(content, newObj) {
 }
 
 function parseMustHavesBlock(content, blockName) {
-  // Extract a specific block from must_haves in raw frontmatter YAML
-  // Handles 3-level nesting: must_haves > artifacts/key_links > [{path, provides, ...}]
+  // Extract a specific block from must_haves in raw frontmatter YAML.
+  // Supports both shipped 4-space indentation and repo plans that use 2 spaces.
   const fmMatch = content.match(/^---\r?\n([\s\S]+?)\r?\n---/);
   if (!fmMatch) return [];
 
   const yaml = fmMatch[1];
-  // Find the block (e.g., "truths:", "artifacts:", "key_links:")
-  const blockPattern = new RegExp(`^\\s{4}${blockName}:\\s*$`, 'm');
-  const blockStart = yaml.search(blockPattern);
-  if (blockStart === -1) return [];
+  const lines = yaml.split(/\r?\n/);
+  const blockIndex = lines.findIndex(line => {
+    const indent = (line.match(/^(\s*)/) || ['', ''])[1].length;
+    return indent >= 2 && indent <= 4 && line.trim() === `${blockName}:`;
+  });
+  if (blockIndex === -1) return [];
 
-  const afterBlock = yaml.slice(blockStart);
-  const blockLines = afterBlock.split(/\r?\n/).slice(1); // skip the header line
-
+  const blockIndent = (lines[blockIndex].match(/^(\s*)/) || ['', ''])[1].length;
+  const itemIndent = blockIndent + 2;
+  const kvIndent = blockIndent + 4;
+  const arrIndent = blockIndent + 6;
   const items = [];
   let current = null;
 
-  for (const line of blockLines) {
-    // Stop at same or lower indent level (non-continuation)
+  for (const line of lines.slice(blockIndex + 1)) {
     if (line.trim() === '') continue;
-    const indent = line.match(/^(\s*)/)[1].length;
-    if (indent <= 4 && line.trim() !== '') break; // back to must_haves level or higher
+    const indent = (line.match(/^(\s*)/) || ['', ''])[1].length;
+    if (indent <= blockIndent) break;
 
-    if (line.match(/^\s{6}-\s+/)) {
-      // New list item at 6-space indent
+    const trimmed = line.trim();
+    if (indent === itemIndent && trimmed.startsWith('- ')) {
       if (current) items.push(current);
-      current = {};
-      // Check if it's a simple string item
-      const simpleMatch = line.match(/^\s{6}-\s+"?([^"]+)"?\s*$/);
-      if (simpleMatch && !line.includes(':')) {
-        current = simpleMatch[1];
+      const afterDash = trimmed.slice(2).trim();
+      if (afterDash.includes(':')) {
+        const splitIdx = afterDash.indexOf(':');
+        const key = afterDash.slice(0, splitIdx).trim();
+        const rawValue = afterDash.slice(splitIdx + 1).trim().replace(/^"|"$/g, '');
+        current = { [key]: /^\d+$/.test(rawValue) ? parseInt(rawValue, 10) : rawValue };
       } else {
-        // Key-value on same line as dash: "- path: value"
-        const kvMatch = line.match(/^\s{6}-\s+(\w+):\s*"?([^"]*)"?\s*$/);
-        if (kvMatch) {
-          current = {};
-          current[kvMatch[1]] = kvMatch[2];
-        }
+        current = afterDash.replace(/^"|"$/g, '');
       }
-    } else if (current && typeof current === 'object') {
-      // Continuation key-value at 8+ space indent
-      const kvMatch = line.match(/^\s{8,}(\w+):\s*"?([^"]*)"?\s*$/);
-      if (kvMatch) {
-        const val = kvMatch[2];
-        // Try to parse as number
-        current[kvMatch[1]] = /^\d+$/.test(val) ? parseInt(val, 10) : val;
+      continue;
+    }
+
+    if (!current || typeof current !== 'object') continue;
+
+    if (indent >= kvIndent && !trimmed.startsWith('- ')) {
+      const splitIdx = trimmed.indexOf(':');
+      if (splitIdx !== -1) {
+        const key = trimmed.slice(0, splitIdx).trim();
+        const rawValue = trimmed.slice(splitIdx + 1).trim().replace(/^"|"$/g, '');
+        current[key] = /^\d+$/.test(rawValue) ? parseInt(rawValue, 10) : rawValue;
       }
-      // Array items under a key
-      const arrMatch = line.match(/^\s{10,}-\s+"?([^"]+)"?\s*$/);
-      if (arrMatch) {
-        // Find the last key added and convert to array
-        const keys = Object.keys(current);
-        const lastKey = keys[keys.length - 1];
-        if (lastKey && !Array.isArray(current[lastKey])) {
-          current[lastKey] = current[lastKey] ? [current[lastKey]] : [];
-        }
-        if (lastKey) current[lastKey].push(arrMatch[1]);
+      continue;
+    }
+
+    if (indent >= arrIndent && trimmed.startsWith('- ')) {
+      const arrValue = trimmed.slice(2).trim().replace(/^"|"$/g, '');
+      const keys = Object.keys(current);
+      const lastKey = keys[keys.length - 1];
+      if (lastKey && !Array.isArray(current[lastKey])) {
+        current[lastKey] = current[lastKey] ? [current[lastKey]] : [];
       }
+      if (lastKey) current[lastKey].push(arrValue);
     }
   }
-  if (current) items.push(current);
 
+  if (current) items.push(current);
   return items;
 }
 

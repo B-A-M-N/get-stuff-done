@@ -267,6 +267,18 @@ Body content.`;
     assert.strictEqual(result[1], 'Coverage exceeds 80%');
   });
 
+  test('extracts truths from 2-space-indented real plan frontmatter', () => {
+    const content = `---
+phase: 01
+must_haves:
+  truths:
+    - "All tests pass on CI"
+    - "Coverage exceeds 80%"
+---
+`;
+    const result = parseMustHavesBlock(content, 'truths');
+    assert.deepStrictEqual(result, ['All tests pass on CI', 'Coverage exceeds 80%']);
+  });
   test('extracts artifacts as object array', () => {
     const content = `---
 phase: 01

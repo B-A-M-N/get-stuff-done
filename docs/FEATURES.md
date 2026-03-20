@@ -171,6 +171,7 @@
 - REQ-PLAN-06: System MUST support `--skip-research` flag to bypass research phase
 - REQ-PLAN-07: System MUST prompt user to run `/gsd:ui-phase` if frontend phase detected and no UI-SPEC.md exists (UI safety gate)
 - REQ-PLAN-08: System MUST include Nyquist validation mapping when `workflow.nyquist_validation` is enabled
+- REQ-PLAN-09: System MUST run adversarial research/context contract gates when `workflow.adversarial_test_harness` is enabled
 
 **Produces:**
 | Artifact | Description |
