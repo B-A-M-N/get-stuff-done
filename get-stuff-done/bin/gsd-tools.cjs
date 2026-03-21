@@ -670,7 +670,7 @@ async function main() {
         // Agents use this instead of raw curl to determine whether to use Firecrawl or fallback tools.
         const { execSync: _execSync } = require('child_process');
         const apiUrl = process.env.FIRECRAWL_API_URL || 'http://localhost:3002';
-        const planningServerUrl = process.env.FIRECRAWL_PLANNING_URL || 'http://localhost:3010';
+        const planningServerUrl = process.env.FIRECRAWL_PLANNING_URL || 'http://localhost:3011';
         let apiUp = false;
         let planningUp = false;
         try {

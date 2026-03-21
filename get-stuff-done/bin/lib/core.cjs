@@ -43,6 +43,16 @@ function error(message) {
 
 function safeReadFile(filePath) {
   try {
+    // Enforcement: Use sandbox if available to prevent bypasses
+    try {
+      const sandbox = require('./sandbox.cjs');
+      const decision = sandbox.checkPath(process.cwd(), filePath);
+      if (decision.allow === false) {
+        return null; // Silent fail matches previous catch behavior but blocks forbidden content
+      }
+    } catch (e) {
+      // If sandbox is missing or errors, fail-safe: allow (or we break the bootloader)
+    }
     return fs.readFileSync(filePath, 'utf-8');
   } catch {
     return null;

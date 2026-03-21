@@ -75,9 +75,6 @@ async function normalizeInternal(cwd) {
 
     const contentHash = sha256(normalizedContent);
     
-    // source_uri should be relative to project root for internal files
-    const sourceUri = path.relative(cwd, filePath).split(path.sep).join('/');
-    
     const artifact = {
       id: generateArtifactId(sourceUri, contentHash),
       source_uri: sourceUri,

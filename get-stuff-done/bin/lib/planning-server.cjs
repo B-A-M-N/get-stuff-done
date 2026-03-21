@@ -44,6 +44,13 @@ const server = http.createServer(async (req, res) => {
   // Simple URL parsing for compatibility
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
 
+  if (url.pathname === '/health') {
+    res.statusCode = 200;
+    res.setHeader('Content-Type', 'text/plain');
+    res.end('ok');
+    return;
+  }
+
   if (url.pathname === '/v1/extract' && req.method === 'GET') {
     const relativePath = url.searchParams.get('path');
 
@@ -79,14 +86,16 @@ const server = http.createServer(async (req, res) => {
       const hash = sha256(normalized);
 
       const response = {
-        path: relativePath,
-        content: rawContent,
-        normalized,
-        hash,
+        success: true,
+        data: {
+          path: relativePath,
+          markdown: normalized,
+          hash,
+        }
       };
 
       if (analysis) {
-        response.analysis = analysis;
+        response.data.analysis = analysis;
       }
 
       res.setHeader('Content-Type', 'application/json');

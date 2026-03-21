@@ -1,0 +1,14 @@
+{
+  "id": "37bef07266ec08a5515f9ff11f08d102240bbd83236cacc194e7aa124a9716d3",
+  "source_uri": "https://example.com/doc",
+  "title": "Doc",
+  "type": "external",
+  "content_markdown": "# T\n",
+  "content_hash": "63f9dda6643341501cef7b9d2a8a2bcefda8ec16d62d0ef2ce63dc2b9a69424f",
+  "normalized_at": "2026-03-21T19:13:01.648Z",
+  "provenance": {
+    "producer": "firecrawl-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  }
+}

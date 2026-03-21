@@ -1,0 +1,26 @@
+{
+  "id": "8b5c3eee06b66031888932fca584a82ce9e26d58eb23fd51497aa6df3a1f66a9",
+  "source_uri": "https://example.com/code",
+  "title": "Code Doc",
+  "type": "external",
+  "content_markdown": "# T\n\n```js\nexport function x(){}\nconst y=require(\"z\")\n```\n",
+  "content_hash": "0af9db8097fc48ec4cf7d0a867b6f52044162f05260f3d9a791e35dae0a7d4c3",
+  "normalized_at": "2026-03-21T19:14:14.743Z",
+  "provenance": {
+    "producer": "firecrawl-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  },
+  "analysis": {
+    "symbols": [
+      {
+        "name": "x",
+        "kind": "function",
+        "line": 1
+      }
+    ],
+    "dependencies": [
+      "z"
+    ]
+  }
+}

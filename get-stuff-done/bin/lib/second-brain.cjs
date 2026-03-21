@@ -52,7 +52,7 @@ class SecondBrain {
           normalized_at = CURRENT_TIMESTAMP;
       `;
       
-      const contentHash = artifact.id; // Assuming ID contains hash or is derived from it
+      const contentHash = artifact.content_hash;
 
       await client.query(upsertArtifactQuery, [
         artifact.id,
@@ -102,9 +102,7 @@ class SecondBrain {
       if (client) await client.query('ROLLBACK');
       console.error(`[SecondBrain] Failed to ingest artifact ${artifact.id}: ${err.message}`);
       // Don't throw, just log. Allow workflow to continue.
-      if (err.message.includes('SASL') || err.message.includes('connection')) {
-        this.offlineMode = true; // Mark as offline for subsequent calls
-      }
+      this.offlineMode = true; // Mark as offline for subsequent calls
     } finally {
       if (client) client.release();
     }
