@@ -182,7 +182,14 @@ function checkpointPresent(cwd, phase) {
 
 // ─── Per-workflow builders ────────────────────────────────────────────────────
 
+function ensureInternalParity(cwd) {
+  const { normalizeInternal } = require('./internal-normalizer.cjs');
+  const artifacts = normalizeInternal(cwd);
+  artifacts.forEach(a => contextStore.put(cwd, a));
+}
+
 function buildExecutePlan(cwd, options) {
+  ensureInternalParity(cwd);
   const warnings = [];
   const git = readGitState(cwd);
   const pointer = readPlanPointer(cwd, options.phase, options.plan);
@@ -209,6 +216,7 @@ function buildExecutePlan(cwd, options) {
 }
 
 function buildVerifyWork(cwd, options) {
+  ensureInternalParity(cwd);
   const warnings = [];
   const git = readGitState(cwd);
   const pointer = readPlanPointer(cwd, options.phase, options.plan);
@@ -230,6 +238,7 @@ function buildVerifyWork(cwd, options) {
 }
 
 function buildPlanPhase(cwd) {
+  ensureInternalParity(cwd);
   const warnings = [];
   const git = readGitState(cwd);
 

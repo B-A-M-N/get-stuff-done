@@ -101,8 +101,8 @@
 | SANDBOX-04 | Phase 23 | Complete |
 
 **Coverage:**
-- v0.2 requirements: 34 total
-- Mapped to phases: 34
+- v0.2 requirements: 38 total
+- Mapped to phases: 38
 - Unmapped: 0 ✓
 
 ---
@@ -112,3 +112,7 @@
 | ID-DETERMINISTIC | Phase 24 | Complete |
 | STORE-FILE-BACKED | Phase 24 | Complete |
 | CLI-INTEGRATION | Phase 24 | Complete |
+| NORMAL-INTERNAL | Phase 25 | Complete |
+| NORMAL-FIRE | Phase 25 | Complete |
+| NORMAL-PARITY | Phase 25 | Complete |
+| CLI-PARITY | Phase 25 | Complete |

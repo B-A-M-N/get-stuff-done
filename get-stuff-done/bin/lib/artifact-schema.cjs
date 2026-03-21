@@ -180,7 +180,7 @@ const contextArtifactSchema = z.object({
   content_hash: z.string(), // Hash of the normalized markdown
   normalized_at: z.string(),
   provenance: z.object({
-    producer: z.enum(['firecrawl', 'internal-normalizer']),
+    producer: z.enum(['firecrawl', 'internal-normalizer', 'firecrawl-normalizer']),
     producer_version: z.string(),
     parameters_hash: z.string().nullable()
   })
