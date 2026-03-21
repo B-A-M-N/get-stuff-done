@@ -55,7 +55,7 @@ Plans:
 **Goal:** Integrate Tree-Sitter into the normalization pipeline to extract symbols and dependencies for the independent second brain.
 **Requirements**: AST-SCHEMA-01, AST-PARSER-01, AST-INTERNAL-01, AST-EXTERNAL-01, AST-VERIFY-01
 **Depends on:** Phase 25
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 
 Plans:
 - [ ] 26-01-PLAN.md — Schema Extension and AST Parser Implementation
@@ -63,10 +63,14 @@ Plans:
 
 ### Phase 27: Independent Memory Wiring (Postgres/RabbitMQ/Local Second Brain)
 
-**Goal:** [To be planned]
-**Requirements**: TBD
+**Goal:** Implement the isolated memory foundation using Postgres and RabbitMQ to serve as the project's local consciousness.
+**Requirements**: BRAIN-INFRA-01, BRAIN-STORAGE-01, BRAIN-INGEST-01, BRAIN-VERIFY-01
 **Depends on:** Phase 26
-**Plans:** 0 plans
+**Plans:** 2 plans
+
+Plans:
+- [ ] 27-01-PLAN.md — Infrastructure Foundation (Postgres & RabbitMQ)
+- [ ] 27-02-PLAN.md — Pipeline Integration and Verification
 
 ---
 
