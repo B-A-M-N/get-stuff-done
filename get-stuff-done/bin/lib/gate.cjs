@@ -15,7 +15,7 @@ const path = require('path');
 const { loadConfig, resolvePromptPolicy, output, error } = require('./core.cjs');
 const sandbox = require('./sandbox.cjs');
 
-/** Convert dotted policy key to a safe filename fragment (e.g. gates.confirm_roadmap → gates_confirm_plan) */
+/** Convert dotted policy key to a safe filename fragment (e.g. gates.confirm_roadmap → gates.confirm_roadmap) */
 function keyToFilename(key) {
   return key.replace(/\./g, '_');
 }

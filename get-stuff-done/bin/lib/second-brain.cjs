@@ -10,27 +10,30 @@ class SecondBrain {
       host: process.env.PGHOST || 'localhost',
       port: process.env.PGPORT || 5432,
       database: process.env.PGDATABASE || 'gsd_local_brain',
-      connectionTimeoutMillis: 5000, // 5s timeout
+      connectionTimeoutMillis: 5000,
     };
 
-    if (process.env.PGUSER) config.user = String(process.env.PGUSER);
-    const pgPass = process.env.PGPASSWORD;
-    if (pgPass && String(pgPass).length > 0) {
-      config.password = String(pgPass);
+    const envUser = process.env.PGUSER;
+    if (typeof envUser === 'string' && envUser.length > 0) {
+      config.user = envUser;
     }
-    if (process.env.DATABASE_URL) config.connectionString = String(process.env.DATABASE_URL);
+
+    const envPass = process.env.PGPASSWORD;
+    if (typeof envPass === 'string' && envPass.length > 0) {
+      config.password = envPass;
+    }
+
+    const envUrl = process.env.DATABASE_URL;
+    if (typeof envUrl === 'string' && envUrl.length > 0) {
+      config.connectionString = envUrl;
+    }
 
     this.pool = new Pool(config);
+    this.offlineMode = false;
+
     // Suppress unhandled pool errors from killing the process
     this.pool.on('error', (err) => {
       console.error('[SecondBrain] Unexpected error on idle client:', err.message);
-      this.offlineMode = true;
-    });
-
-    this.offlineMode = false;
-
-    this.pool.on('error', (err) => {
-      console.error('Unexpected error on idle client', err);
       this.offlineMode = true;
     });
   }
