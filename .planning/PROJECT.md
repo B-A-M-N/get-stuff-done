@@ -50,3 +50,5 @@ The ITL must adapt user input into the existing engines’ expected structures. 
 
 ---
 *Last updated: 2026-03-17 after v0.2.0 milestone start*
+
+<!-- GSD-AUTHORITY: 28-02-3:6246a0e1bd7a78137c07b0209fe665f20443acbec8c7bef492e7f12ca64992b7 -->
