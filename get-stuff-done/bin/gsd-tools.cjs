@@ -24,6 +24,13 @@
  *                                      out-of-band commits between tasks automatically
  *                                      Commit task source files, verify atomically, and
  *                                      optionally persist hash to per-plan TASK-LOG.jsonl
+ *   complete-task <message> --scope <phase-plan> --files f1 [f2 ...]
+ *     --phase <phase> --plan <plan> --task <N>
+ *     [--prev-hash <hash>]             Stricter wrapper around commit-task:
+ *                                      --phase/--plan/--task are REQUIRED (not optional),
+ *                                      auto-injects --prev-hash from last task log entry,
+ *                                      enforces sequential task numbering (N = last+1).
+ *                                      Prefer over commit-task for agent-driven execution.
  *   task-log read --phase <phase> --plan <plan>
  *                                      Read TASK-LOG.jsonl for a plan (context-reset recovery)
  *   task-log reconstruct --phase <phase> --plan <plan>
@@ -390,6 +397,36 @@ async function main() {
       const ctPrevHashIdx = args.indexOf('--prev-hash');
       const ctPrevHash = ctPrevHashIdx !== -1 ? args[ctPrevHashIdx + 1] : null;
       commands.cmdCommitTask(cwd, ctMessage, ctFiles, ctScope, { phase: ctPhase, plan: ctPlan, task: ctTask, prev_hash: ctPrevHash }, raw);
+      break;
+    }
+
+    case 'complete-task': {
+      // Stricter than commit-task: --phase/--plan/--task required, auto prev-hash, sequential enforcement.
+      const cptMessageParts = [];
+      let cptI = 1;
+      while (cptI < args.length && !args[cptI].startsWith('--')) {
+        cptMessageParts.push(args[cptI++]);
+      }
+      const cptMessage = cptMessageParts.join(' ') || undefined;
+      const cptScopeIdx = args.indexOf('--scope');
+      const cptScope = cptScopeIdx !== -1 ? args[cptScopeIdx + 1] : null;
+      const cptPhaseIdx = args.indexOf('--phase');
+      const cptPhase = cptPhaseIdx !== -1 ? args[cptPhaseIdx + 1] : null;
+      const cptPlanIdx = args.indexOf('--plan');
+      const cptPlan = cptPlanIdx !== -1 ? args[cptPlanIdx + 1] : null;
+      const cptTaskIdx = args.indexOf('--task');
+      const cptTask = cptTaskIdx !== -1 ? args[cptTaskIdx + 1] : null;
+      const cptFilesIdx = args.indexOf('--files');
+      const cptFiles = [];
+      if (cptFilesIdx !== -1) {
+        for (let j = cptFilesIdx + 1; j < args.length; j++) {
+          if (args[j].startsWith('--')) break;
+          cptFiles.push(args[j]);
+        }
+      }
+      const cptPrevHashIdx = args.indexOf('--prev-hash');
+      const cptPrevHash = cptPrevHashIdx !== -1 ? args[cptPrevHashIdx + 1] : null;
+      commands.cmdCompleteTask(cwd, cptMessage, cptFiles, cptScope, { phase: cptPhase, plan: cptPlan, task: cptTask, prev_hash: cptPrevHash }, raw);
       break;
     }
 

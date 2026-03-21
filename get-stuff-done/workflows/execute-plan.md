@@ -310,7 +310,19 @@ git add src/types/user.ts
 
 **4. Format:** `{type}({phase}-{plan}): {description}` with bullet points for key changes.
 
-**5. Commit task files atomically — one command does stage + continuity check + commit + verify + log:**
+**5. Commit task files atomically — one command does stage + sequential-check + continuity check + commit + verify + log:**
+
+Prefer `complete-task` (stricter, enforces sequential task numbering and auto-injects prev-hash):
+```bash
+COMMIT_RESULT=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" complete-task \
+  "{type}({phase}-{plan}): {description}" \
+  --scope "{phase}-{plan}" \
+  --phase "{phase}" --plan "{plan}" --task "${TASK_NUM}" \
+  --files file1 file2 ...)
+```
+`complete-task` exits 1 on any failure — the script halts without requiring JSON parsing. It auto-injects `--prev-hash` from the last task log entry, catching any out-of-band commit between tasks automatically. It also rejects task N if the last log entry is not task N-1 (prevents silent task skips).
+
+`commit-task` remains available as the underlying primitive (e.g., for single-file fixup commits or when sequential enforcement should not apply):
 ```bash
 COMMIT_RESULT=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" commit-task \
   "{type}({phase}-{plan}): {description}" \
@@ -319,7 +331,6 @@ COMMIT_RESULT=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" commit-tas
   ${PREV_TASK_HASH:+--prev-hash "$PREV_TASK_HASH"} \
   --files file1 file2 ...)
 ```
-`commit-task` exits 1 on any failure — the script halts without requiring JSON parsing. When `--prev-hash` is set, it verifies that hash is still HEAD *before* staging, catching any out-of-band commit between tasks automatically.
 
 On success (exit 0): record hash for continuity and in-session tracking:
 ```bash

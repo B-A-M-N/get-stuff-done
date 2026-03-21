@@ -82,6 +82,25 @@ fi
 ```
 </step>
 
+<step name="verify_execution_context">
+Load a Zod-validated execution snapshot before any branching or state writes. This gives the orchestrator a verified invariant (integrity audit + git state + pointer) rather than inferring state from individual files.
+
+```bash
+CTX=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" context build \
+  --workflow execute-plan --phase "$PHASE_ARG")
+if [[ "$CTX" == @file:* ]]; then CTX=$(cat "${CTX#@file:}"); fi
+```
+
+Parse `CTX` JSON for:
+- `coherent` — if `false`, surface `integrity.errors` and `stop`-severity `warnings` before proceeding
+- `integrity.errors[]` — hard errors from 10-check audit; each is a blocker
+- `warnings[]` — `[{message, severity}]`; `stop` = halt; `ignorable` = log and continue
+- `pending_gates` — stale gates from prior sessions; list each to the user if non-empty
+- `git.branch`, `git.head` — confirm repo is on expected branch before any state writes
+
+If `coherent: false`: present errors and `stop`-severity warnings. Do NOT proceed to branching or waves until the user resolves them.
+</step>
+
 <step name="handle_branching">
 Check `branching_strategy` from init:
 

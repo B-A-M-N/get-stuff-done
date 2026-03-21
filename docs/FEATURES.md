@@ -694,7 +694,7 @@
 **Purpose:** Atomic commits, branching strategies, and clean history management.
 
 **Requirements:**
-- REQ-GIT-01: Each task MUST get its own atomic commit
+- REQ-GIT-01: Each task MUST produce its own atomic commit trail, and modern execution summaries MUST record one distinct commit reference per declared task
 - REQ-GIT-02: Commit messages MUST follow structured format: `type(scope): description`
 - REQ-GIT-03: System MUST support 3 branching strategies: `none`, `phase`, `milestone`
 - REQ-GIT-04: Phase strategy MUST create one branch per phase
@@ -811,9 +811,41 @@ Color coding: <50% green, <65% yellow, <80% orange, ≥80% red with skull emoji
 
 ### 34. Execution Hardening
 
-**Purpose:** Three additive quality improvements to the execution pipeline that catch cross-plan failures before they cascade.
+**Purpose:** Hard-stop enforcement boundary that prevents subagents from silently bypassing workflow invariants. The enforcement layer is the primary mental model: agents cannot commit without verification, cannot skip tasks without logging, and cannot resume after integrity failures.
 
-**Components:**
+**Enforcement Boundary (primary model):**
+
+The enforcement boundary is a set of non-bypassable CLI primitives. Agents MUST use these primitives — raw `git commit` or manual state writes do not satisfy the boundary.
+
+| Primitive | What it enforces | Failure mode |
+|-----------|-----------------|--------------|
+| `complete-task` | Sequential task numbering, auto prev-hash, phase/plan/task all required | Exits 1, halts |
+| `commit-task` | Stage + continuity check + commit + verify + log in one call | Exits 1, halts |
+| `gate enforce` | Human acknowledgment before continuing | Exits 1, halts |
+| `verify integrity` | 10-check audit before any execution | Exits 1 or warns |
+| `context build` | Zod-validated snapshot for each workflow entry | Exits 1 on schema failure |
+| `checkpoint write` | Atomic checkpoint + commit; validates payload schema | Exits 1 on failure |
+
+**10-Check Integrity Audit (`verify integrity`):**
+
+| # | Check | Severity |
+|---|-------|----------|
+| 1 | HEAD matches last task log entry | error (stop) |
+| 2 | No stale pending gate artifacts | error (stop) |
+| 3 | Plan checkpoints → CHECKPOINT.md exists | error (stop) |
+| 3b | CHECKPOINT.md (non-resolved) → pending gate exists | warning (stop) |
+| 4 | All task log hashes exist in git history | error (stop) |
+| 5 | Last task log entry is valid JSON with hash | error (stop) |
+| 6 | Task log hashes ↔ SUMMARY Task Commits agree | error/warning |
+| 7 | All task log hashes are ancestors of HEAD | error (stop) |
+| 8 | Task log entries recorded on current branch | warning (stop) |
+| 9 | STATE.md current_phase ↔ ROADMAP in-progress | warning (ignorable) |
+| 10 | Classify warning severity (stop vs ignorable) | structural |
+
+**`complete-task` (strict task completion primitive):**
+Wraps `commit-task` with additional enforcement: `--phase`, `--plan`, and `--task` are all required; auto-injects `--prev-hash` from the last task log entry; rejects task N if last log entry is not task N-1. Agents must use `complete-task` for sequential tasks; `commit-task` remains available for single-task commits and testing.
+
+**Cross-Plan Pipeline Checks:**
 
 **1. Pre-Wave Dependency Check** (execute-phase)
 Before spawning wave N+1, verify key-links from prior wave artifacts exist and are wired correctly. Catches cross-plan dependency gaps before they cascade into downstream failures.
@@ -828,3 +860,6 @@ After Level 3 wiring verification passes, spot-check individual exports for actu
 - REQ-HARD-01: Pre-wave check MUST verify key-links from all prior wave artifacts before spawning next wave
 - REQ-HARD-02: Cross-plan contract check MUST detect incompatible data transformations between plans
 - REQ-HARD-03: Export spot-check MUST identify dead stores in wired files
+- REQ-HARD-04: `complete-task` MUST reject task N when last log entry is not task N-1
+- REQ-HARD-05: `verify integrity` MUST run 10 checks before any execution; `coherent: false` MUST block
+- REQ-HARD-06: `context build` MUST produce Zod-validated snapshot at each workflow entry point

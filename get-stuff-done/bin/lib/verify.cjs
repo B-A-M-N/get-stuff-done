@@ -2539,6 +2539,39 @@ function runVerifyIntegrity(cwd, options) {
     checks.checkpoint_coverage = { pass: true, note: 'skipped — no phase/plan provided' };
   }
 
+  // ── 3b. Orphaned CHECKPOINT.md (non-resolved but no pending gate) ──────────
+  if (phase) {
+    const phaseInfo = findPhaseInternal(cwd, phase);
+    let orphanedCheckpointCheck = { pass: true, note: 'no_checkpoint_file' };
+
+    if (phaseInfo) {
+      const checkpointFile = path.join(cwd, phaseInfo.directory, 'CHECKPOINT.md');
+      if (fs.existsSync(checkpointFile)) {
+        const cpContent = fs.readFileSync(checkpointFile, 'utf-8');
+        const cpFm = extractFrontmatter(cpContent);
+        const cpStatus = cpFm?.status || 'unknown';
+        const isResolved = cpStatus === 'resolved';
+
+        if (!isResolved) {
+          // Non-resolved CHECKPOINT.md: there should be a corresponding pending gate artifact.
+          // Without one, the checkpoint cannot be acknowledged — it's in an unresolvable state.
+          const hasPendingGate = pendingKeys.length > 0;
+          orphanedCheckpointCheck = {
+            pass: hasPendingGate,
+            checkpoint_status: cpStatus,
+            pending_gate_count: pendingKeys.length,
+          };
+          if (!hasPendingGate) {
+            warnings.push(`CHECKPOINT.md exists (status: ${cpStatus}) but no pending gate artifact found — checkpoint cannot be acknowledged via normal gate release`);
+          }
+        }
+      }
+    }
+    checks.checkpoint_orphan = orphanedCheckpointCheck;
+  } else {
+    checks.checkpoint_orphan = { pass: true, note: 'skipped — no phase provided' };
+  }
+
   // ── 4. All task log hashes exist in git history ────────────────────────────
   if (phase && plan) {
     const phaseInfo = findPhaseInternal(cwd, phase);

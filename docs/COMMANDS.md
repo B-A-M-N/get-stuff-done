@@ -133,7 +133,7 @@ Execute all plans in a phase with wave-based parallelization.
 | `N` | **Yes** | Phase number to execute |
 
 **Prerequisites:** Phase has PLAN.md files
-**Produces:** `{phase}-{N}-SUMMARY.md`, `{phase}-VERIFICATION.md`, git commits
+**Produces:** `{phase}-{N}-SUMMARY.md`, `{phase}-VERIFICATION.md`, git commits, and task-level commit references in modern summaries
 
 ```bash
 /gsd:execute-phase 1                # Execute phase 1
@@ -185,6 +185,14 @@ User acceptance testing with auto-diagnosis.
 **Prerequisites:** Phase has been executed
 **Produces:** `{phase}-UAT.md`, fix plans if issues found
 **Behavior:** narrative-first verification intake, ITL interpretation preview, explicit clarification checkpoints when verification intent is too uncertain, then standard user-confirmed UAT and gap logging
+**Enforced checks:** uses canonical `summary_files` and `config_warning` from `init verify-work`, and cold-start smoke-test injection is backed by `verify verify-work-cold-start <phase>` rather than prompt-only path scanning
+
+### `gsd-tools policy should-prompt <key>`
+
+Resolve the effective runtime prompt policy for `gates.*` and `safety.*` keys.
+
+- `gates.*`: `interactive` mode always prompts, `yolo` suppresses prompts, other modes defer to config
+- `safety.*`: prompt behavior follows the safety flag directly, even in `yolo`
 
 ```bash
 /dostuff:verify-work 1                  # UAT for phase 1
@@ -527,6 +535,69 @@ Archive accumulated phase directories from completed milestones.
 
 ---
 
+## Enforcement Boundary Commands
+
+These CLI primitives form the non-bypassable enforcement boundary. Agents use these directly; they are not slash commands but `gsd-tools` subcommands.
+
+### `complete-task` (gsd-tools)
+
+Single-call task completion primitive. Stricter than `commit-task`: phase/plan/task all required, auto prev-hash, sequential enforcement.
+
+```bash
+node gsd-tools.cjs complete-task "feat(01-02): add auth" \
+  --scope 01-02 --phase 1 --plan 2 --task 3 \
+  --files src/auth.ts
+```
+
+| Flag | Required | Description |
+|------|----------|-------------|
+| `--scope` | **Yes** | `{phase}-{plan}` scope tag |
+| `--phase` | **Yes** | Phase number |
+| `--plan` | **Yes** | Plan number |
+| `--task` | **Yes** | Task number (must be last+1 in log) |
+| `--files` | **Yes** | Files to stage |
+| `--prev-hash` | No | Override auto-detected prev hash |
+
+### `verify integrity` (gsd-tools)
+
+10-check coherence audit. Runs automatically at every `context build` call.
+
+```bash
+node gsd-tools.cjs verify integrity --phase 1 --plan 2
+```
+
+| Flag | Description |
+|------|-------------|
+| `--phase N` | Phase to audit (enables task-log checks) |
+| `--plan M` | Plan to audit (enables task-log checks) |
+| `--raw` | Output plain text status instead of JSON |
+
+### `firecrawl check` (gsd-tools)
+
+Check if the local Firecrawl instance is reachable. Agents call this before any external retrieval to determine whether to use Firecrawl or declare degraded mode.
+
+```bash
+node gsd-tools.cjs firecrawl check
+# → { available: true, planning_server_available: true, mode: "firecrawl" }
+# → exits 0 when up, 1 when down
+```
+
+### `context build` (gsd-tools)
+
+Build a Zod-validated execution snapshot for a workflow entry point.
+
+```bash
+node gsd-tools.cjs context build --workflow execute-plan --phase 1 --plan 2
+```
+
+| Flag | Required | Description |
+|------|----------|-------------|
+| `--workflow` | **Yes** | `execute-plan`, `verify-work`, or `plan-phase` |
+| `--phase N` | No | Override phase from STATE.md |
+| `--plan M` | No | Override plan from STATE.md |
+
+---
+
 ## Configuration Commands
 
 ### `/gsd:settings`
@@ -598,3 +669,8 @@ Open Discord community invite.
 ```bash
 /gsd:join-discord
 ```
+
+
+Verify-work note:
+- `/dostuff:verify-work` now consumes canonical `summary_files`, `config_warning`, and cold-start metadata from `init verify-work`.
+- Cold-start smoke-test injection is backed by `verify verify-work-cold-start <phase>`, not just prompt-side path scanning.

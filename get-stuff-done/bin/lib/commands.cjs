@@ -413,6 +413,85 @@ function cmdCommitTask(cwd, message, files, scope, options, raw) {
   output(result, raw, hash);
 }
 
+/**
+ * complete-task — Non-bypassable single-call task completion primitive.
+ *
+ * Stricter than commit-task:
+ *  - --phase, --plan, --task are all REQUIRED (no optional log)
+ *  - Auto-injects --prev-hash from the last task log entry (no manual passing)
+ *  - Enforces sequential task numbers (task N must follow task N-1 in log)
+ *
+ * Agents should prefer complete-task over commit-task to ensure continuity
+ * checks and log recording cannot be accidentally omitted.
+ */
+function cmdCompleteTask(cwd, message, files, scope, options, raw) {
+  if (!message) error('commit message required');
+  if (!scope) error('--scope required for complete-task');
+  if (!files || files.length === 0) error('--files required for complete-task');
+  if (!options.phase) error('--phase required for complete-task');
+  if (!options.plan) error('--plan required for complete-task');
+  if (options.task == null) error('--task required for complete-task');
+
+  const taskNum = Number(options.task);
+  if (isNaN(taskNum) || taskNum < 1) {
+    process.stdout.write(JSON.stringify({
+      committed: false, verified: false, hash: null, subject: null, scope,
+      errors: [`--task must be a positive integer (got: ${options.task})`],
+    }, null, 2));
+    process.exit(1);
+  }
+
+  // Read last task log entry to auto-inject prev-hash and enforce sequential numbering.
+  let auto_prev_hash = null;
+  const phaseInfoForLog = findPhaseInternal(cwd, options.phase);
+  if (phaseInfoForLog) {
+    const logFile = path.join(cwd, phaseInfoForLog.directory, `${options.phase}-${options.plan}-TASK-LOG.jsonl`);
+    if (fs.existsSync(logFile)) {
+      const lines = fs.readFileSync(logFile, 'utf-8').trim().split('\n').filter(Boolean);
+      if (lines.length > 0) {
+        let lastEntry = null;
+        try { lastEntry = JSON.parse(lines[lines.length - 1]); } catch {}
+        if (lastEntry) {
+          // Enforce sequential task numbering.
+          const lastTask = lastEntry.task != null ? Number(lastEntry.task) : null;
+          if (lastTask !== null && taskNum !== lastTask + 1) {
+            process.stdout.write(JSON.stringify({
+              committed: false, verified: false, hash: null, subject: null, scope,
+              errors: [`Task number gap: expected task ${lastTask + 1} but got task ${taskNum} — task log requires sequential numbering`],
+            }, null, 2));
+            process.exit(1);
+          }
+          if (lastEntry.hash) {
+            auto_prev_hash = lastEntry.hash;
+          }
+        }
+      } else if (taskNum !== 1) {
+        // Log exists but is empty — only task 1 is valid.
+        process.stdout.write(JSON.stringify({
+          committed: false, verified: false, hash: null, subject: null, scope,
+          errors: [`Task number gap: task log is empty but task number is ${taskNum} — expected task 1`],
+        }, null, 2));
+        process.exit(1);
+      }
+    } else if (taskNum !== 1) {
+      // No log yet — only task 1 is valid as the first entry.
+      process.stdout.write(JSON.stringify({
+        committed: false, verified: false, hash: null, subject: null, scope,
+        errors: [`Task number gap: no task log found but task number is ${taskNum} — expected task 1 for first entry`],
+      }, null, 2));
+      process.exit(1);
+    }
+  }
+
+  // Delegate to commit-task with auto-injected prev-hash.
+  cmdCommitTask(cwd, message, files, scope, {
+    phase: options.phase,
+    plan: options.plan,
+    task: options.task,
+    prev_hash: options.prev_hash || auto_prev_hash,
+  }, raw);
+}
+
 function cmdTaskLogRead(cwd, phase, plan, raw) {
   if (!phase) error('--phase required for task-log read');
   if (!plan) error('--plan required for task-log read');
@@ -1119,6 +1198,7 @@ module.exports = {
   cmdResolveModel,
   cmdCommit,
   cmdCommitTask,
+  cmdCompleteTask,
   cmdTaskLogRead,
   cmdTaskLogReconstruct,
   cmdCheckpointWrite,
