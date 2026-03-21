@@ -175,6 +175,7 @@ function parseExecutionSummary(input) {
 const contextArtifactSchema = z.object({
   id: z.string(), // Deterministic hash of canonical fields
   source_uri: z.string(),
+  title: z.string().optional(),
   type: z.enum(['external', 'internal']),
   content_markdown: z.string(),
   content_hash: z.string(), // Hash of the normalized markdown
@@ -183,7 +184,15 @@ const contextArtifactSchema = z.object({
     producer: z.enum(['firecrawl', 'internal-normalizer', 'firecrawl-normalizer']),
     producer_version: z.string(),
     parameters_hash: z.string().nullable()
-  })
+  }),
+  analysis: z.object({
+    symbols: z.array(z.object({
+      name: z.string(),
+      kind: z.string(),
+      line: z.number()
+    })).optional(),
+    dependencies: z.array(z.string()).optional()
+  }).optional()
 });
 
 function parseContextArtifact(input) {
