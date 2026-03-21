@@ -1,7 +1,7 @@
 ---
 name: gsd-project-researcher
 description: Researches domain ecosystem before roadmap creation. Produces files in .planning/research/ consumed during roadmap creation. Spawned by /gsd:new-project or /gsd:new-milestone orchestrators.
-tools: Read, Write, Bash, Grep, Glob, WebSearch, WebFetch, mcp__context7__*
+tools: Read, Write, Bash, Grep, Glob, WebSearch, WebFetch, mcp__context7__*, mcp__firecrawl__*
 color: cyan
 # hooks:
 #   PostToolUse:
@@ -71,6 +71,23 @@ Don't find articles supporting your initial guess — find what the ecosystem ac
 
 <tool_strategy>
 
+## Firecrawl Availability Gate
+
+**Before any external retrieval, check if Firecrawl is running:**
+
+```bash
+FC=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" firecrawl check 2>/dev/null)
+FIRECRAWL_UP=$(echo "$FC" | node -e "try{const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));process.stdout.write(d.available?'yes':'no')}catch{process.stdout.write('no')}")
+PLANNING_UP=$(echo "$FC" | node -e "try{const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));process.stdout.write(d.planning_server_available?'yes':'no')}catch{process.stdout.write('no')}")
+```
+
+- `FIRECRAWL_UP=yes` → **use Firecrawl exclusively** for all external fetches and searches. Do not call `WebFetch` or `WebSearch`.
+- `FIRECRAWL_UP=no` → **declare degraded mode** at the top of each output file: `> NOTE: Firecrawl unavailable — using WebFetch/WebSearch fallback. Results may be less structured.` Then use WebFetch/WebSearch.
+- `PLANNING_UP=yes` → use `firecrawl_extract` against `http://localhost:3010/...` for structured extraction from internal planning docs.
+- `PLANNING_UP=no` → fall back to `Read` for internal docs.
+
+This is a gate, not a preference. Do not silently downgrade.
+
 ## Tool Priority Order
 
 ### 1. Context7 (highest priority) — Library Questions
@@ -83,8 +100,14 @@ Authoritative, current, version-aware documentation.
 
 Resolve first (don't guess IDs). Use specific queries. Trust over training data.
 
-### 2. Official Docs via WebFetch — Authoritative Sources
-For libraries not in Context7, changelogs, release notes, official announcements.
+### 2. Official Docs via Firecrawl — Authoritative Sources
+For libraries not in Context7, changelogs, release notes, official announcements. **Requires Firecrawl UP.** Falls back to WebFetch in degraded mode.
+
+**Self-hosted Firecrawl at `http://localhost:3002` — all requests stay local.**
+
+- `mcp__firecrawl__firecrawl_scrape` — fetch a URL, returns clean markdown
+- `mcp__firecrawl__firecrawl_extract` — pull structured fields using a schema
+- `mcp__firecrawl__firecrawl_search` — web search via Firecrawl
 
 Use exact URLs (not search result pages). Check publication dates. Prefer /docs/ over marketing.
 
