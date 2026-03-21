@@ -19,7 +19,7 @@ describe('AST Normalization', () => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  test('internal normalizer extracts symbols from a mock .js file', () => {
+  test('internal normalizer extracts symbols from a mock .js file', async () => {
     const jsFilePath = path.join(tmpDir, '.planning', 'test-script.js');
     const code = `
       function calculateSum(a, b) {
@@ -37,7 +37,7 @@ describe('AST Normalization', () => {
     `;
     fs.writeFileSync(jsFilePath, code, 'utf8');
 
-    const internalArtifacts = normalizeInternal(tmpDir);
+    const internalArtifacts = await normalizeInternal(tmpDir);
     const artifact = internalArtifacts.find(a => a.source_uri.includes('test-script.js'));
 
     assert.ok(artifact, 'Artifact should exist for test-script.js');
@@ -134,13 +134,13 @@ const path = require('path');
     assert.strictEqual(testFunc.line, 1);
   });
 
-  test('parity check between internal and external extraction quality', () => {
+  test('parity check between internal and external extraction quality', async () => {
     const code = 'function commonFunc() {}';
     
     // Internal
     const jsFilePath = path.join(tmpDir, '.planning', 'common.js');
     fs.writeFileSync(jsFilePath, code, 'utf8');
-    const internalArtifacts = normalizeInternal(tmpDir);
+    const internalArtifacts = await normalizeInternal(tmpDir);
     const internal = internalArtifacts.find(a => a.source_uri.includes('common.js'));
 
     // External

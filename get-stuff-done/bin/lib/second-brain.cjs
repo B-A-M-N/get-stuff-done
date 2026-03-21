@@ -36,8 +36,9 @@ class SecondBrain {
       return;
     }
 
-    const client = await this.pool.connect();
+    let client;
     try {
+      client = await this.pool.connect();
       await client.query('BEGIN');
 
       const upsertArtifactQuery = `
@@ -98,11 +99,14 @@ class SecondBrain {
       await client.query('COMMIT');
       console.log(`[SecondBrain] Ingested artifact: ${artifact.id}`);
     } catch (err) {
-      await client.query('ROLLBACK');
+      if (client) await client.query('ROLLBACK');
       console.error(`[SecondBrain] Failed to ingest artifact ${artifact.id}: ${err.message}`);
       // Don't throw, just log. Allow workflow to continue.
+      if (err.message.includes('SASL') || err.message.includes('connection')) {
+        this.offlineMode = true; // Mark as offline for subsequent calls
+      }
     } finally {
-      client.release();
+      if (client) client.release();
     }
   }
 
