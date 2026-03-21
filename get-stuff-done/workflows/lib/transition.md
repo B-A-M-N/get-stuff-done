@@ -58,28 +58,22 @@ cat .planning/config.json 2>/dev/null
 
 </config-check>
 
+Hard gate: enforce transition confirmation before routing.
+
 **If all plans complete:**
 
-<if mode="yolo">
-
+```bash
+if ! node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" gate enforce --key gates.confirm_transition; then
+  # Gate is active — ask: "Phase [X] complete — all [Y] plans finished. Ready to mark done and move to Phase [X+1]?"
+  # Wait for confirmation, then release:
+  node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" gate release --key gates.confirm_transition
+else
+  # Gate is clear — auto-approve transition:
+  echo "⚡ Auto-approved: Transition Phase [X] → Phase [X+1]"
+fi
 ```
-⚡ Auto-approved: Transition Phase [X] → Phase [X+1]
-Phase [X] complete — all [Y] plans finished.
 
-Proceeding to mark done and advance...
-```
-
-Proceed directly to cleanup_handoff step.
-
-</if>
-
-<if mode="interactive" OR="custom with gates.confirm_transition true">
-
-Ask: "Phase [X] complete — all [Y] plans finished. Ready to mark done and move to Phase [X+1]?"
-
-Wait for confirmation before proceeding.
-
-</if>
+Proceed to cleanup_handoff step.
 
 **If plans incomplete:**
 
@@ -366,7 +360,7 @@ ls .planning/phases/*[X+1]*/*-CONTEXT.md 2>/dev/null
 
 **If next phase exists:**
 
-<if mode="yolo">
+If `CONFIRM_TRANSITION.should_prompt` is `false` (yolo or custom gate off):
 
 **If CONTEXT.md exists:**
 
@@ -392,9 +386,7 @@ Next: Phase [X+1] — [Name]
 
 Exit skill and invoke SlashCommand("/gsd:discuss-phase [X+1] --auto")
 
-</if>
-
-<if mode="interactive" OR="custom with gates.confirm_transition true">
+If `CONFIRM_TRANSITION.should_prompt` is `true` (interactive or custom gate on):
 
 **If CONTEXT.md does NOT exist:**
 
@@ -474,8 +466,6 @@ Stop. Do not execute anything. Wait for the user to /clear.
 
 Continue the session normally. Do NOT write scratch pad. The current context remains intact.
 
-</if>
-
 ---
 
 **Route B: Milestone complete (all phases done)**
@@ -485,7 +475,7 @@ Continue the session normally. Do NOT write scratch pad. The current context rem
 node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" config-set workflow._auto_chain_active false
 ```
 
-<if mode="yolo">
+If `CONFIRM_TRANSITION.should_prompt` is `false` (yolo or custom gate off):
 
 ```
 Phase {X} marked complete.
@@ -497,9 +487,7 @@ Phase {X} marked complete.
 
 Exit skill and invoke SlashCommand("/gsd:complete-milestone {version}")
 
-</if>
-
-<if mode="interactive" OR="custom with gates.confirm_transition true">
+If `CONFIRM_TRANSITION.should_prompt` is `true` (interactive or custom gate on):
 
 Present the milestone completion and ask what they want to do. Do NOT write scratch pad yet.
 
@@ -529,8 +517,6 @@ What would you like to do next?
 **Case B — GSD redirect** → derive correct command, write scratch pad, show /clear banner. Stop.
 
 **Case C — Unrelated** → continue session normally, do not write scratch pad.
-
-</if>
 
 </step>
 

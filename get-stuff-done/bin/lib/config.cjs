@@ -19,10 +19,13 @@ const VALID_CONFIG_KEYS = new Set([
   'mode', 'granularity', 'parallelization', 'commit_docs', 'model_profile',
   'search_gitignored', 'brave_search',
   'workflow.research', 'workflow.plan_check', 'workflow.verifier',
-  'workflow.nyquist_validation', 'workflow.adversarial_test_harness', 'workflow.ui_phase', 'workflow.ui_safety_gate',
-  'workflow._auto_chain_active',
+  'workflow.auto_advance', 'workflow.nyquist_validation', 'workflow.adversarial_test_harness', 'workflow.ui_phase', 'workflow.ui_safety_gate',
+  'workflow.node_repair', 'workflow.node_repair_budget', 'workflow._auto_chain_active',
   'git.branching_strategy', 'git.phase_branch_template', 'git.milestone_branch_template',
   'planning.commit_docs', 'planning.search_gitignored',
+  'gates.confirm_project', 'gates.confirm_phases', 'gates.confirm_roadmap', 'gates.confirm_breakdown',
+  'gates.confirm_plan', 'gates.execute_next_plan', 'gates.issues_review', 'gates.confirm_transition', 'gates.confirm_milestone_scope',
+  'safety.always_confirm_destructive', 'safety.always_confirm_external_services',
 ]);
 
 const CONFIG_KEY_SUGGESTIONS = {
@@ -36,6 +39,81 @@ function validateKnownConfigKeyPath(keyPath) {
   if (suggested) {
     error(`Unknown config key: ${keyPath}. Did you mean ${suggested}?`);
   }
+}
+
+function buildDefaultConfig(hasBraveSearch = false) {
+  return {
+    mode: 'interactive',
+    granularity: 'standard',
+    model_profile: 'balanced',
+    commit_docs: true,
+    search_gitignored: false,
+    branching_strategy: 'none',
+    phase_branch_template: 'gsd/phase-{phase}-{slug}',
+    milestone_branch_template: 'gsd/{milestone}-{slug}',
+    workflow: {
+      research: true,
+      plan_check: true,
+      verifier: true,
+      auto_advance: false,
+      nyquist_validation: true,
+      adversarial_test_harness: true,
+      ui_phase: true,
+      ui_safety_gate: true,
+      node_repair: true,
+      node_repair_budget: 2,
+      _auto_chain_active: false,
+    },
+    planning: {
+      commit_docs: true,
+      search_gitignored: false,
+    },
+    git: {
+      branching_strategy: 'none',
+      phase_branch_template: 'gsd/phase-{phase}-{slug}',
+      milestone_branch_template: 'gsd/{milestone}-{slug}',
+    },
+    parallelization: true,
+    brave_search: hasBraveSearch,
+    gates: {
+      confirm_project: true,
+      confirm_phases: true,
+      confirm_roadmap: true,
+      confirm_breakdown: true,
+      confirm_plan: true,
+      execute_next_plan: true,
+      issues_review: true,
+      confirm_transition: true,
+      confirm_milestone_scope: true,
+    },
+    safety: {
+      always_confirm_destructive: true,
+      always_confirm_external_services: true,
+    },
+  };
+}
+
+function mergeConfigWithDefaults(userConfig = {}, defaults) {
+  return {
+    ...defaults,
+    ...userConfig,
+    workflow: { ...defaults.workflow, ...(userConfig.workflow || {}) },
+    planning: { ...defaults.planning, ...(userConfig.planning || {}) },
+    git: { ...defaults.git, ...(userConfig.git || {}) },
+    gates: { ...defaults.gates, ...(userConfig.gates || {}) },
+    safety: { ...defaults.safety, ...(userConfig.safety || {}) },
+    parallelization: userConfig.parallelization !== undefined ? userConfig.parallelization : defaults.parallelization,
+  };
+}
+
+function getDefaultValueForKeyPath(keyPath, defaults) {
+  const keys = keyPath.split('.');
+  let current = defaults;
+  for (const key of keys) {
+    if (current === undefined || current === null || typeof current !== 'object') return undefined;
+    current = current[key];
+  }
+  return current;
 }
 
 /**
@@ -88,30 +166,7 @@ function ensureConfigFile(cwd) {
   }
 
   // Create default config (user-level defaults override hardcoded defaults)
-  const hardcoded = {
-    model_profile: 'balanced',
-    commit_docs: true,
-    search_gitignored: false,
-    branching_strategy: 'none',
-    phase_branch_template: 'gsd/phase-{phase}-{slug}',
-    milestone_branch_template: 'gsd/{milestone}-{slug}',
-    workflow: {
-      research: true,
-      plan_check: true,
-      verifier: true,
-      nyquist_validation: true,
-      adversarial_test_harness: true,
-      ui_phase: true,
-      ui_safety_gate: true,
-    },
-    parallelization: true,
-    brave_search: hasBraveSearch,
-  };
-  const defaults = {
-    ...hardcoded,
-    ...userDefaults,
-    workflow: { ...hardcoded.workflow, ...(userDefaults.workflow || {}) },
-  };
+  const defaults = mergeConfigWithDefaults(userDefaults, buildDefaultConfig(hasBraveSearch));
 
   try {
     fs.writeFileSync(configPath, JSON.stringify(defaults, null, 2), 'utf-8');
@@ -225,18 +280,29 @@ function cmdConfigGet(cwd, keyPath, raw) {
     error('Failed to read config.json: ' + err.message);
   }
 
+  const homedir = getGsdHomeDir();
+  const braveKeyFile = path.join(homedir, '.gsd', 'brave_api_key');
+  const defaults = buildDefaultConfig(!!(process.env.BRAVE_API_KEY || fs.existsSync(braveKeyFile)));
+
   // Traverse dot-notation path (e.g., "workflow.auto_advance")
   const keys = keyPath.split('.');
   let current = config;
+  let missingPath = false;
   for (const key of keys) {
     if (current === undefined || current === null || typeof current !== 'object') {
-      error(`Key not found: ${keyPath}`);
+      missingPath = true;
+      break;
     }
     current = current[key];
   }
 
-  if (current === undefined) {
-    error(`Key not found: ${keyPath}`);
+  if (missingPath || current === undefined) {
+    const fallback = getDefaultValueForKeyPath(keyPath, defaults);
+    if (fallback === undefined) {
+      error(`Key not found: ${keyPath}`);
+    }
+    output(fallback, raw, String(fallback));
+    return;
   }
 
   output(current, raw, String(current));

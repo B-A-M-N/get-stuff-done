@@ -49,9 +49,25 @@ function safeReadFile(filePath) {
   }
 }
 
+const PROMPT_POLICY_KEYS = new Set([
+  'gates.confirm_project',
+  'gates.confirm_phases',
+  'gates.confirm_roadmap',
+  'gates.confirm_breakdown',
+  'gates.confirm_plan',
+  'gates.execute_next_plan',
+  'gates.issues_review',
+  'gates.confirm_transition',
+  'gates.confirm_milestone_scope',
+  'safety.always_confirm_destructive',
+  'safety.always_confirm_external_services',
+]);
+
 function loadConfig(cwd) {
   const configPath = path.join(cwd, '.planning', 'config.json');
   const defaults = {
+    mode: 'interactive',
+    granularity: 'standard',
     model_profile: 'balanced',
     commit_docs: true,
     search_gitignored: false,
@@ -61,12 +77,30 @@ function loadConfig(cwd) {
     research: true,
     plan_checker: true,
     verifier: true,
+    auto_advance: false,
     nyquist_validation: true,
     adversarial_test_harness: true,
     ui_phase: true,
     ui_safety_gate: true,
+    node_repair: true,
+    node_repair_budget: 2,
     parallelization: true,
     brave_search: false,
+    gates: {
+      confirm_project: true,
+      confirm_phases: true,
+      confirm_roadmap: true,
+      confirm_breakdown: true,
+      confirm_plan: true,
+      execute_next_plan: true,
+      issues_review: true,
+      confirm_transition: true,
+      confirm_milestone_scope: true,
+    },
+    safety: {
+      always_confirm_destructive: true,
+      always_confirm_external_services: true,
+    },
   };
 
   try {
@@ -97,6 +131,8 @@ function loadConfig(cwd) {
     })();
 
     return {
+      mode: get('mode') ?? defaults.mode,
+      granularity: get('granularity') ?? defaults.granularity,
       model_profile: get('model_profile') ?? defaults.model_profile,
       commit_docs: get('commit_docs', { section: 'planning', field: 'commit_docs' }) ?? defaults.commit_docs,
       search_gitignored: get('search_gitignored', { section: 'planning', field: 'search_gitignored' }) ?? defaults.search_gitignored,
@@ -106,17 +142,74 @@ function loadConfig(cwd) {
       research: get('research', { section: 'workflow', field: 'research' }) ?? defaults.research,
       plan_checker: get('plan_checker', { section: 'workflow', field: 'plan_check' }) ?? defaults.plan_checker,
       verifier: get('verifier', { section: 'workflow', field: 'verifier' }) ?? defaults.verifier,
+      auto_advance: get('auto_advance', { section: 'workflow', field: 'auto_advance' }) ?? defaults.auto_advance,
       nyquist_validation: get('nyquist_validation', { section: 'workflow', field: 'nyquist_validation' }) ?? defaults.nyquist_validation,
       adversarial_test_harness: get('adversarial_test_harness', { section: 'workflow', field: 'adversarial_test_harness' }) ?? defaults.adversarial_test_harness,
       ui_phase: get('ui_phase', { section: 'workflow', field: 'ui_phase' }) ?? defaults.ui_phase,
       ui_safety_gate: get('ui_safety_gate', { section: 'workflow', field: 'ui_safety_gate' }) ?? defaults.ui_safety_gate,
+      node_repair: get('node_repair', { section: 'workflow', field: 'node_repair' }) ?? defaults.node_repair,
+      node_repair_budget: get('node_repair_budget', { section: 'workflow', field: 'node_repair_budget' }) ?? defaults.node_repair_budget,
       parallelization,
       brave_search: get('brave_search') ?? defaults.brave_search,
+      gates: { ...defaults.gates, ...((parsed.gates && typeof parsed.gates === 'object') ? parsed.gates : {}) },
+      safety: { ...defaults.safety, ...((parsed.safety && typeof parsed.safety === 'object') ? parsed.safety : {}) },
       model_overrides: parsed.model_overrides || null,
+      _load_error: null,
     };
-  } catch {
-    return defaults;
+  } catch (err) {
+    return { ...defaults, _load_error: fs.existsSync(configPath) ? 'Failed to read config.json: ' + err.message : null };
   }
+}
+
+function resolvePromptPolicy(config, keyPath) {
+  if (!PROMPT_POLICY_KEYS.has(keyPath)) {
+    throw new Error('Unknown prompt policy key: ' + keyPath);
+  }
+
+  const [section, key] = keyPath.split('.');
+  const configuredValue = Boolean(config?.[section]?.[key]);
+
+  if (section === 'safety') {
+    return {
+      key: keyPath,
+      section,
+      mode: config?.mode || 'interactive',
+      configured_value: configuredValue,
+      should_prompt: configuredValue,
+      reason: configuredValue ? 'safety_enabled' : 'safety_disabled',
+    };
+  }
+
+  if ((config?.mode || 'interactive') === 'interactive') {
+    return {
+      key: keyPath,
+      section,
+      mode: config.mode,
+      configured_value: configuredValue,
+      should_prompt: true,
+      reason: 'interactive_mode',
+    };
+  }
+
+  if ((config?.mode || 'interactive') === 'yolo') {
+    return {
+      key: keyPath,
+      section,
+      mode: config.mode,
+      configured_value: configuredValue,
+      should_prompt: false,
+      reason: 'yolo_mode',
+    };
+  }
+
+  return {
+    key: keyPath,
+    section,
+    mode: config?.mode || 'interactive',
+    configured_value: configuredValue,
+    should_prompt: configuredValue,
+    reason: configuredValue ? 'gate_enabled' : 'gate_disabled',
+  };
 }
 
 // ─── Git utilities ────────────────────────────────────────────────────────────
@@ -587,6 +680,7 @@ module.exports = {
   error,
   safeReadFile,
   loadConfig,
+  resolvePromptPolicy,
   isGitIgnored,
   execGit,
   normalizeMd,

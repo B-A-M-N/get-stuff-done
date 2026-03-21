@@ -95,30 +95,22 @@ cat .planning/config.json 2>/dev/null
 
 </config-check>
 
-<if mode="yolo">
+Hard gate: enforce milestone scope confirmation.
 
-```
-⚡ Auto-approved: Milestone scope verification
-[Show breakdown summary without prompting]
-Proceeding to stats gathering...
+```bash
+if ! node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" gate enforce --key gates.confirm_milestone_scope; then
+  # Gate is active — ask: "Ready to mark this milestone as shipped? (yes / wait / adjust scope)"
+  # - "adjust scope": Ask which phases to include.
+  # - "wait": Stop, user returns when ready.
+  # After confirmation:
+  node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" gate release --key gates.confirm_milestone_scope
+else
+  # Gate is clear — auto-approve:
+  echo "⚡ Auto-approved: Milestone scope verification"
+fi
 ```
 
 Proceed to gather_stats.
-
-</if>
-
-<if mode="interactive" OR="custom with gates.confirm_milestone_scope true">
-
-```
-Ready to mark this milestone as shipped?
-(yes / wait / adjust scope)
-```
-
-Wait for confirmation.
-- "adjust scope": Ask which phases to include.
-- "wait": Stop, user returns when ready.
-
-</if>
 
 </step>
 

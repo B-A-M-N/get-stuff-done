@@ -27,6 +27,80 @@ function getClarificationStatus(cwd) {
   }
 }
 
+function extractSummaryPathsForColdStart(content, frontmatter) {
+  const found = new Set();
+  const keyFiles = frontmatter['key-files'];
+  if (keyFiles && typeof keyFiles === 'object') {
+    for (const bucket of ['created', 'modified']) {
+      const values = keyFiles[bucket];
+      if (Array.isArray(values)) {
+        for (const value of values) {
+          if (typeof value === 'string' && value.trim()) found.add(value.trim());
+        }
+      }
+    }
+  }
+
+  const patterns = [
+    /`([^`]+)`/g,
+    /(?:Created|Modified|Added|Updated|Edited):s*`?([^s`]+)`?/gi,
+  ];
+
+  for (const pattern of patterns) {
+    let match;
+    while ((match = pattern.exec(content)) !== null) {
+      const candidate = match[1]?.trim();
+      if (candidate && candidate.includes('/') && !candidate.startsWith('http')) {
+        found.add(candidate);
+      }
+    }
+  }
+
+  return Array.from(found);
+}
+
+function isColdStartSensitivePath(filePath) {
+  const normalized = String(filePath || '').replace(/\\/g, '/').toLowerCase();
+  return [
+    /(^|\/)(server|app|index|main)\.[^/]+$/,
+    /(^|\/)(database|db|seed|seeds|migrations)(\/|$)/,
+    /(^|\/)startup[^/]*$/,
+    /(^|\/)docker-compose[^/]*$/,
+    /(^|\/)dockerfile[^/]*$/,
+  ].some(pattern => pattern.test(normalized));
+}
+
+function analyzeVerifyWorkSummaries(cwd, phaseInfo) {
+  if (!phaseInfo?.directory) {
+    return { summary_files: [], needs_cold_start_smoke_test: false, cold_start_paths: [] };
+  }
+
+  const phaseDir = path.join(cwd, phaseInfo.directory);
+  let files = [];
+  try {
+    files = fs.readdirSync(phaseDir).filter(f => f.endsWith('-SUMMARY.md') || f === 'SUMMARY.md').sort();
+  } catch {
+    return { summary_files: [], needs_cold_start_smoke_test: false, cold_start_paths: [] };
+  }
+
+  const coldStartPaths = new Set();
+  for (const fileName of files) {
+    try {
+      const content = fs.readFileSync(path.join(phaseDir, fileName), 'utf8');
+      const frontmatter = extractFrontmatter(content);
+      for (const candidate of extractSummaryPathsForColdStart(content, frontmatter)) {
+        if (isColdStartSensitivePath(candidate)) coldStartPaths.add(candidate);
+      }
+    } catch {}
+  }
+
+  return {
+    summary_files: files.map(fileName => toPosixPath(path.join(phaseInfo.directory, fileName))),
+    needs_cold_start_smoke_test: coldStartPaths.size > 0,
+    cold_start_paths: Array.from(coldStartPaths).sort(),
+  };
+}
+
 function cmdInitExecutePhase(cwd, phase, raw) {
   if (!phase) {
     error('phase required for init execute-phase');
@@ -197,6 +271,7 @@ function cmdInitNewProject(cwd, raw) {
   // Detect existing code
   let hasCode = false;
   let hasPackageFile = false;
+  let codeDetectionWarning = null;
   try {
     const files = execSync('find . -maxdepth 3 \\( -name "*.ts" -o -name "*.js" -o -name "*.py" -o -name "*.go" -o -name "*.rs" -o -name "*.swift" -o -name "*.java" \\) 2>/dev/null | grep -v node_modules | grep -v .git | head -5', {
       cwd,
@@ -204,7 +279,14 @@ function cmdInitNewProject(cwd, raw) {
       stdio: ['pipe', 'pipe', 'pipe'],
     });
     hasCode = files.trim().length > 0;
-  } catch {}
+  } catch (err) {
+    const stderr = String(err.stderr || '').trim();
+    const stdout = String(err.stdout || '').trim();
+    const detail = stderr || stdout;
+    if (detail) {
+      codeDetectionWarning = `Code detection degraded: ${detail.split('\n')[0]}`;
+    }
+  }
 
   hasPackageFile = pathExistsInternal(cwd, 'package.json') ||
                    pathExistsInternal(cwd, 'requirements.txt') ||
@@ -220,6 +302,7 @@ function cmdInitNewProject(cwd, raw) {
 
     // Config
     commit_docs: config.commit_docs,
+    config_warning: config._load_error || null,
 
     // Existing state
     project_exists: pathExistsInternal(cwd, '.planning/PROJECT.md'),
@@ -231,6 +314,7 @@ function cmdInitNewProject(cwd, raw) {
     has_package_file: hasPackageFile,
     is_brownfield: hasCode || hasPackageFile,
     needs_codebase_map: (hasCode || hasPackageFile) && !pathExistsInternal(cwd, '.planning/codebase'),
+    code_detection_warning: codeDetectionWarning,
 
     // Git state
     has_git: pathExistsInternal(cwd, '.git'),
@@ -369,6 +453,7 @@ function cmdInitVerifyWork(cwd, phase, raw) {
 
   const config = loadConfig(cwd);
   const phaseInfo = findPhaseInternal(cwd, phase);
+  const summaryAnalysis = analyzeVerifyWorkSummaries(cwd, phaseInfo);
 
   const result = {
     // Models
@@ -377,6 +462,7 @@ function cmdInitVerifyWork(cwd, phase, raw) {
 
     // Config
     commit_docs: config.commit_docs,
+    config_warning: config._load_error || null,
 
     // Phase info
     phase_found: !!phaseInfo,
@@ -386,6 +472,9 @@ function cmdInitVerifyWork(cwd, phase, raw) {
 
     // Existing artifacts
     has_verification: phaseInfo?.has_verification || false,
+    summary_files: summaryAnalysis.summary_files,
+    needs_cold_start_smoke_test: summaryAnalysis.needs_cold_start_smoke_test,
+    cold_start_paths: summaryAnalysis.cold_start_paths,
   };
 
   output(result, raw);

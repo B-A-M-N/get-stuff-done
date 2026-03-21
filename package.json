@@ -46,7 +46,9 @@
     "build:hooks": "node scripts/build-hooks.js",
     "prepublishOnly": "npm run build:hooks",
     "test": "node scripts/run-tests.cjs",
-    "test:coverage": "c8 --check-coverage --lines 100 --reporter text --include 'get-stuff-done/bin/lib/itl*.cjs' --include 'packages/itl/**/*.cjs' --exclude 'tests/**' --all node --test tests/itl.test.cjs tests/itl-package.test.cjs tests/dostuff.test.cjs"
+    "test:coverage": "c8 --check-coverage --lines 100 --reporter text --include 'get-stuff-done/bin/lib/itl*.cjs' --include 'packages/itl/**/*.cjs' --exclude 'tests/**' --all node --test tests/itl.test.cjs tests/itl-package.test.cjs tests/dostuff.test.cjs",
+    "test:gates": "node --test tests/verify.test.cjs tests/policy.test.cjs tests/gate.test.cjs tests/enforcement.test.cjs tests/dispatcher.test.cjs tests/execution-path.test.cjs",
+    "test:all": "node scripts/run-tests.cjs"
   },
   "dependencies": {
     "zod": "^4.3.6"

@@ -18,11 +18,14 @@ const {
   getCodexSkillAdapterHeader,
   convertClaudeAgentToCodexAgent,
   generateCodexAgentToml,
+  bubblewrapSupportsArgv0,
+  resolveCodexSandboxMode,
   generateCodexConfigBlock,
   stripGsdFromCodexConfig,
   mergeCodexConfig,
   GSD_CODEX_MARKER,
   CODEX_AGENT_SANDBOX,
+  CODEX_SANDBOX_FALLBACK_MODE,
 } = require('../bin/install.js');
 
 // ─── getCodexSkillAdapterHeader ─────────────────────────────────────────────────
@@ -137,7 +140,7 @@ color: yellow
 <role>You are an executor.</role>`;
 
   test('sets workspace-write for executor', () => {
-    const result = generateCodexAgentToml('dostuff-executor', sampleAgent);
+    const result = generateCodexAgentToml('dostuff-executor', sampleAgent, { bubblewrapSupported: true });
     assert.ok(result.includes('sandbox_mode = "workspace-write"'), 'has workspace-write');
   });
 
@@ -149,24 +152,49 @@ tools: Read, Grep, Glob
 ---
 
 <role>You check plans.</role>`;
-    const result = generateCodexAgentToml('dostuff-plan-checker', checker);
+    const result = generateCodexAgentToml('dostuff-plan-checker', checker, { bubblewrapSupported: true });
     assert.ok(result.includes('sandbox_mode = "read-only"'), 'has read-only');
   });
 
   test('includes developer_instructions from body', () => {
-    const result = generateCodexAgentToml('dostuff-executor', sampleAgent);
+    const result = generateCodexAgentToml('dostuff-executor', sampleAgent, { bubblewrapSupported: true });
     assert.ok(result.includes("developer_instructions = '''"), 'has literal triple-quoted instructions');
     assert.ok(result.includes('<role>You are an executor.</role>'), 'body content in instructions');
     assert.ok(result.includes("'''"), 'has closing literal triple quotes');
   });
 
   test('defaults unknown agents to read-only', () => {
-    const result = generateCodexAgentToml('dostuff-unknown', sampleAgent);
+    const result = generateCodexAgentToml('dostuff-unknown', sampleAgent, { bubblewrapSupported: true });
     assert.ok(result.includes('sandbox_mode = "read-only"'), 'defaults to read-only');
+  });
+
+  test('falls back to danger-full-access when bubblewrap lacks --argv0', () => {
+    const result = generateCodexAgentToml('dostuff-executor', sampleAgent, { bubblewrapSupported: false });
+    assert.ok(result.includes(`sandbox_mode = "${CODEX_SANDBOX_FALLBACK_MODE}"`), 'uses fallback mode');
   });
 });
 
 // ─── CODEX_AGENT_SANDBOX mapping ────────────────────────────────────────────────
+
+describe('resolveCodexSandboxMode', () => {
+  test('returns mapped mode when bubblewrap is supported', () => {
+    assert.strictEqual(resolveCodexSandboxMode('dostuff-executor', { bubblewrapSupported: true }), 'workspace-write');
+    assert.strictEqual(resolveCodexSandboxMode('dostuff-plan-checker', { bubblewrapSupported: true }), 'read-only');
+  });
+
+  test('returns fallback mode when bubblewrap is unsupported', () => {
+    assert.strictEqual(resolveCodexSandboxMode('dostuff-executor', { bubblewrapSupported: false }), CODEX_SANDBOX_FALLBACK_MODE);
+    assert.strictEqual(resolveCodexSandboxMode('dostuff-unknown', { bubblewrapSupported: false }), CODEX_SANDBOX_FALLBACK_MODE);
+  });
+
+  test('forced mode override wins', () => {
+    assert.strictEqual(resolveCodexSandboxMode('dostuff-executor', { forcedMode: 'read-only', bubblewrapSupported: false }), 'read-only');
+  });
+
+  test('probe returns a boolean', () => {
+    assert.strictEqual(typeof bubblewrapSupportsArgv0(), 'boolean');
+  });
+});
 
 describe('CODEX_AGENT_SANDBOX', () => {
   test('has all 11 agents mapped', () => {
@@ -485,10 +513,12 @@ describe('installCodexConfig (integration)', () => {
     assert.ok(fs.existsSync(path.join(agentsDir, 'dostuff-plan-checker.toml')), 'plan-checker .toml exists');
 
     const executorToml = fs.readFileSync(path.join(agentsDir, 'dostuff-executor.toml'), 'utf8');
-    assert.ok(executorToml.includes('sandbox_mode = "workspace-write"'), 'executor is workspace-write');
+    const expectedExecutorMode = resolveCodexSandboxMode('dostuff-executor');
+    assert.ok(executorToml.includes(`sandbox_mode = "${expectedExecutorMode}"`), 'executor uses resolved sandbox mode');
     assert.ok(executorToml.includes('developer_instructions'), 'has developer_instructions');
 
     const checkerToml = fs.readFileSync(path.join(agentsDir, 'dostuff-plan-checker.toml'), 'utf8');
-    assert.ok(checkerToml.includes('sandbox_mode = "read-only"'), 'plan-checker is read-only');
+    const expectedCheckerMode = resolveCodexSandboxMode('dostuff-plan-checker');
+    assert.ok(checkerToml.includes(`sandbox_mode = "${expectedCheckerMode}"`), 'plan-checker uses resolved sandbox mode');
   });
 });

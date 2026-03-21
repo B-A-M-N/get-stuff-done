@@ -771,26 +771,182 @@ describe('verify summary command', () => {
     );
   });
 
-  test('passes schema validation for well-formed SUMMARY.md', () => {
-    const summaryPath = path.join(tmpDir, '.planning', 'phases', '01-test', '01-01-SUMMARY.md');
+  test('requires task commits for non-legacy summaries and accepts matching task coverage', () => {
+    fs.mkdirSync(path.join(tmpDir, 'src'), { recursive: true });
+    fs.writeFileSync(path.join(tmpDir, 'src', 'app.js'), 'console.log("app");\n');
+    execSync('git add -A', { cwd: tmpDir, stdio: 'pipe' });
+    execSync('git commit -m "task 1"', { cwd: tmpDir, stdio: 'pipe' });
+    const firstHash = execSync('git rev-parse --short HEAD', { cwd: tmpDir, encoding: 'utf-8' }).trim();
+    fs.writeFileSync(path.join(tmpDir, 'src', 'server.js'), 'console.log("server");\n');
+    execSync('git add -A', { cwd: tmpDir, stdio: 'pipe' });
+    execSync('git commit -m "task 2"', { cwd: tmpDir, stdio: 'pipe' });
+    const secondHash = execSync('git rev-parse --short HEAD', { cwd: tmpDir, encoding: 'utf-8' }).trim();
+
+    const summaryPath = path.join(tmpDir, '.planning', 'phases', '01-test', '15-01-SUMMARY.md');
     fs.writeFileSync(summaryPath, [
+      '---',
+      'phase: 15',
+      'plan: 01',
+      'subsystem: runtime-enforced',
+      'tags: [unit]',
+      'provides: [runtime]',
+      'duration: 10min',
+      'completed: 2026-03-20',
+      '---',
+      '# Summary',
+      '',
+      'Created: `src/app.js`',
+      'Modified: `src/server.js`',
+      '',
+      '- **Tasks:** 2',
+      '',
+      '## Task Commits',
+      '',
+      `- Task 1: ${firstHash}`,
+      `- Task 2: ${secondHash}`,
+      '',
+      '## Self-Check',
+      '',
+      'All tests pass',
+    ].join('\n'));
+
+    const result = runGsdTools('verify-summary .planning/phases/01-test/15-01-SUMMARY.md', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.passed, true, JSON.stringify(output));
+    assert.strictEqual(output.checks.task_commits.required, true);
+    assert.strictEqual(output.checks.task_commits.section_present, true);
+    assert.strictEqual(output.checks.task_commits.unique, 2);
+  });
+
+  test('fails non-legacy summaries without a task commit section', () => {
+    const summaryPath = path.join(tmpDir, '.planning', 'phases', '01-test', '15-02-SUMMARY.md');
+    fs.writeFileSync(summaryPath, [
+      '---',
+      'phase: 15',
+      'plan: 02',
+      'subsystem: runtime-enforced',
+      'tags: [unit]',
+      'provides: [runtime]',
+      'duration: 5min',
+      'completed: 2026-03-20',
+      '---',
+      '# Summary',
+      '',
+      '- **Tasks:** 1',
+    ].join('\n'));
+
+    const output = JSON.parse(runGsdTools('verify-summary .planning/phases/01-test/15-02-SUMMARY.md', tmpDir).output);
+    assert.strictEqual(output.passed, false);
+    assert.ok(output.errors.some(err => err.includes('Missing required ## Task Commits section')));
+  });
+
+  test('fails when task commit coverage is below declared task count', () => {
+    fs.writeFileSync(path.join(tmpDir, 'task.txt'), 'task\n');
+    execSync('git add -A', { cwd: tmpDir, stdio: 'pipe' });
+    execSync('git commit -m "one task"', { cwd: tmpDir, stdio: 'pipe' });
+    const hash = execSync('git rev-parse --short HEAD', { cwd: tmpDir, encoding: 'utf-8' }).trim();
+    const summaryPath = path.join(tmpDir, '.planning', 'phases', '01-test', '15-03-SUMMARY.md');
+    fs.writeFileSync(summaryPath, [
+      '---',
+      'phase: 15',
+      'plan: 03',
+      'subsystem: runtime-enforced',
+      'tags: [unit]',
+      'provides: [runtime]',
+      'duration: 5min',
+      'completed: 2026-03-20',
+      '---',
+      '# Summary',
+      '',
+      '- **Tasks:** 2',
+      '',
+      '## Task Commits',
+      '',
+      `- Task 1: ${hash}`,
+    ].join('\n'));
+
+    const output = JSON.parse(runGsdTools('verify-summary .planning/phases/01-test/15-03-SUMMARY.md', tmpDir).output);
+    assert.strictEqual(output.passed, false);
+    assert.ok(output.errors.some(err => err.includes('Task commit coverage mismatch')));
+  });
+
+  test('fails when task commits reference hashes that do not exist', () => {
+    const summaryPath = path.join(tmpDir, '.planning', 'phases', '01-test', '15-04-SUMMARY.md');
+    fs.writeFileSync(summaryPath, [
+      '---',
+      'phase: 15',
+      'plan: 04',
+      'subsystem: runtime-enforced',
+      'tags: [unit]',
+      'provides: [runtime]',
+      'duration: 5min',
+      'completed: 2026-03-20',
+      '---',
+      '# Summary',
+      '',
+      '- **Tasks:** 1',
+      '',
+      '## Task Commits',
+      '',
+      '- Task 1: abcdef1234567',
+    ].join('\n'));
+
+    const output = JSON.parse(runGsdTools('verify-summary .planning/phases/01-test/15-04-SUMMARY.md', tmpDir).output);
+    assert.strictEqual(output.passed, false);
+    assert.ok(output.errors.some(err => err.includes('Task commit hashes not found in git history')));
+  });
+
+  test('verify-work-cold-start reports runtime-sensitive summary paths', () => {
+    fs.mkdirSync(path.join(tmpDir, 'src'), { recursive: true });
+    fs.writeFileSync(path.join(tmpDir, 'src', 'server.js'), 'console.log("server");\n');
+    fs.writeFileSync(path.join(tmpDir, 'src', 'ui.js'), 'console.log("ui");\n');
+    const coldSummary = path.join(tmpDir, '.planning', 'phases', '01-test', '01-01-SUMMARY.md');
+    fs.writeFileSync(coldSummary, [
       '---',
       'phase: 01',
       'plan: 01',
-      'subsystem: valid-summary',
-      'tags: [unit]',
-      'provides: [nothing]',
-      'duration: 10min',
-      'completed: 2026-03-17',
+      'subsystem: smoke',
+      'tags: [uat]',
+      'provides: [runtime]',
+      'duration: 5min',
+      'completed: 2026-03-20',
       '---',
-      '# Valid Summary',
+      '# Summary',
+      '',
+      'Created: `src/server.js`',
+      'Modified: `src/ui.js`',
     ].join('\n'));
 
-    const result = runGsdTools('verify-summary .planning/phases/01-test/01-01-SUMMARY.md', tmpDir);
-    assert.ok(result.success, `Command failed: ${result.error}`);
+    const output = JSON.parse(runGsdTools('verify verify-work-cold-start 01', tmpDir).output);
+    assert.strictEqual(output.found, true);
+    assert.strictEqual(output.needs_cold_start_smoke_test, true);
+    assert.deepStrictEqual(output.cold_start_paths, ['src/server.js']);
+    assert.deepStrictEqual(output.summary_files, ['.planning/phases/01-test/01-01-SUMMARY.md']);
+  });
 
-    const output = JSON.parse(result.output);
-    assert.strictEqual(output.checks.schema_valid, true, 'schema should be valid');
+  test('verify-work-cold-start stays false for non-runtime summaries', () => {
+    fs.mkdirSync(path.join(tmpDir, 'src'), { recursive: true });
+    fs.writeFileSync(path.join(tmpDir, 'src', 'ui.js'), 'console.log("ui");\n');
+    const summaryPath = path.join(tmpDir, '.planning', 'phases', '01-test', '01-02-SUMMARY.md');
+    fs.writeFileSync(summaryPath, [
+      '---',
+      'phase: 01',
+      'plan: 02',
+      'subsystem: ui',
+      'tags: [uat]',
+      'provides: [ui]',
+      'duration: 5min',
+      'completed: 2026-03-20',
+      '---',
+      '# Summary',
+      '',
+      'Created: `src/ui.js`',
+    ].join('\n'));
+
+    const output = JSON.parse(runGsdTools('verify verify-work-cold-start 01', tmpDir).output);
+    assert.strictEqual(output.needs_cold_start_smoke_test, false);
+    assert.deepStrictEqual(output.cold_start_paths, []);
   });
 });
 
@@ -922,6 +1078,135 @@ describe('verify commits command', () => {
     assert.strictEqual(output.valid.length, 1, `Expected 1 valid: ${JSON.stringify(output)}`);
     assert.strictEqual(output.invalid.length, 1, `Expected 1 invalid: ${JSON.stringify(output)}`);
     assert.strictEqual(output.all_valid, false, `Expected all_valid false: ${JSON.stringify(output)}`);
+  });
+});
+
+describe('verify task-commit command', () => {
+  let tmpDir;
+
+  beforeEach(() => {
+    tmpDir = createTempGitProject();
+  });
+
+  afterEach(() => {
+    cleanup(tmpDir);
+  });
+
+  test('accepts current HEAD with matching scope', () => {
+    fs.writeFileSync(path.join(tmpDir, 'feature.txt'), 'ok\n');
+    execSync('git add feature.txt', { cwd: tmpDir, stdio: 'pipe' });
+    execSync('git commit -m "feat(08-02): add feature"', { cwd: tmpDir, stdio: 'pipe' });
+    const hash = execSync('git rev-parse --short HEAD', { cwd: tmpDir, encoding: 'utf-8' }).trim();
+
+    const result = runGsdTools(['verify', 'task-commit', hash, '--scope', '08-02'], tmpDir);
+    assert.ok(result.success, result.error);
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.valid, true, JSON.stringify(output));
+    assert.strictEqual(output.is_head, true);
+    assert.strictEqual(output.scope_matches, true);
+  });
+
+  test('fails when hash is not current HEAD', () => {
+    fs.writeFileSync(path.join(tmpDir, 'first.txt'), '1\n');
+    execSync('git add first.txt', { cwd: tmpDir, stdio: 'pipe' });
+    execSync('git commit -m "feat(08-02): first task"', { cwd: tmpDir, stdio: 'pipe' });
+    const oldHash = execSync('git rev-parse --short HEAD', { cwd: tmpDir, encoding: 'utf-8' }).trim();
+
+    fs.writeFileSync(path.join(tmpDir, 'second.txt'), '2\n');
+    execSync('git add second.txt', { cwd: tmpDir, stdio: 'pipe' });
+    execSync('git commit -m "feat(08-02): second task"', { cwd: tmpDir, stdio: 'pipe' });
+
+    const output = JSON.parse(runGsdTools(['verify', 'task-commit', oldHash, '--scope', '08-02'], tmpDir).output);
+    assert.strictEqual(output.valid, false);
+    assert.ok(output.errors.some(err => err.includes('current HEAD')));
+  });
+
+  test('fails when subject scope does not match expected scope', () => {
+    fs.writeFileSync(path.join(tmpDir, 'scoped.txt'), 'x\n');
+    execSync('git add scoped.txt', { cwd: tmpDir, stdio: 'pipe' });
+    execSync('git commit -m "feat(09-01): scoped task"', { cwd: tmpDir, stdio: 'pipe' });
+    const hash = execSync('git rev-parse --short HEAD', { cwd: tmpDir, encoding: 'utf-8' }).trim();
+
+    const output = JSON.parse(runGsdTools(['verify', 'task-commit', hash, '--scope', '08-02'], tmpDir).output);
+    assert.strictEqual(output.valid, false);
+    assert.ok(output.errors.some(err => err.includes('expected scope 08-02')));
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// commit-task command
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('commit-task command', () => {
+  let tmpDir;
+
+  beforeEach(() => {
+    tmpDir = createTempGitProject();
+  });
+
+  afterEach(() => {
+    cleanup(tmpDir);
+  });
+
+  test('commits files, verifies, and returns hash on success', () => {
+    fs.writeFileSync(path.join(tmpDir, 'app.js'), 'console.log("hello")\n');
+    const result = runGsdTools(
+      ['commit-task', 'feat(08-02): add app entry point', '--scope', '08-02', '--files', 'app.js'],
+      tmpDir
+    );
+    assert.ok(result.success, result.error);
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.committed, true, JSON.stringify(output));
+    assert.strictEqual(output.verified, true, JSON.stringify(output));
+    assert.ok(output.hash, 'hash should be present');
+    assert.strictEqual(output.scope_matches, true);
+    assert.deepStrictEqual(output.errors, []);
+  });
+
+  test('exits 1 and returns verified:false when scope does not match commit subject', () => {
+    fs.writeFileSync(path.join(tmpDir, 'app.js'), 'console.log("hello")\n');
+    const result = runGsdTools(
+      ['commit-task', 'feat(09-01): wrong scope', '--scope', '08-02', '--files', 'app.js'],
+      tmpDir
+    );
+    assert.ok(!result.success, 'should exit 1 on scope mismatch');
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.committed, true);
+    assert.strictEqual(output.verified, false);
+    assert.ok(output.errors.some(e => e.includes('expected scope 08-02')));
+  });
+
+  test('fails when --scope is omitted', () => {
+    const result = runGsdTools(
+      ['commit-task', 'feat(08-02): add feature', '--files', 'app.js'],
+      tmpDir
+    );
+    assert.ok(!result.success, 'should exit non-zero when scope is missing');
+  });
+
+  test('fails when --files is omitted', () => {
+    const result = runGsdTools(
+      ['commit-task', 'feat(08-02): add feature', '--scope', '08-02'],
+      tmpDir
+    );
+    assert.ok(!result.success, 'should exit non-zero when files are missing');
+  });
+
+  test('reports nothing_to_commit when files have no staged changes', () => {
+    // File doesn't exist so git add won't fail but commit will have nothing
+    fs.writeFileSync(path.join(tmpDir, 'existing.js'), 'same\n');
+    execSync('git add existing.js', { cwd: tmpDir, stdio: 'pipe' });
+    execSync('git commit -m "chore: initial"', { cwd: tmpDir, stdio: 'pipe' });
+    // Now try to commit with the same file unchanged
+    const result = runGsdTools(
+      ['commit-task', 'feat(08-02): no change', '--scope', '08-02', '--files', 'existing.js'],
+      tmpDir
+    );
+    // nothing_to_commit exits 1 (same as other verification failures)
+    assert.ok(!result.success, 'nothing_to_commit should exit 1');
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.committed, false);
+    assert.ok(output.errors.some(e => e.includes('nothing to commit')));
   });
 });
 

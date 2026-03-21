@@ -6,7 +6,7 @@
 
 ## Configuration File
 
-GSD stores project settings in `.planning/config.json`. Created during `/gsd:new-project`, updated via `/gsd:settings`.
+GSD stores project settings in `.planning/config.json`. Created during `/gsd:new-project`, updated via `/gsd:settings`. The keys below are part of the live runtime config surface, not docs-only placeholders.
 
 ### Full Schema
 
@@ -15,7 +15,6 @@ GSD stores project settings in `.planning/config.json`. Created during `/gsd:new
   "mode": "interactive",
   "granularity": "standard",
   "model_profile": "balanced",
-  "model_overrides": {},
   "planning": {
     "commit_docs": true,
     "search_gitignored": false
@@ -31,14 +30,7 @@ GSD stores project settings in `.planning/config.json`. Created during `/gsd:new
     "node_repair": true,
     "node_repair_budget": 2
   },
-  "parallelization": {
-    "enabled": true,
-    "plan_level": true,
-    "task_level": false,
-    "skip_checkpoints": true,
-    "max_concurrent_agents": 3,
-    "min_plans_for_parallel": 2
-  },
+  "parallelization": true,
   "git": {
     "branching_strategy": "none",
     "phase_branch_template": "gsd/phase-{phase}-{slug}",
@@ -52,7 +44,8 @@ GSD stores project settings in `.planning/config.json`. Created during `/gsd:new
     "confirm_plan": true,
     "execute_next_plan": true,
     "issues_review": true,
-    "confirm_transition": true
+    "confirm_transition": true,
+    "confirm_milestone_scope": true
   },
   "safety": {
     "always_confirm_destructive": true,
@@ -77,14 +70,14 @@ GSD stores project settings in `.planning/config.json`. Created during `/gsd:new
 
 ## Workflow Toggles
 
-All workflow toggles follow the **absent = enabled** pattern. If a key is missing from config, it defaults to `true`.
+Most workflow toggles follow the **absent = enabled** pattern. Exceptions are explicitly called out below when the runtime default is `false`.
 
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
 | `workflow.research` | boolean | `true` | Domain investigation before planning each phase |
 | `workflow.plan_check` | boolean | `true` | Plan verification loop (up to 3 iterations) |
 | `workflow.verifier` | boolean | `true` | Post-execution verification against phase goals |
-| `workflow.auto_advance` | boolean | `false` | Auto-chain discuss → plan → execute without stopping |
+| `workflow.auto_advance` | boolean | `false` | Auto-chain discuss → plan → execute without stopping; disabled by default unless explicitly enabled |
 | `workflow.nyquist_validation` | boolean | `true` | Test coverage mapping during plan-phase research |
 | `workflow.adversarial_test_harness` | boolean | `true` | Enforce research/context contract gates that keep unresolved ambiguity and guidance-only inferences visible |
 | `workflow.ui_phase` | boolean | `true` | Generate UI design contracts for frontend phases |
@@ -127,12 +120,7 @@ To keep planning artifacts out of git:
 
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
-| `parallelization.enabled` | boolean | `true` | Run independent plans simultaneously |
-| `parallelization.plan_level` | boolean | `true` | Parallelize at plan level |
-| `parallelization.task_level` | boolean | `false` | Parallelize tasks within a plan |
-| `parallelization.skip_checkpoints` | boolean | `true` | Skip checkpoints during parallel execution |
-| `parallelization.max_concurrent_agents` | number | `3` | Maximum simultaneous agents |
-| `parallelization.min_plans_for_parallel` | number | `2` | Minimum plans to trigger parallel execution |
+| `parallelization` | boolean | `true` | Allow independent plans within a phase to execute in parallel |
 
 ---
 

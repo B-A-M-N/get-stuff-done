@@ -194,14 +194,37 @@ describe('dispatcher routing branches', () => {
       '# Roadmap\n\n## Milestone: v1.0 Test\n\n### Phase 1: Test Phase\n**Goal**: Test goal\n**Depends on**: None\n**Requirements**: TEST-01\n**Success Criteria**:\n  1. Tests pass\n**Plans**: 1 plan\nPlans:\n- [x] 01-01-PLAN.md\n\n## Progress\n\n| Phase | Plans | Status | Date |\n|-------|-------|--------|------|\n| 1 | 1/1 | Complete | 2026-01-01 |\n'
     );
 
-    // Create phase dir
+    // Create phase dir and summary
     const phaseDir = path.join(tmpDir, '.planning', 'phases', '01-test');
+    fs.mkdirSync(path.join(tmpDir, 'src'), { recursive: true });
     fs.mkdirSync(phaseDir, { recursive: true });
+    fs.writeFileSync(path.join(tmpDir, 'src', 'server.js'), 'console.log("server");\n');
+    fs.writeFileSync(
+      path.join(phaseDir, '01-01-SUMMARY.md'),
+      [
+        '---',
+        'phase: 01',
+        'plan: 01',
+        'subsystem: test-phase',
+        'tags: [uat]',
+        'provides: [server]',
+        'duration: 5min',
+        'completed: 2026-03-20',
+        '---',
+        '# Summary',
+        '',
+        'Created: `src/server.js`',
+      ].join('\n')
+    );
 
     const result = runGsdTools('init verify-work 01', tmpDir);
     assert.strictEqual(result.success, true, `init verify-work failed: ${result.error}`);
     const parsed = JSON.parse(result.output);
     assert.ok(typeof parsed === 'object', 'Output should be valid JSON object');
+    assert.deepStrictEqual(parsed.summary_files, ['.planning/phases/01-test/01-01-SUMMARY.md']);
+    assert.strictEqual(parsed.needs_cold_start_smoke_test, true);
+    assert.deepStrictEqual(parsed.cold_start_paths, ['src/server.js']);
+    assert.strictEqual(parsed.config_warning, null);
   });
 
   // roadmap update-plan-progress

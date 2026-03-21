@@ -26,6 +26,7 @@ function cmdStateLoad(cwd, raw) {
     state_exists: stateExists,
     roadmap_exists: roadmapExists,
     config_exists: configExists,
+    config_warning: config._load_error || null,
   };
 
   // For --raw, output a condensed key=value format
@@ -44,8 +45,9 @@ function cmdStateLoad(cwd, raw) {
       `config_exists=${configExists}`,
       `roadmap_exists=${roadmapExists}`,
       `state_exists=${stateExists}`,
+      `config_warning=${config._load_error || ''}`,
     ];
-    process.stdout.write(lines.join('\n'));
+    process.stdout.write(lines.join('\n') + '\n');
     process.exit(0);
   }
 

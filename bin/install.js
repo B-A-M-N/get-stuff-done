@@ -5,6 +5,7 @@ const path = require('path');
 const os = require('os');
 const readline = require('readline');
 const crypto = require('crypto');
+const { spawnSync } = require('child_process');
 
 // Colors
 const cyan = '\x1b[36m';
@@ -62,6 +63,8 @@ const CODEX_AGENT_SANDBOX = {
   'dostuff-plan-checker': 'read-only',
   'dostuff-integration-checker': 'read-only',
 };
+
+const CODEX_SANDBOX_FALLBACK_MODE = 'danger-full-access';
 
 // Copilot tool name mapping — Claude Code tools to GitHub Copilot tools
 // Tool mapping applies ONLY to agents, NOT to skills (per CONTEXT.md decision)
@@ -992,8 +995,8 @@ purpose: ${toSingleLine(description)}
  * Generate a per-agent .toml config file for Codex.
  * Sets sandbox_mode and developer_instructions from the agent markdown body.
  */
-function generateCodexAgentToml(agentName, agentContent) {
-  const sandboxMode = CODEX_AGENT_SANDBOX[agentName] || 'read-only';
+function generateCodexAgentToml(agentName, agentContent, options = {}) {
+  const sandboxMode = resolveCodexSandboxMode(agentName, options);
   const { body } = extractFrontmatterAndBody(agentContent);
   const instructions = body.trim();
 
@@ -1006,6 +1009,35 @@ function generateCodexAgentToml(agentName, agentContent) {
     `'''`,
   ];
   return lines.join('\n') + '\n';
+}
+
+function bubblewrapSupportsArgv0() {
+  if (process.platform !== 'linux') return true;
+
+  const probe = spawnSync('bwrap', ['--help'], {
+    encoding: 'utf8',
+    timeout: 2000,
+  });
+
+  if (probe.error) return true;
+
+  const helpText = `${probe.stdout || ''}\n${probe.stderr || ''}`;
+  return helpText.includes('--argv0');
+}
+
+function resolveCodexSandboxMode(agentName, options = {}) {
+  const forcedMode = options.forcedMode || process.env.GSD_CODEX_SANDBOX_MODE;
+  if (forcedMode) return forcedMode;
+
+  const bubblewrapSupported = Object.prototype.hasOwnProperty.call(options, 'bubblewrapSupported')
+    ? options.bubblewrapSupported
+    : bubblewrapSupportsArgv0();
+
+  if (!bubblewrapSupported) {
+    return CODEX_SANDBOX_FALLBACK_MODE;
+  }
+
+  return CODEX_AGENT_SANDBOX[agentName] || 'read-only';
 }
 
 /**
@@ -1174,6 +1206,13 @@ function installCodexConfig(targetDir, agentsSrc) {
   const configPath = path.join(targetDir, 'config.toml');
   const agentsTomlDir = path.join(targetDir, 'agents');
   fs.mkdirSync(agentsTomlDir, { recursive: true });
+
+  if (!process.env.GSD_TEST_MODE && !process.env.GSD_CODEX_SANDBOX_MODE && !bubblewrapSupportsArgv0()) {
+    console.warn(
+      `${yellow}Warning:${reset} system bubblewrap does not support ${dim}--argv0${reset}; ` +
+      `Codex agent configs will use ${CODEX_SANDBOX_FALLBACK_MODE} to avoid sandbox wrapper failures.`
+    );
+  }
 
   const agentEntries = fs.readdirSync(agentsSrc).filter(f => f.startsWith('gsd-') && f.endsWith('.md'));
   const agents = [];
@@ -3175,6 +3214,8 @@ if (process.env.GSD_TEST_MODE) {
     convertClaudeToGeminiAgent,
     convertClaudeAgentToCodexAgent,
     generateCodexAgentToml,
+    bubblewrapSupportsArgv0,
+    resolveCodexSandboxMode,
     generateCodexConfigBlock,
     stripGsdFromCodexConfig,
     mergeCodexConfig,
@@ -3183,6 +3224,7 @@ if (process.env.GSD_TEST_MODE) {
     convertClaudeToOpencodeFrontmatter,
     GSD_CODEX_MARKER,
     CODEX_AGENT_SANDBOX,
+    CODEX_SANDBOX_FALLBACK_MODE,
     getDirName,
     getGlobalDir,
     getConfigDirFromHome,

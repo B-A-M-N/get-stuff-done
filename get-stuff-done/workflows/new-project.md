@@ -355,7 +355,16 @@ Initialize with any decisions surfaced by the narrative and bounded clarificatio
 
 Do not compress. Capture everything gathered.
 
-**Commit PROJECT.md:**
+**Confirm PROJECT.md before committing:**
+
+```bash
+if ! node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" gate enforce --key gates.confirm_project; then
+  # Gate is active — present PROJECT.md summary (goals, constraints, success criteria)
+  # Ask: "Does this capture your project correctly? (yes / adjust)"
+  # If "adjust": revise and re-check. After confirmation:
+  node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" gate release --key gates.confirm_project
+fi
+```
 
 ```bash
 mkdir -p .planning
@@ -787,7 +796,7 @@ Read PROJECT.md and the initialization interpretation seed, then extract:
 - Auto-defer differentiators not mentioned in document
 - Skip per-category AskUserQuestion loops
 - Skip "Any additions?" question
-- Skip requirements approval gate
+- Auto-approve requirements via `confirm_breakdown` gate (`should_prompt: false` in yolo/auto mode)
 - Generate REQUIREMENTS.md and commit directly
 
 **Present features by category (interactive mode only):**
@@ -879,9 +888,16 @@ Reject vague requirements. Push for specificity:
 - "Handle authentication" → "User can log in with email/password and stay logged in across sessions"
 - "Support sharing" → "User can share post via link that opens in recipient's browser"
 
-**Present full requirements list (interactive mode only):**
+**Present full requirements list:**
 
-Show every requirement (not counts) for user confirmation:
+Hard gate: enforce breakdown confirmation before committing requirements.
+
+```bash
+if ! node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" gate enforce --key gates.confirm_breakdown; then
+  # Gate is active — show every requirement for user confirmation:
+```
+
+Show requirements list:
 
 ```
 
@@ -903,7 +919,11 @@ Show every requirement (not counts) for user confirmation:
 Does this capture what you're building? (yes / adjust)
 ```
 
-If "adjust": Return to scoping.
+If "adjust": Return to scoping. After confirmation:
+```bash
+  node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" gate release --key gates.confirm_breakdown
+fi
+```
 
 **Commit requirements:**
 
@@ -998,9 +1018,22 @@ Success criteria:
 ---
 ```
 
-**If auto mode:** Skip approval gate — auto-approve and commit directly.
+Hard gate: enforce roadmap approval gates.
 
-**CRITICAL: Ask for approval before committing (interactive mode only):**
+**Phase structure check** (`confirm_phases`):
+```bash
+if ! node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" gate enforce --key gates.confirm_phases; then
+  # Gate is active — present the phase list (names, goals, count): "Does this phase structure make sense?"
+  # After user confirms:
+  node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" gate release --key gates.confirm_phases
+fi
+```
+
+**Full roadmap review** (`confirm_roadmap`):
+```bash
+if ! node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" gate enforce --key gates.confirm_roadmap; then
+  # Gate is active — present full roadmap review:
+```
 
 Use AskUserQuestion:
 - header: "Roadmap"
@@ -1010,7 +1043,12 @@ Use AskUserQuestion:
   - "Adjust phases" — Tell me what to change
   - "Review full file" — Show raw ROADMAP.md
 
-**If "Approve":** Continue to commit.
+**If "Approve":**
+```bash
+  node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" gate release --key gates.confirm_roadmap
+fi
+```
+Continue to commit.
 
 **If "Adjust phases":**
 - Get user's adjustment notes

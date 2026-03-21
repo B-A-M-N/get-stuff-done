@@ -289,10 +289,10 @@ The system:
 
 1. **Runs plans in waves** — Parallel where possible, sequential when dependent
 2. **Fresh context per plan** — 200k tokens purely for implementation, zero accumulated garbage
-3. **Commits per task** — Every task gets its own atomic commit
+3. **Task commit trail** — Modern execution summaries are verified to include a distinct git commit trail for each declared task
 4. **Verifies against goals** — Checks the codebase delivers what the phase promised
 
-Walk away, come back to completed work with clean git history.
+Walk away, come back to completed work with clean git history and task-level commit evidence in each modern summary.
 
 **Phase transitions wait for you.**
 
