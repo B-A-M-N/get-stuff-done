@@ -64,8 +64,6 @@ const PROMPT_POLICY_KEYS = new Set([
   'gates.confirm_phases',
   'gates.confirm_roadmap',
   'gates.confirm_breakdown',
-  'gates.confirm_plan',
-  'gates.execute_next_plan',
   'gates.issues_review',
   'gates.confirm_transition',
   'gates.confirm_milestone_scope',

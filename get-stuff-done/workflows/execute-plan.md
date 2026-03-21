@@ -62,13 +62,10 @@ PHASE=$(echo "$PLAN_PATH" | grep -oE '[0-9]+(\.[0-9]+)?-[0-9]+')
 # config settings can be fetched via gsd-tools config-get if needed
 ```
 
-Hard gate: enforce `execute_next_plan` before proceeding. Exit code 1 = blocked; call `gate release` after human confirms.
 
 ```bash
-if ! node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" gate enforce --key gates.execute_next_plan; then
   # Gate is active — present plan identification summary and wait for explicit user confirmation
   # After user responds: release the gate and continue
-  node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" gate release --key gates.execute_next_plan
 fi
 ```
 </step>

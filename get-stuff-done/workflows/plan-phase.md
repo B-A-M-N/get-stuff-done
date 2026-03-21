@@ -763,13 +763,10 @@ Offer: 1) Force proceed, 2) Provide guidance and retry, 3) Abandon
 
 ## 13. Present Final Status
 
-Hard gate: enforce `confirm_plan` before routing. Exit 1 = blocked; present plan summary then release.
 
 ```bash
-if ! node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" gate enforce --key gates.confirm_plan; then
   # Gate is active — present plan count and key tasks, wait for user acknowledgment
   # After user responds: release the gate
-  node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" gate release --key gates.confirm_plan
 fi
 ```
 
@@ -794,10 +791,8 @@ Check for auto-advance trigger:
 
 **If `--auto` flag present OR `AUTO_CHAIN` is true OR `AUTO_CFG` is true:**
 
-Check `confirm_plan` gate before auto-advancing — `gate enforce` in step 13 already wrote a released artifact if the gate was active and acknowledged. Check that it's clear before firing auto-advance:
 
 ```bash
-GATE_STATE=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" gate check --key gates.confirm_plan)
 if [[ "$GATE_STATE" == @file:* ]]; then GATE_STATE=$(cat "${GATE_STATE#@file:}"); fi
 GATE_CLEAR=$(echo "$GATE_STATE" | node -e "const d=require('fs').readFileSync('/dev/stdin','utf8');process.stdout.write(JSON.parse(d).clear?'true':'false')")
 ```

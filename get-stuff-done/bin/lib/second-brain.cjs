@@ -13,9 +13,14 @@ class SecondBrain {
       connectionTimeoutMillis: 5000, // 5s timeout
     };
 
-    if (process.env.PGUSER) config.user = process.env.PGUSER;
-    if (process.env.PGPASSWORD) config.password = process.env.PGPASSWORD;
-    if (process.env.DATABASE_URL) config.connectionString = process.env.DATABASE_URL;
+    if (process.env.PGUSER) config.user = String(process.env.PGUSER);
+    const pgPass = process.env.PGPASSWORD;
+    if (pgPass && String(pgPass).length > 0) {
+      config.password = String(pgPass);
+    } else {
+      delete config.password; // Explicitly remove to avoid 'must be a string' errors from pg
+    }
+    if (process.env.DATABASE_URL) config.connectionString = String(process.env.DATABASE_URL);
 
     this.pool = new Pool(config);
 
