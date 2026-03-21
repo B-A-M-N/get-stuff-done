@@ -4,17 +4,15 @@
 
 const fs = require('fs');
 const path = require('path');
-const { escapeRegex, loadConfig, getMilestoneInfo, getMilestonePhaseFilter, normalizeMd, output, error } = require('./core.cjs');
+const { escapeRegex, loadConfig, getMilestoneInfo, getMilestonePhaseFilter, normalizeMd, output, error, safeReadFile } = require('./core.cjs');
 const { extractFrontmatter, reconstructFrontmatter } = require('./frontmatter.cjs');
 
 function cmdStateLoad(cwd, raw) {
   const config = loadConfig(cwd);
   const planningDir = path.join(cwd, '.planning');
 
-  let stateRaw = '';
-  try {
-    stateRaw = fs.readFileSync(path.join(planningDir, 'STATE.md'), 'utf-8');
-  } catch {}
+  const statePath = path.join(planningDir, 'STATE.md');
+  const stateRaw = safeReadFile(statePath) || '';
 
   const configExists = fs.existsSync(path.join(planningDir, 'config.json'));
   const roadmapExists = fs.existsSync(path.join(planningDir, 'ROADMAP.md'));
@@ -57,7 +55,10 @@ function cmdStateLoad(cwd, raw) {
 function cmdStateGet(cwd, section, raw) {
   const statePath = path.join(cwd, '.planning', 'STATE.md');
   try {
-    const content = fs.readFileSync(statePath, 'utf-8');
+    const content = safeReadFile(statePath);
+    if (content === null) {
+      error('STATE.md not found or access denied');
+    }
 
     if (!section) {
       output({ content }, raw, content);

@@ -131,7 +131,7 @@ Orchestration logic that commands reference. Contains the step-by-step process i
 Specialized agent definitions with frontmatter specifying:
 - `name` — Agent identifier
 - `description` — Role and purpose
-- `tools` — Allowed tool access (Read, Write, Edit, Bash, Grep, Glob, WebSearch, etc.)
+- `tools` — Allowed tool access (Read, Write, Edit, Bash, Grep, Glob, Firecrawl, etc.)
 - `color` — Terminal output color for visual distinction
 
 **Total agents:** 15

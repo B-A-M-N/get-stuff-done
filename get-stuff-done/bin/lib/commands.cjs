@@ -493,6 +493,20 @@ function cmdCompleteTask(cwd, message, files, scope, options, raw) {
     }
   }
 
+  // Auto-manage Second Brain: Normalize modified files before commit
+  try {
+    const { cmdContextNormalize } = require('./context.cjs');
+    for (const file of files) {
+      if (fs.existsSync(path.resolve(cwd, file))) {
+        // Run normalize (which triggers Second Brain ingest)
+        cmdContextNormalize(cwd, `file://${file}`, file, { silent: true });
+      }
+    }
+  } catch (e) {
+    // Ignore normalization errors to prevent blocking the commit, but log it
+    process.stderr.write(`[complete-task] Warning: Auto-normalization failed: ${e.message}\n`);
+  }
+
   // Delegate to commit-task with auto-injected prev-hash.
   cmdCommitTask(cwd, message, files, scope, {
     phase: options.phase,

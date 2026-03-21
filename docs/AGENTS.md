@@ -109,7 +109,7 @@ GSD uses a multi-agent architecture where thin orchestrators (workflow files) sp
 |----------|-------|
 | **Spawned by** | `/gsd:plan-phase`, `/gsd:quick` |
 | **Parallelism** | Single instance |
-| **Tools** | Read, Write, Bash, Glob, Grep, WebFetch, mcp (context7) |
+| **Tools** | Read, Write, Bash, Glob, Grep, mcp (firecrawl), mcp (context7) |
 | **Model (balanced)** | Opus |
 | **Color** | Green |
 | **Produces** | `{phase}-{N}-PLAN.md` files |
@@ -312,7 +312,7 @@ GSD uses a multi-agent architecture where thin orchestrators (workflow files) sp
 |----------|-------|
 | **Spawned by** | `/gsd:debug`, `/gsd:verify-work` (for failures) |
 | **Parallelism** | Single instance (interactive) |
-| **Tools** | Read, Write, Edit, Bash, Grep, Glob, WebSearch |
+| **Tools** | Read, Write, Edit, Bash, Grep, Glob, Firecrawl |
 | **Model (balanced)** | Sonnet |
 | **Color** | Orange |
 | **Produces** | `.planning/debug/*.md`, knowledge-base updates |
@@ -354,7 +354,7 @@ Communication style, decision patterns, debugging approach, UX preferences, vend
 
 ## Agent Tool Permissions Summary
 
-| Agent | Read | Write | Edit | Bash | Grep | Glob | WebSearch | WebFetch | MCP |
+| Agent | Read | Write | Edit | Bash | Grep | Glob | Firecrawl | MCP |
 |-------|------|-------|------|------|------|------|-----------|----------|-----|
 | project-researcher | ✓ | ✓ | | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | phase-researcher | ✓ | ✓ | | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |

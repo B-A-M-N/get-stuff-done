@@ -47,7 +47,7 @@ function safeReadFile(filePath) {
     try {
       const sandbox = require('./sandbox.cjs');
       const decision = sandbox.checkPath(process.cwd(), filePath);
-      if (decision.allow === false) {
+      if (decision.allowed === false) {
         return null; // Silent fail matches previous catch behavior but blocks forbidden content
       }
     } catch (e) {
@@ -101,8 +101,6 @@ function loadConfig(cwd) {
       confirm_phases: true,
       confirm_roadmap: true,
       confirm_breakdown: true,
-      confirm_plan: true,
-      execute_next_plan: true,
       issues_review: true,
       confirm_transition: true,
       confirm_milestone_scope: true,
