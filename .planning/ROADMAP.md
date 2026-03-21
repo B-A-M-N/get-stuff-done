@@ -41,13 +41,14 @@ Plans:
 
 ### Phase 25: Research - Unified Normalization Pipeline
 
-**Goal:** [To be planned]
-**Requirements**: TBD
+**Goal:** Implement a unified normalization pipeline that transforms internal planning files and external documentation into validated `ContextArtifact` objects for the artifact store.
+**Requirements**: NORMAL-INTERNAL, NORMAL-FIRE, NORMAL-PARITY
 **Depends on:** Phase 24
-**Plans:** 0 plans
+**Plans:** 2 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 25 to break down)
+- [ ] 25-01-PLAN.md — Implementation of Normalization Adapters
+- [ ] 25-02-PLAN.md — Pipeline Integration & Parity Testing
 
 ---
 
