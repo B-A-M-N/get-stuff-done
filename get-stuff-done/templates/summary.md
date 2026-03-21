@@ -40,6 +40,8 @@ patterns-established:
 
 requirements-completed: []  # REQUIRED — Copy ALL requirement IDs from this plan's `requirements` frontmatter field.
 
+context_artifact_ids: [] # REQUIRED — List of context artifact IDs used in this phase (from research/context artifacts)
+
 # Metrics
 duration: Xmin
 completed: YYYY-MM-DD

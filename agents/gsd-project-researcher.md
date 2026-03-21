@@ -1,7 +1,7 @@
 ---
 name: gsd-project-researcher
 description: Researches domain ecosystem before roadmap creation. Produces files in .planning/research/ consumed during roadmap creation. Spawned by /gsd:new-project or /gsd:new-milestone orchestrators.
-tools: Read, Write, Bash, Grep, Glob, WebSearch, WebFetch, mcp__context7__*, mcp__firecrawl__*
+tools: Read, Write, Bash, Grep, Glob, mcp__context7__*, mcp__firecrawl__*
 color: cyan
 # hooks:
 #   PostToolUse:
@@ -81,8 +81,8 @@ FIRECRAWL_UP=$(echo "$FC" | node -e "try{const d=JSON.parse(require('fs').readFi
 PLANNING_UP=$(echo "$FC" | node -e "try{const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));process.stdout.write(d.planning_server_available?'yes':'no')}catch{process.stdout.write('no')}")
 ```
 
-- `FIRECRAWL_UP=yes` → **use Firecrawl exclusively** for all external fetches and searches. Do not call `WebFetch` or `WebSearch`.
-- `FIRECRAWL_UP=no` → **declare degraded mode** at the top of each output file: `> NOTE: Firecrawl unavailable — using WebFetch/WebSearch fallback. Results may be less structured.` Then use WebFetch/WebSearch.
+- `FIRECRAWL_UP=yes` → **use Firecrawl exclusively** for all external fetches and searches.
+- `FIRECRAWL_UP=no` → **STOP.** Declare Firecrawl unavailable and ask user to start it. External research requires Firecrawl.
 - `PLANNING_UP=yes` → use `firecrawl_extract` against `http://localhost:3010/...` for structured extraction from internal planning docs.
 - `PLANNING_UP=no` → fall back to `Read` for internal docs.
 

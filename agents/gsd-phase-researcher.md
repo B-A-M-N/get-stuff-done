@@ -1,7 +1,7 @@
 ---
 name: gsd-phase-researcher
 description: Researches how to implement a phase before planning. Produces RESEARCH.md consumed by gsd-planner. Spawned by /gsd:plan-phase orchestrator.
-tools: Read, Write, Bash, Grep, Glob, WebSearch, WebFetch, mcp__context7__*, mcp__firecrawl__*
+tools: Read, Write, Bash, Grep, Glob, mcp__context7__*, mcp__firecrawl__*
 color: cyan
 # hooks:
 #   PostToolUse:
@@ -107,22 +107,17 @@ When researching "best library for X": find what the ecosystem actually uses, do
 
 <tool_strategy>
 
-## Firecrawl Availability Gate
+## Firecrawl and Planning Server
 
-**Before any external retrieval, check if Firecrawl is running:**
+**Use Firecrawl exclusively for all external fetches and searches.**
 
 ```bash
 FC=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" firecrawl check 2>/dev/null)
-FIRECRAWL_UP=$(echo "$FC" | node -e "try{const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));process.stdout.write(d.available?'yes':'no')}catch{process.stdout.write('no')}")
 PLANNING_UP=$(echo "$FC" | node -e "try{const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));process.stdout.write(d.planning_server_available?'yes':'no')}catch{process.stdout.write('no')}")
 ```
 
-- `FIRECRAWL_UP=yes` → **use Firecrawl exclusively** for all external fetches and searches. Do not call `WebFetch` or `WebSearch`.
-- `FIRECRAWL_UP=no` → **declare degraded mode** at the top of RESEARCH.md: `> NOTE: Firecrawl unavailable — using WebFetch/WebSearch fallback. Results may be less structured.` Then use WebFetch/WebSearch.
 - `PLANNING_UP=yes` → use `firecrawl_extract` against `http://localhost:3010/...` for structured extraction from internal planning docs.
 - `PLANNING_UP=no` → fall back to `Read` for internal docs.
-
-This is a gate, not a preference. Do not silently downgrade.
 
 ## Internal Docs via Firecrawl
 
@@ -147,40 +142,24 @@ If `http://localhost:3010` is unreachable, fall back to `Read`.
 | Priority | Tool | Use For | Trust Level |
 |----------|------|---------|-------------|
 | 1st | Context7 | Library APIs, features, configuration, versions | HIGH |
-| 2nd | Firecrawl | External docs, official sites, changelogs (when UP) | HIGH-MEDIUM |
-| 3rd | WebFetch | Fallback when Firecrawl is down | HIGH-MEDIUM |
-| 4th | WebSearch | Ecosystem discovery, community patterns (when Firecrawl down) | Needs verification |
+| 2nd | Firecrawl | External docs, official sites, changelogs, ecosystem discovery | HIGH-MEDIUM |
 
 **Context7 flow:**
 1. `mcp__context7__resolve-library-id` with libraryName
 2. `mcp__context7__query-docs` with resolved ID + specific query
 
-**Firecrawl flow (when UP):** `mcp__firecrawl__firecrawl_scrape` for single URLs, `mcp__firecrawl__firecrawl_search` for discovery, `mcp__firecrawl__firecrawl_extract` for structured fields.
+**Firecrawl flow:** `mcp__firecrawl__firecrawl_scrape` for single URLs, `mcp__firecrawl__firecrawl_search` for discovery, `mcp__firecrawl__firecrawl_extract` for structured fields.
 
-**WebSearch tips (degraded mode only):** Always include current year. Use multiple query variations. Cross-verify with authoritative sources.
+## Enhanced Web Search (Brave API) via Firecrawl
 
-## Enhanced Web Search (Brave API)
-
-Check `brave_search` from init context. If `true`, use Brave Search for higher quality results:
-
-```bash
-node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" websearch "your query" --limit 10
-```
-
-**Options:**
-- `--limit N` — Number of results (default: 10)
-- `--freshness day|week|month` — Restrict to recent content
-
-If `brave_search: false` (or not set), use built-in WebSearch tool instead.
-
-Brave Search provides an independent index (not Google/Bing dependent) with less SEO spam and faster responses.
+Firecrawl uses Brave Search internally for higher quality results when using `firecrawl_search`.
 
 ## Verification Protocol
 
-**WebSearch findings MUST be verified:**
+**Findings MUST be verified:**
 
 ```
-For each WebSearch finding:
+For each finding:
 1. Can I verify with Context7? → YES: HIGH confidence
 2. Can I verify with official docs? → YES: MEDIUM confidence
 3. Do multiple sources agree? → YES: Increase one level
@@ -196,10 +175,10 @@ For each WebSearch finding:
 | Level | Sources | Use |
 |-------|---------|-----|
 | HIGH | Context7, official docs, official releases | State as fact |
-| MEDIUM | WebSearch verified with official source, multiple credible sources | State with attribution |
-| LOW | WebSearch only, single source, unverified | Flag as needing validation |
+| MEDIUM | Firecrawl verified with official source, multiple credible sources | State with attribution |
+| LOW | Firecrawl only, single source, unverified | Flag as needing validation |
 
-Priority: Context7 > Official Docs > Official GitHub > Verified WebSearch > Unverified WebSearch
+Priority: Context7 > Official Docs > Official GitHub > Verified External Source > Unverified External Source
 
 </source_hierarchy>
 
@@ -382,10 +361,10 @@ Verified patterns from official sources:
 - [Official docs URL] - [what was checked]
 
 ### Secondary (MEDIUM confidence)
-- [WebSearch verified with official source]
+- [Firecrawl verified with official source]
 
 ### Tertiary (LOW confidence)
-- [WebSearch only, marked for validation]
+- [Firecrawl only, marked for validation]
 
 ## Metadata
 
@@ -447,7 +426,7 @@ Based on phase description, identify what needs investigating:
 
 ## Step 3: Execute Research Protocol
 
-For each domain: Context7 first → Official docs → WebSearch → Cross-verify. Document findings with confidence levels as you go.
+For each domain: Context7 first → Official docs → Firecrawl → Cross-verify. Document findings with confidence levels as you go.
 
 ## Step 4: Validation Architecture Research (if nyquist_validation enabled)
 
@@ -580,7 +559,7 @@ Research is complete when:
 - [ ] Don't-hand-roll items listed
 - [ ] Common pitfalls catalogued
 - [ ] Code examples provided
-- [ ] Source hierarchy followed (Context7 → Official → WebSearch)
+- [ ] Source hierarchy followed (Context7 → Official → Firecrawl)
 - [ ] All findings have confidence levels
 - [ ] RESEARCH.md created in correct format
 - [ ] RESEARCH.md committed to git

@@ -332,9 +332,6 @@ node gsd-tools.cjs todo complete <filename>
 
 # Git commit with config checks
 node gsd-tools.cjs commit <message> [--files f1 f2] [--amend]
-
-# Web search (requires Brave API key)
-node gsd-tools.cjs websearch <query> [--limit N] [--freshness day|week|month]
 ```
 
 ---
@@ -353,5 +350,5 @@ node gsd-tools.cjs websearch <query> [--limit N] [--freshness day|week|month]
 | Frontmatter | `lib/frontmatter.cjs` | YAML frontmatter CRUD |
 | Init | `lib/init.cjs` | Compound context loading for all workflows |
 | Milestone | `lib/milestone.cjs` | Milestone archival, requirements marking |
-| Commands | `lib/commands.cjs` | Misc: slug, timestamp, todos, scaffold, stats, websearch |
+| Commands | `lib/commands.cjs` | Misc: slug, timestamp, todos, scaffold, stats |
 | Model Profiles | `lib/model-profiles.cjs` | Profile resolution table |

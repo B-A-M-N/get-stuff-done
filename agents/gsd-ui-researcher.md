@@ -1,7 +1,7 @@
 ---
 name: gsd-ui-researcher
 description: Produces UI-SPEC.md design contract for frontend phases. Reads upstream artifacts, detects design system state, asks only unanswered questions. Spawned by /gsd:ui-phase orchestrator.
-tools: Read, Write, Bash, Grep, Glob, WebSearch, WebFetch, mcp__context7__*, mcp__firecrawl__*
+tools: Read, Write, Bash, Grep, Glob, mcp__context7__*, mcp__firecrawl__*
 color: "#E879F9"
 # hooks:
 #   PostToolUse:
@@ -93,8 +93,8 @@ FIRECRAWL_UP=$(echo "$FC" | node -e "try{const d=JSON.parse(require('fs').readFi
 PLANNING_UP=$(echo "$FC" | node -e "try{const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));process.stdout.write(d.planning_server_available?'yes':'no')}catch{process.stdout.write('no')}")
 ```
 
-- `FIRECRAWL_UP=yes` → **use Firecrawl exclusively** for all external fetches and searches. Do not call `WebFetch` or `WebSearch`.
-- `FIRECRAWL_UP=no` → **declare degraded mode** at the top of UI-SPEC.md: `> NOTE: Firecrawl unavailable — using WebFetch/WebSearch fallback. Results may be less structured.` Then use WebFetch/WebSearch.
+- `FIRECRAWL_UP=yes` → **use Firecrawl exclusively** for all external fetches and searches.
+- `FIRECRAWL_UP=no` → **declare degraded mode** at the top of UI-SPEC.md: `> NOTE: Firecrawl unavailable — external search/fetch disabled for this session.`
 - `PLANNING_UP=yes` → use `firecrawl_extract` against `http://localhost:3010/...` for structured extraction from internal planning docs.
 - `PLANNING_UP=no` → fall back to `Read` for internal docs.
 
@@ -124,7 +124,7 @@ If `http://localhost:3010` is unreachable, fall back to `Read`.
 |----------|------|---------|-------------|
 | 1st | Codebase Grep/Glob | Existing tokens, components, styles, config files | HIGH |
 | 2nd | Context7 | Component library API docs, shadcn preset format | HIGH |
-| 3rd | WebSearch | Design pattern references, accessibility standards | Needs verification |
+| 3rd | Firecrawl | Design pattern references, accessibility standards | Needs verification |
 
 **Codebase first:** Always scan the project for existing design decisions before asking.
 

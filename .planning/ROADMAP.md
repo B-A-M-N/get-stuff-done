@@ -73,6 +73,18 @@ Plans:
 - [ ] 27-02-PLAN.md — Pipeline Integration and Verification
 - [ ] 27-03-PLAN.md — Local Planning Server implementation
 
+### Phase 28: Zero-Bypass Workflow Enforcement
+
+**Goal:** Eliminate unvetted external data and manual workflow bypasses by hardening the execution contract and automating Second Brain lifecycle.
+**Requirements**: ENFORCE-01, ENFORCE-02, ENFORCE-03, ENFORCE-04, BRAIN-SERVER-LOCAL
+**Depends on:** Phase 27
+**Plans:** 3/3 plans created
+
+Plans:
+- [ ] 28-01-PLAN.md — Purge search tools and harden summary schema
+- [ ] 28-02-PLAN.md — Authority Envelopes and Bypass Detection
+- [ ] 28-03-PLAN.md — Auto-Managed Second Brain
+
 ---
 
 ## v0.2.0 Orchestration Integrity

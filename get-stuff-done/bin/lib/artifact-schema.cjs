@@ -118,11 +118,13 @@ const executionSummarySchema = z.preprocess((data) => {
   'key-decisions': z.array(z.string()).optional(),
   'patterns-established': z.array(z.string()).optional(),
   'requirements-completed': z.array(z.string()).optional(),
+  context_artifact_ids: z.array(z.string()).optional(),
   duration: z.string().min(1).optional(),
   completed: z.string().min(1).optional(),
 }).superRefine((data, ctx) => {
   const phase = parseInt(data.phase, 10);
   const isLegacy = phase < 15;
+  const isPostContext = phase >= 28;
 
   if (!data.subsystem) {
     ctx.addIssue({
@@ -130,6 +132,16 @@ const executionSummarySchema = z.preprocess((data) => {
       message: "Required field: subsystem",
       path: ["subsystem"],
     });
+  }
+
+  if (isPostContext) {
+    if (!data.context_artifact_ids || data.context_artifact_ids.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Required field: context_artifact_ids (min 1)",
+        path: ["context_artifact_ids"],
+      });
+    }
   }
 
   if (!isLegacy) {

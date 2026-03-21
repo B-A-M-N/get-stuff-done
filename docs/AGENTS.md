@@ -35,12 +35,12 @@ GSD uses a multi-agent architecture where thin orchestrators (workflow files) sp
 |----------|-------|
 | **Spawned by** | `/gsd:new-project`, `/gsd:new-milestone` |
 | **Parallelism** | 4 instances (stack, features, architecture, pitfalls) |
-| **Tools** | Read, Write, Bash, Grep, Glob, WebSearch, WebFetch, mcp (context7) |
+| **Tools** | Read, Write, Bash, Grep, Glob, mcp (context7), mcp (firecrawl) |
 | **Model (balanced)** | Sonnet |
 | **Produces** | `.planning/research/STACK.md`, `FEATURES.md`, `ARCHITECTURE.md`, `PITFALLS.md` |
 
 **Capabilities:**
-- Web search for current ecosystem information
+- Firecrawl for current ecosystem information
 - Context7 MCP integration for library documentation
 - Writes research documents directly to disk (reduces orchestrator context load)
 
@@ -54,7 +54,7 @@ GSD uses a multi-agent architecture where thin orchestrators (workflow files) sp
 |----------|-------|
 | **Spawned by** | `/gsd:plan-phase` |
 | **Parallelism** | 4 instances (same focus areas as project researcher) |
-| **Tools** | Read, Write, Bash, Grep, Glob, WebSearch, WebFetch, mcp (context7) |
+| **Tools** | Read, Write, Bash, Grep, Glob, mcp (context7), mcp (firecrawl) |
 | **Model (balanced)** | Sonnet |
 | **Produces** | `{phase}-RESEARCH.md` |
 
@@ -73,7 +73,7 @@ GSD uses a multi-agent architecture where thin orchestrators (workflow files) sp
 |----------|-------|
 | **Spawned by** | `/gsd:ui-phase` |
 | **Parallelism** | Single instance |
-| **Tools** | Read, Write, Bash, Grep, Glob, WebSearch, WebFetch, mcp (context7) |
+| **Tools** | Read, Write, Bash, Grep, Glob, mcp (context7), mcp (firecrawl) |
 | **Model (balanced)** | Sonnet |
 | **Color** | `#E879F9` (fuchsia) |
 | **Produces** | `{phase}-UI-SPEC.md` |
