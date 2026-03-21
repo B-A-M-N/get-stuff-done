@@ -604,14 +604,19 @@ async function main() {
       const subcommand = args[1];
       const keyIdx = args.indexOf('--key');
       const keyArg = keyIdx !== -1 ? args[keyIdx + 1] : null;
+      const pathIdx = args.indexOf('--path');
+      const pathArg = pathIdx !== -1 ? args[pathIdx + 1] : (args[2] && !args[2].startsWith('--') ? args[2] : null);
+
       if (subcommand === 'enforce') {
         gate.cmdGateEnforce(cwd, keyArg, raw);
       } else if (subcommand === 'release') {
         gate.cmdGateRelease(cwd, keyArg, raw);
       } else if (subcommand === 'check') {
         gate.cmdGateCheck(cwd, keyArg, raw);
+      } else if (subcommand === 'check-path') {
+        gate.cmdGateCheckPath(cwd, pathArg, raw);
       } else {
-        error('Unknown gate subcommand. Available: enforce, release, check');
+        error('Unknown gate subcommand. Available: enforce, release, check, check-path');
       }
       break;
     }

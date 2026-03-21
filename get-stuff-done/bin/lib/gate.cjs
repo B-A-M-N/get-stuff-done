@@ -13,6 +13,7 @@
 const fs = require('fs');
 const path = require('path');
 const { loadConfig, resolvePromptPolicy, output, error } = require('./core.cjs');
+const sandbox = require('./sandbox.cjs');
 
 /** Convert dotted policy key to a safe filename fragment (e.g. gates.confirm_plan → gates_confirm_plan) */
 function keyToFilename(key) {
@@ -29,6 +30,30 @@ function pendingPath(cwd, key) {
 
 function releasedPath(cwd, key) {
   return path.join(gatesDir(cwd), `${keyToFilename(key)}-released.json`);
+}
+
+/**
+ * Check if a path is allowed by the sandbox.
+ * Exits 0 if allowed, exits 13 if denied.
+ */
+function cmdGateCheckPath(cwd, targetPath, raw) {
+  if (!targetPath) {
+    error('Path argument required (e.g. --path .planning/STATE.md)');
+  }
+
+  const result = sandbox.checkPath(cwd, targetPath);
+
+  if (!result.allowed) {
+    const payload = { allowed: false, path: targetPath, reason: result.reason };
+    if (raw) {
+      process.stdout.write('denied');
+    } else {
+      process.stdout.write(JSON.stringify(payload, null, 2));
+    }
+    process.exit(13); // Exit code 13 as per plan
+  } else {
+    output({ allowed: true, path: targetPath, reason: null }, raw, 'allowed');
+  }
 }
 
 /**
@@ -152,4 +177,5 @@ module.exports = {
   cmdGateEnforce,
   cmdGateRelease,
   cmdGateCheck,
+  cmdGateCheckPath,
 };
