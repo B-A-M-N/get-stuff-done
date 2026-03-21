@@ -134,6 +134,8 @@ Paths:    /.planning/REQUIREMENTS.md
           /.planning/ROADMAP.md
           /.planning/PROJECT.md
           /.planning/research/*.md
+          /docs/*.md
+          /src/**/*
 ```
 
 Use `firecrawl_extract` when you need specific fields. Use `Read` when you just need raw content.

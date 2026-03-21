@@ -241,4 +241,13 @@ describe('standalone itl package', () => {
     assert.throws(() => pkg.interpret_narrative('   '), /input_text is required/);
     assert.throws(() => pkg.interpret_narrative('Build a thing.', { provider: 'bogus' }), /Unsupported ITL provider/);
   });
+
+  test('addInference deduplicates by field and text in standalone package', () => {
+    const target = [];
+    pkg.addInference(target, 'Save the world.', 'goals', 0.74);
+    pkg.addInference(target, 'save the world.', 'goals', 0.74);
+    
+    assert.strictEqual(target.length, 1, 'Should deduplicate identical inferences');
+  });
 });
+

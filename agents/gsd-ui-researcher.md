@@ -83,6 +83,41 @@ Your UI-SPEC.md is consumed by:
 
 <tool_strategy>
 
+## Firecrawl Availability Gate
+
+**Before any external retrieval, check if Firecrawl is running:**
+
+```bash
+FC=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" firecrawl check 2>/dev/null)
+FIRECRAWL_UP=$(echo "$FC" | node -e "try{const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));process.stdout.write(d.available?'yes':'no')}catch{process.stdout.write('no')}")
+PLANNING_UP=$(echo "$FC" | node -e "try{const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));process.stdout.write(d.planning_server_available?'yes':'no')}catch{process.stdout.write('no')}")
+```
+
+- `FIRECRAWL_UP=yes` → **use Firecrawl exclusively** for all external fetches and searches. Do not call `WebFetch` or `WebSearch`.
+- `FIRECRAWL_UP=no` → **declare degraded mode** at the top of UI-SPEC.md: `> NOTE: Firecrawl unavailable — using WebFetch/WebSearch fallback. Results may be less structured.` Then use WebFetch/WebSearch.
+- `PLANNING_UP=yes` → use `firecrawl_extract` against `http://localhost:3010/...` for structured extraction from internal planning docs.
+- `PLANNING_UP=no` → fall back to `Read` for internal docs.
+
+This is a gate, not a preference. Do not silently downgrade.
+
+## Internal Docs via Firecrawl
+
+For **structured extraction** from your own project's planning files, use `firecrawl_extract` against the planning server:
+
+```
+Base URL: http://localhost:3010
+Paths:    /.planning/REQUIREMENTS.md
+          /.planning/ROADMAP.md
+          /.planning/PROJECT.md
+          /.planning/research/*.md
+          /docs/*.md
+          /src/**/*
+```
+
+Use `firecrawl_extract` when you need specific fields. Use `Read` when you just need raw content.
+
+If `http://localhost:3010` is unreachable, fall back to `Read`.
+
 ## Tool Priority
 
 | Priority | Tool | Use For | Trust Level |

@@ -738,9 +738,9 @@ describe('Copilot agent conversion - real files', () => {
     const result = convertClaudeAgentToCopilotAgent(content);
 
     assert.ok(result.startsWith('---\nname: gsd-executor\n'), 'starts with correct name');
-    // 6 Claude tools (Read, Write, Edit, Bash, Grep, Glob) → 4 after dedup
-    assert.ok(result.includes("tools: ['read', 'edit', 'execute', 'search']"),
-      'tools mapped and deduplicated (6→4)');
+    // 7 Claude tools (Read, Write, Edit, Bash, Grep, Glob, mcp__firecrawl__*) → 5 after dedup
+    assert.ok(result.includes("tools: ['read', 'edit', 'execute', 'search', 'mcp__firecrawl__*']"),
+      'tools mapped and deduplicated (7→5)');
     assert.ok(result.includes('color: yellow'), 'color preserved');
     assert.ok(!result.includes('~/.claude/'), 'no ~/.claude/ in body');
   });

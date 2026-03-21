@@ -1323,3 +1323,236 @@ describe('ITL ambiguity escalation threshold', () => {
     assert.ok(!summary.includes('Escalation required'));
   });
 });
+
+describe('ITL extraction bonus coverage', () => {
+  test('addInference deduplicates by field and text', () => {
+    // Manual call to addInference
+    const { addInference } = require('../get-stuff-done/bin/lib/itl-extract.cjs');
+    const target = [];
+    addInference(target, 'Save the world.', 'goals', 0.74);
+    addInference(target, 'save the world.', 'goals', 0.74);
+    
+    // Should still only have one "Save the world" goal inference
+    const saveWorldInferences = target.filter(i => i.field === 'goals');
+    assert.strictEqual(saveWorldInferences.length, 1, 'Should deduplicate identical inferences');
+  });
+
+
+  test('persistItlOutput writes to phase directory', () => {
+    const tmpDir = createTempProject();
+    try {
+      const phaseDir = path.join(tmpDir, '.planning', 'phases', '01-test-phase');
+      fs.mkdirSync(phaseDir, { recursive: true });
+      
+      const result = buildInterpretationResult(tmpDir, { text: 'Goal: test', phase: 1 });
+      
+      const itlPath = path.join(phaseDir, '01-ITL.json');
+      assert.ok(fs.existsSync(itlPath), 'ITL output should be persisted');
+      
+      const content = JSON.parse(fs.readFileSync(itlPath, 'utf8'));
+      assert.strictEqual(content.narrative, 'Goal: test');
+    } finally {
+      cleanup(tmpDir);
+    }
+  });
+
+  test('buildClarificationQuestions uses project_goals for missing-goal', () => {
+    const tmpDir = createTempProject();
+    try {
+      const ambientContext = { project_goals: ['Heal the biosphere'] };
+      // Low-goal narrative to trigger missing-goal finding
+      const result = buildInitializationSeed(tmpDir, { 
+        text: 'Just a thought.', 
+        ambient_context: ambientContext 
+      });
+      
+      assert.ok(result.clarification.mode === 'blocking' || result.clarification.mode === 'required');
+      const question = result.clarification_questions[0];
+      assert.ok(question.includes('Heal the biosphere'), 'Should reference existing project goal');
+    } finally {
+      cleanup(tmpDir);
+    }
+  });
+
+
+  test('Gemini and Claude challenge response parsing', () => {
+    // Gemini mock response
+    const geminiResponse = {
+      candidates: [{
+        content: {
+          parts: [{ text: JSON.stringify({ summary: 'Gemini says hi', findings: [], requires_escalation: false }) }]
+        }
+      }]
+    };
+    const geminiAdapter = getInterpretationAdapter('gemini');
+    const geminiResult = challengeInterpretationWithAdapter({ provider_response: geminiResponse }, geminiAdapter);
+    assert.strictEqual(geminiResult.summary, 'Gemini says hi');
+
+    // Claude mock response
+    const claudeResponse = {
+      content: [{ text: JSON.stringify({ summary: 'Claude says hi', findings: [], requires_escalation: false }) }]
+    };
+    const claudeAdapter = getInterpretationAdapter('claude');
+    const claudeResult = challengeInterpretationWithAdapter({ provider_response: claudeResponse }, claudeAdapter);
+    assert.strictEqual(claudeResult.summary, 'Claude says hi');
+  });
+
+  test('deployment-contradiction prompt coverage', () => {
+    const tmpDir = createTempProject();
+    try {
+      // Narrative that triggers deployment-contradiction
+      const narrative = 'Keep it local only but use remote api.';
+      const result = buildInitializationSeed(tmpDir, { text: narrative });
+      
+      // Find the deployment-contradiction prompt
+      const prompt = result.clarification.prompts.find(p => p.finding_type === 'deployment-contradiction');
+      assert.ok(prompt, 'Should find deployment-contradiction prompt');
+      assert.strictEqual(prompt.decision_surface, 'Deployment model');
+    } finally {
+      cleanup(tmpDir);
+    }
+  });
+
+
+  test('OpenAI style challenge response parsing', () => {
+    // 1. choices branch
+    const openaiResponse = {
+      choices: [{
+        message: {
+          content: JSON.stringify({ summary: 'OpenAI says hi', findings: [], requires_escalation: false })
+        }
+      }]
+    };
+    const openaiAdapter = getInterpretationAdapter('openai');
+    const openaiResult = challengeInterpretationWithAdapter({ provider_response: openaiResponse }, openaiAdapter);
+    assert.strictEqual(openaiResult.summary, 'OpenAI says hi');
+
+    // 2. output_parsed branch
+    const parsedResponse = {
+      output_parsed: { summary: 'Parsed hi', findings: [], requires_escalation: false }
+    };
+    const parsedResult = challengeInterpretationWithAdapter({ provider_response: parsedResponse }, openaiAdapter);
+    assert.strictEqual(parsedResult.summary, 'Parsed hi');
+
+    // 3. output[0].content branch
+    const outputResponse = {
+      output: [{ content: JSON.stringify({ summary: 'Output hi', findings: [], requires_escalation: false }) }]
+    };
+    const outputResult = challengeInterpretationWithAdapter({ provider_response: outputResponse }, openaiAdapter);
+    assert.strictEqual(outputResult.summary, 'Output hi');
+  });
+
+
+  test('clarification checkpoint none and recommended modes', () => {
+    const tmpDir = createTempProject();
+    try {
+      // 1. None mode (clean narrative)
+      // Use keyword 'implement' to ensure goal is detected
+      const cleanNarrative = 'Goal: Implement the fix. Success: Bug is gone.';
+      const cleanResult = buildDiscussPhaseSeed(tmpDir, { text: cleanNarrative });
+      assert.strictEqual(cleanResult.clarification.mode, 'none');
+      assert.ok(cleanResult.clarification.reason.includes('No clarification checkpoint'));
+      assert.ok(cleanResult.clarification.unresolved_risk.includes('Unresolved items can stay visible'));
+
+      // 2. Recommended mode (medium finding on discuss-phase route)
+      // Narrative with one unknown to trigger medium vague-language
+      // Include constraint to cover buildGrayAreaHints 'Compatibility guardrails' branch
+      const vagueNarrative = 'Goal: Implement something maybe. Constraint: Must be fast.';
+      const vagueResult = buildDiscussPhaseSeed(tmpDir, { text: vagueNarrative });
+      assert.strictEqual(vagueResult.clarification.mode, 'recommended');
+      assert.strictEqual(vagueResult.clarification.resume_allowed, true);
+      
+      const hints = vagueResult.discussion_seed.gray_area_hints;
+      assert.ok(hints.find(h => h.area === 'Compatibility guardrails'), 'Should have compatibility hints');
+    } finally {
+      cleanup(tmpDir);
+    }
+  });
+
+
+  test('OpenAI style response with array content', () => {
+    const openaiResponse = {
+      choices: [{
+        message: {
+          content: [
+            { type: 'text', text: JSON.stringify({ narrative: 'test', goals: ['test goal'], constraints: [], preferences: [], anti_requirements: [], success_criteria: [], risks: [], unknowns: [], assumptions: [], route_hint: 'quick', project_initialized: true }) }
+          ]
+        }
+      }]
+    };
+    const openaiAdapter = getInterpretationAdapter('openai');
+    const result = openaiAdapter.interpret({ provider_response: openaiResponse, narrative: 'test', project_initialized: true });
+    assert.strictEqual(result.goals[0], 'test goal');
+  });
+
+
+  test('adapter fallback branches', () => {
+    const input = { narrative: 'test' };
+    
+    // Internal fallback
+    const internal = getInterpretationAdapter('internal');
+    const iChallenge = internal.challenge(input);
+    assert.ok(iChallenge.summary.includes('No model adversarial challenge was supplied for the internal adapter'));
+
+    // OpenAI fallback
+    const openai = getInterpretationAdapter('openai');
+
+    const oResult = openai.interpret(input);
+    assert.strictEqual(oResult.metadata.source, 'heuristic-extractor');
+    const oChallenge = openai.challenge(input);
+    assert.ok(oChallenge.summary.includes('No model adversarial challenge response'));
+
+    // Claude fallback
+    const claude = getInterpretationAdapter('claude');
+    const cResult = claude.interpret(input);
+    assert.strictEqual(cResult.metadata.source, 'heuristic-extractor');
+    const cChallenge = claude.challenge(input);
+    assert.ok(cChallenge.summary.includes('No model adversarial challenge response'));
+
+    // Gemini fallback
+    const gemini = getInterpretationAdapter('gemini');
+    const gResult = gemini.interpret(input);
+    assert.strictEqual(gResult.metadata.source, 'heuristic-extractor');
+    const gChallenge = gemini.challenge(input);
+    assert.ok(gChallenge.summary.includes('No model adversarial challenge response'));
+
+    // Kimi fallback
+    const kimi = getInterpretationAdapter('kimi');
+    const kResult = kimi.interpret(input);
+    assert.strictEqual(kResult.metadata.source, 'heuristic-extractor');
+    const kChallenge = kimi.challenge(input);
+    assert.ok(kChallenge.summary.includes('No model adversarial challenge response'));
+  });
+
+  test('adapter validation and missing challenge coverage', () => {
+    assert.throws(() => validateAdapter(null), /ITL adapter must be an object/);
+    assert.throws(() => validateAdapter({}), /ITL adapter must define a non-empty name/);
+    assert.throws(() => validateAdapter({ name: 'test' }), /must define an interpret\(\) function/);
+
+    // Adapter without challenge method
+    const simpleAdapter = {
+      name: 'simple',
+      provider: 'internal',
+      interpret: (input) => ({})
+    };
+    const result = challengeInterpretationWithAdapter({ narrative: 'test' }, simpleAdapter);
+    assert.ok(result.summary.includes('does not implement a model adversarial challenge path'));
+  });
+
+  test('Kimi with response coverage', () => {
+    const kimi = getInterpretationAdapter('kimi');
+    const kChallengeResult = challengeInterpretationWithAdapter({ 
+      provider_response: { choices: [{ message: { content: JSON.stringify({ summary: 'Kimi challenge hi', findings: [], requires_escalation: false }) } }] }
+    }, kimi);
+    assert.strictEqual(kChallengeResult.summary, 'Kimi challenge hi');
+  });
+});
+
+
+
+
+
+
+
+
+

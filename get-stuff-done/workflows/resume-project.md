@@ -364,7 +364,7 @@ Based on user selection, route to appropriate workflow:
 
   ---
   ```
-- **Transition** → ./transition.md
+- **Transition** → ./lib/transition.md
 - **Check todos** → Read .planning/todos/pending/, present summary
 - **Review alignment** → Read PROJECT.md, compare to current state
 - **Something else** → Ask what they need

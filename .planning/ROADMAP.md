@@ -16,6 +16,37 @@ See full archived roadmap: `.planning/milestones/v0.1.0-ROADMAP.md`
 
 </details>
 
+### Phase 23: Research - Hard Context Sandbox
+
+**Goal:** Implement core sandbox components (Guard module, path checks, and shell interceptor) to block unsanctioned file access.
+**Requirements**: SANDBOX-01, SANDBOX-02, SANDBOX-03, SANDBOX-04
+**Depends on:** Phase 22
+**Plans:** 2 plans
+
+Plans:
+- [ ] 23-01-PLAN.md — Core Guard logic and CLI gate implementation
+- [ ] 23-02-PLAN.md — Shell interceptor and verification suite
+
+### Phase 24: Research - Canonical Identity & Storage
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 23
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 24 to break down)
+
+### Phase 25: Research - Unified Normalization Pipeline
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 24
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 25 to break down)
+
 ---
 
 ## v0.2.0 Orchestration Integrity
@@ -111,37 +142,47 @@ See full archived roadmap: `.planning/milestones/v0.1.0-ROADMAP.md`
   2. Gate behavior tests confirm rejection when blocked
   3. Checkpoint lifecycle test covers all transitions
   4. Contract test validates SUMMARY.md against schema
-  - [x] **Phase 21: Brownfield Resilience** - Mega Audit stress-test against un-sanitized legacy chaos (completed 2026-03-18)
-  - [x] **Phase 22: Megaprompt Alignment** - Align agents and workflows with the canonical enforcement contract (completed 2026-03-19)
 
-  ### Phase Details
-  ...
-  #### Phase 22: Megaprompt Alignment
-  **Goal**: Align all GSD agents and workflows with the canonical enforcement contract defined in MEGAPROMPT.md
-  **Depends on**: Phase 21
-  **Requirements**: P1, P2, P3, P4, P5, P6
-  **Success Criteria**:
-    1. Executor checks CONTEXT.md before auto-fixing
-    2. Plan-checker implements Dimension 9 data contract gate
-    3. Quick command probes scope before non-trivial tasks
-    4. Verify-work offers auto-diagnosis on failure
-    5. Debug command follows structured hypothesis protocol
-    6. CHANGELOG marks un-shipped features as planned
-  **Plans**:
-  - [x] 22-01-PLAN.md — Align agents and workflows with MEGAPROMPT.md
-  ---
+#### Phase 21: Brownfield Resilience
+**Goal**: Mega Audit stress-test against un-sanitized legacy chaos
+**Depends on**: Phase 20
+**Requirements**: BROWNFIELD-01, BROWNFIELD-02, BROWNFIELD-03, BROWNFIELD-04
+**Success Criteria**:
+  1. Audit handles 50+ mixed files without context exhaustion
+  2. Concerns debt is correctly identified in legacy code
+  3. Workflow surfaces are correctly mapped for non-GSD projects
+**Plans**:
+- [x] 21-01-PLAN.md — Audit core and surface mapping
+- [x] 21-02-PLAN.md — Legacy compliance schema and debt identification
+- [x] 21-03-PLAN.md — Audit report generation
+- [x] 21-04-PLAN.md — Brownfield Mega Audit E2E tests
 
-  ## Progress
+#### Phase 22: Megaprompt Alignment
+**Goal**: Align all GSD agents and workflows with the canonical enforcement contract defined in MEGAPROMPT.md
+**Depends on**: Phase 21
+**Requirements**: P1, P2, P3, P4, P5, P6
+**Success Criteria**:
+  1. Executor checks CONTEXT.md before auto-fixing
+  2. Plan-checker implements Dimension 9 data contract gate
+  3. Quick command probes scope before non-trivial tasks
+  4. Verify-work offers auto-diagnosis on failure
+  5. Debug command follows structured hypothesis protocol
+  6. CHANGELOG marks un-shipped features as planned
+**Plans**:
+- [x] 22-01-PLAN.md — Align agents and workflows with MEGAPROMPT.md
 
-  **Execution Order:** 15 → 16 → 17 → 18 → 19 → 20 → 21 → 22
+## Progress
 
-  | Phase | Milestone | Plans Complete | Status | Completed |
-  |-------|-----------|----------------|--------|-----------|
-  | 15. Schema Foundation | 4/4 | Complete    | 2026-03-17 | - |
-  | 16. Checkpoint Artifact Lifecycle | 4/4 | Complete    | 2026-03-17 | - |
-  | 17. Runtime Gate Enforcement | 2/2 | Complete    | 2026-03-17 | - |
-  | 18. Context Enrichment | 2/2 | Complete    | 2026-03-17 | - |
-  | 19. Workflow Surface Hardening | 1/1 | Complete    | 2026-03-17 | - |
-  | 20. Scenario and Contract Tests | 1/1 | Complete    | 2026-03-17 | - |
-  | 21. Brownfield Resilience | 4/4 | Complete    | 2026-03-18 | - |
-  | 22. Megaprompt Alignment | 1/1 | Complete    | 2026-03-19 | - |
+**Execution Order:** 15 → 16 → 17 → 18 → 19 → 20 → 21 → 22 → 23
+
+| Phase | Milestone | Plans Complete | Status | Completed |
+|-------|-----------|----------------|--------|-----------|
+| 15. Schema Foundation | 4/4 | Complete    | 2026-03-17 | - |
+| 16. Checkpoint Artifact Lifecycle | 4/4 | Complete    | 2026-03-17 | - |
+| 17. Runtime Gate Enforcement | 2/2 | Complete    | 2026-03-17 | - |
+| 18. Context Enrichment | 2/2 | Complete    | 2026-03-17 | - |
+| 19. Workflow Surface Hardening | 1/1 | Complete    | 2026-03-17 | - |
+| 20. Scenario and Contract Tests | 1/1 | Complete    | 2026-03-17 | - |
+| 21. Brownfield Resilience | 4/4 | Complete    | 2026-03-18 | - |
+| 22. Megaprompt Alignment | 1/1 | Complete    | 2026-03-19 | - |
+| 23. Hard Context Sandbox | 0/2 | In Progress | - | - |

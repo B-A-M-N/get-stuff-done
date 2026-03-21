@@ -88,6 +88,24 @@ PLANNING_UP=$(echo "$FC" | node -e "try{const d=JSON.parse(require('fs').readFil
 
 This is a gate, not a preference. Do not silently downgrade.
 
+## Internal Docs via Firecrawl
+
+For **structured extraction** from your own project's planning files, use `firecrawl_extract` against the planning server:
+
+```
+Base URL: http://localhost:3010
+Paths:    /.planning/REQUIREMENTS.md
+          /.planning/ROADMAP.md
+          /.planning/PROJECT.md
+          /.planning/research/*.md
+          /docs/*.md
+          /src/**/*
+```
+
+Use `firecrawl_extract` when you need specific fields. Use `Read` when you just need raw content.
+
+If `http://localhost:3010` is unreachable, fall back to `Read`.
+
 ## Tool Priority Order
 
 ### 1. Context7 (highest priority) — Library Questions

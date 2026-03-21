@@ -480,7 +480,9 @@ module.exports = {
   buildProviderRequest: build_provider_request,
   get_supported_providers: () => [...SUPPORTED_PROVIDERS],
   getSupportedProviders: () => [...SUPPORTED_PROVIDERS],
+  addInference,
   schemas: {
+
     interpretation: interpretationSchema,
     inference: inferenceItemSchema,
     ambiguity: ambiguitySchema,

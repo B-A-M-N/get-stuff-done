@@ -129,4 +129,6 @@ module.exports = {
   extractIntentFromNarrative,
   inferRouteHint,
   splitNarrative,
+  addInference,
 };
+
