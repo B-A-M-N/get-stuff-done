@@ -101,10 +101,14 @@
 | SANDBOX-04 | Phase 23 | Complete |
 
 **Coverage:**
-- v0.2 requirements: 30 total
-- Mapped to phases: 30
+- v0.2 requirements: 34 total
+- Mapped to phases: 34
 - Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-03-17*
 *Last updated: 2026-03-18 — All requirements complete and verified*
+| SCHEMA-CANONICAL | Phase 24 | Complete |
+| ID-DETERMINISTIC | Phase 24 | Complete |
+| STORE-FILE-BACKED | Phase 24 | Complete |
+| CLI-INTEGRATION | Phase 24 | Complete |
