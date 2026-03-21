@@ -101,8 +101,8 @@
 | SANDBOX-04 | Phase 23 | Complete |
 
 **Coverage:**
-- v0.2 requirements: 38 total
-- Mapped to phases: 38
+- v0.2 requirements: 39 total
+- Mapped to phases: 39
 - Unmapped: 0 ✓
 
 ---
@@ -116,3 +116,4 @@
 | NORMAL-FIRE | Phase 25 | Complete |
 | NORMAL-PARITY | Phase 25 | Complete |
 | CLI-PARITY | Phase 25 | Complete |
+| BRAIN-SERVER-LOCAL | Phase 27 | Complete |

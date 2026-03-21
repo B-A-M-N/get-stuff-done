@@ -23,12 +23,40 @@ function sha256(content) {
  * @returns {Promise<Array<Object>>} Array of ContextArtifact objects
  */
 async function normalizeInternal(cwd) {
+  const planningUrl = process.env.GSD_PLANNING_URL || 'http://localhost:3011';
+  let useServer = false;
+
+  // Try to ping the local planning server
+  try {
+    const { execSync } = require('child_process');
+    execSync(`curl -sf ${planningUrl}/health >/dev/null 2>&1`, { timeout: 1000 });
+    useServer = true;
+  } catch (e) {
+    // Fall back to local filesystem if server is down
+  }
+
   const pattern = path.join(cwd, '.planning/*.{md,js,ts}').split(path.sep).join('/');
   const files = glob.sync(pattern);
   const artifacts = [];
 
   for (const filePath of files) {
-    const rawContent = fs.readFileSync(filePath, 'utf-8');
+    const sourceUri = path.relative(cwd, filePath).split(path.sep).join('/');
+    let rawContent;
+    
+    if (useServer) {
+      try {
+        const { execSync } = require('child_process');
+        // Fetch structured extraction from local planning server
+        const response = execSync(`curl -sf "${planningUrl}/v1/extract?path=${encodeURIComponent(sourceUri)}"`, { timeout: 2000 });
+        const parsed = JSON.parse(response.toString());
+        rawContent = parsed.data.markdown;
+      } catch (e) {
+        rawContent = fs.readFileSync(filePath, 'utf-8');
+      }
+    } else {
+      rawContent = fs.readFileSync(filePath, 'utf-8');
+    }
+    
     const ext = path.extname(filePath).toLowerCase();
     
     let normalizedContent;

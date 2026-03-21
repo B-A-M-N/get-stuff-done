@@ -1016,6 +1016,13 @@ async function main() {
       break;
     }
 
+    case 'serve': {
+      const { startServer } = require('./lib/planning-server.cjs');
+      const port = process.env.GSD_PLANNING_PORT || 3011;
+      startServer(cwd, port);
+      break;
+    }
+
     case 'websearch': {
       const query = args[1];
       const limitIdx = args.indexOf('--limit');
