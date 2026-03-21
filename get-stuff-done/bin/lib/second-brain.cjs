@@ -17,12 +17,15 @@ class SecondBrain {
     const pgPass = process.env.PGPASSWORD;
     if (pgPass && String(pgPass).length > 0) {
       config.password = String(pgPass);
-    } else {
-      delete config.password; // Explicitly remove to avoid 'must be a string' errors from pg
     }
     if (process.env.DATABASE_URL) config.connectionString = String(process.env.DATABASE_URL);
 
     this.pool = new Pool(config);
+    // Suppress unhandled pool errors from killing the process
+    this.pool.on('error', (err) => {
+      console.error('[SecondBrain] Unexpected error on idle client:', err.message);
+      this.offlineMode = true;
+    });
 
     this.offlineMode = false;
 

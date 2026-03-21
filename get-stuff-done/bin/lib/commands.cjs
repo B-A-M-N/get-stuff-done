@@ -1132,8 +1132,8 @@ function cmdHealthDegradedMode(cwd, raw) {
   if (fs.existsSync(gatesDir)) {
     const pendingFiles = fs.readdirSync(gatesDir).filter(f => f.endsWith('-pending.json'));
     for (const f of pendingFiles) {
-      // Convert filename back to key: gates_confirm_plan-pending.json → gates.confirm_plan
-      const key = f.replace('-pending.json', '').replace(/_/g, '.').replace(/^gates\./, 'gates.');
+      // Convert filename back to key: gates_confirm_roadmap-pending.json → gates.confirm_roadmap
+      const key = f.replace('-pending.json', '').replace(/_/g, '.');
       gatePendingKeys.push(key);
       warnings.push(`Gate pending: ${key} — human acknowledgment required before continuing`);
     }

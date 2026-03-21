@@ -24,7 +24,7 @@ const VALID_CONFIG_KEYS = new Set([
   'git.branching_strategy', 'git.phase_branch_template', 'git.milestone_branch_template',
   'planning.commit_docs', 'planning.search_gitignored',
   'gates.confirm_project', 'gates.confirm_phases', 'gates.confirm_roadmap', 'gates.confirm_breakdown',
-  'gates.confirm_plan', 'gates.execute_next_plan', 'gates.issues_review', 'gates.confirm_transition', 'gates.confirm_milestone_scope',
+  'gates.issues_review', 'gates.confirm_transition', 'gates.confirm_milestone_scope',
   'safety.always_confirm_destructive', 'safety.always_confirm_external_services',
 ]);
 
@@ -80,8 +80,6 @@ function buildDefaultConfig(hasBraveSearch = false) {
       confirm_phases: true,
       confirm_roadmap: true,
       confirm_breakdown: true,
-      confirm_plan: true,
-      execute_next_plan: true,
       issues_review: true,
       confirm_transition: true,
       confirm_milestone_scope: true,

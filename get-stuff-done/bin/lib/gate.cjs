@@ -15,7 +15,7 @@ const path = require('path');
 const { loadConfig, resolvePromptPolicy, output, error } = require('./core.cjs');
 const sandbox = require('./sandbox.cjs');
 
-/** Convert dotted policy key to a safe filename fragment (e.g. gates.confirm_plan → gates_confirm_plan) */
+/** Convert dotted policy key to a safe filename fragment (e.g. gates.confirm_roadmap → gates_confirm_plan) */
 function keyToFilename(key) {
   return key.replace(/\./g, '_');
 }
@@ -62,13 +62,13 @@ function cmdGateCheckPath(cwd, targetPath, raw) {
  * - should_prompt: true  → write pending artifact, exit 1 (blocked)
  *
  * Orchestrators should call `gate enforce` in an `if !` block:
- *   if ! node gsd-tools.cjs gate enforce --key gates.confirm_plan; then
+ *   if ! node gsd-tools.cjs gate enforce --key gates.confirm_roadmap; then
  *     # Present banner, wait for human, then call gate release
  *   fi
  */
 function cmdGateEnforce(cwd, key, raw) {
   if (!key) {
-    error('policy key required (e.g. gates.confirm_plan)');
+    error('policy key required (e.g. gates.confirm_roadmap)');
   }
 
   let result;
