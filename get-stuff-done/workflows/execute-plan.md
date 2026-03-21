@@ -24,6 +24,30 @@ Extract from init JSON: `executor_model`, `commit_docs`, `phase_dir`, `phase_num
 If `.planning/` missing: error.
 </step>
 
+<step name="load_execution_context">
+Load a Zod-validated snapshot of current execution state before any gate or task logic runs.
+
+```bash
+CTX=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" context build \
+  --workflow execute-plan --phase "${PHASE}")
+if [[ "$CTX" == @file:* ]]; then CTX=$(cat "${CTX#@file:}"); fi
+```
+
+Extract from CTX JSON:
+- `git.head`, `git.branch` — current commit and branch
+- `pointer.phase`, `pointer.plan` — verified phase/plan from STATE.md (use over INIT values if they differ)
+- `pending_gates` — any gates blocked from a prior session; surface to user before running `gate enforce`
+- `last_task` — last committed task entry (`hash`, `subject`, `task`) for `--prev-hash` continuity
+- `checkpoint_present` — whether CHECKPOINT.md exists in the phase directory
+- `integrity` — full 10-check audit result: `coherent`, `errors[]`, `warnings[{message,severity}]`, `checks`
+- `coherent` — top-level coherence: false if integrity audit failed OR git/STATE pointer is broken
+- `warnings` — `[{message, severity}]`; severity `"stop"` = halt and resolve before proceeding; `"ignorable"` = log and continue
+
+If `coherent: false`: surface `integrity.errors` and all `stop`-severity warnings to user; do not proceed until resolved.
+If `pending_gates` is non-empty: list stale gates to user — they may indicate an abandoned session.
+If any `warnings[].severity === "stop"`: treat as a soft blocker — present to user before proceeding.
+</step>
+
 <step name="identify_plan">
 ```bash
 # Use plans/summaries from INIT JSON, or list files
@@ -38,13 +62,15 @@ PHASE=$(echo "$PLAN_PATH" | grep -oE '[0-9]+(\.[0-9]+)?-[0-9]+')
 # config settings can be fetched via gsd-tools config-get if needed
 ```
 
-<if mode="yolo">
-Auto-approve: `⚡ Execute {phase}-{plan}-PLAN.md [Plan X of Y for Phase Z]` → parse_segments.
-</if>
+Hard gate: enforce `execute_next_plan` before proceeding. Exit code 1 = blocked; call `gate release` after human confirms.
 
-<if mode="interactive" OR="custom with gates.execute_next_plan true">
-Present plan identification, wait for confirmation.
-</if>
+```bash
+if ! node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" gate enforce --key gates.execute_next_plan; then
+  # Gate is active — present plan identification summary and wait for explicit user confirmation
+  # After user responds: release the gate and continue
+  node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" gate release --key gates.execute_next_plan
+fi
+```
 </step>
 
 <step name="record_start_time">
@@ -67,7 +93,18 @@ grep -n "type=\"checkpoint" .planning/phases/XX-name/{phase}-{plan}-PLAN.md
 | Verify-only | B (segmented) | Segments between checkpoints. After none/human-verify → SUBAGENT. After decision/human-action → MAIN |
 | Decision | C (main) | Execute entirely in main context |
 
-**Pattern A:** init_agent_tracking → spawn Task(subagent_type="gsd-executor", model=executor_model) with prompt: execute plan at [path], autonomous, all tasks + SUMMARY + commit, follow deviation/auth rules, report: plan name, tasks, SUMMARY path, commit hash → track agent_id → wait → update tracking → report.
+**Pattern A:** init_agent_tracking → spawn Task(subagent_type="gsd-executor", model=executor_model) with prompt: execute plan at [path], autonomous, all tasks + SUMMARY + commit, follow deviation/auth rules, report: plan name, tasks, SUMMARY path, commit hash → track agent_id → wait → **after agent returns: run checkpoint-coverage check** → update tracking → report.
+
+After Pattern A subagent completes, verify it didn't silently bypass checkpoint tasks:
+```bash
+COVERAGE=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" verify checkpoint-coverage "${PLAN_PATH}" --phase "${PHASE}")
+if [[ "$COVERAGE" == @file:* ]]; then COVERAGE=$(cat "${COVERAGE#@file:}"); fi
+BYPASS=$(echo "$COVERAGE" | node -e "const d=require('fs').readFileSync('/dev/stdin','utf8');process.stdout.write(JSON.parse(d).bypass_suspected?'true':'false')")
+if [ "$BYPASS" = "true" ]; then
+  echo "WARNING: Plan had checkpoint tasks but no CHECKPOINT.md was written — subagent may have bypassed checkpoints silently. Review before continuing."
+  # Do NOT auto-continue — surface this to the user
+fi
+```
 
 **Pattern B:** Execute segment-by-segment. Autonomous segments: spawn subagent for assigned tasks only (no SUMMARY/commit). Checkpoints: main context. After all segments: aggregate, create SUMMARY, commit. See segment_execution.
 
@@ -273,10 +310,27 @@ git add src/types/user.ts
 
 **4. Format:** `{type}({phase}-{plan}): {description}` with bullet points for key changes.
 
-**5. Record hash:**
+**5. Commit task files atomically — one command does stage + continuity check + commit + verify + log:**
 ```bash
-TASK_COMMIT=$(git rev-parse --short HEAD)
-TASK_COMMITS+=("Task ${TASK_NUM}: ${TASK_COMMIT}")
+COMMIT_RESULT=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" commit-task \
+  "{type}({phase}-{plan}): {description}" \
+  --scope "{phase}-{plan}" \
+  --phase "{phase}" --plan "{plan}" --task "${TASK_NUM}" \
+  ${PREV_TASK_HASH:+--prev-hash "$PREV_TASK_HASH"} \
+  --files file1 file2 ...)
+```
+`commit-task` exits 1 on any failure — the script halts without requiring JSON parsing. When `--prev-hash` is set, it verifies that hash is still HEAD *before* staging, catching any out-of-band commit between tasks automatically.
+
+On success (exit 0): record hash for continuity and in-session tracking:
+```bash
+PREV_TASK_HASH=$(echo "$COMMIT_RESULT" | node -e "process.stdout.write(JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).hash)")
+TASK_COMMITS+=("Task ${TASK_NUM}: ${PREV_TASK_HASH}")
+```
+On failure (exit 1): `COMMIT_RESULT` contains the JSON with `errors` — STOP, surface errors and fix before proceeding.
+The `TASK-LOG.jsonl` file persists hashes to disk — use it to reconstruct `TASK_COMMITS` if context resets:
+```bash
+cat .planning/phases/XX-name/{phase}-{plan}-TASK-LOG.jsonl 2>/dev/null | node -e \
+  "require('fs').createReadStream('/dev/stdin').on('data',d=>d.toString().split('\n').filter(Boolean).forEach(l=>{const r=JSON.parse(l);console.log('Task '+r.task+': '+r.hash)}))"
 ```
 
 **6. Check for untracked generated files:**
@@ -309,38 +363,24 @@ See ~/.claude/get-stuff-done/references/checkpoints.md for details.
 <step name="checkpoint_return_for_orchestrator">
 When spawned via Task and hitting checkpoint: return structured state (cannot interact with user directly).
 
-**Before returning checkpoint state, write CHECKPOINT.md to the phase directory:**
+**Before returning checkpoint state, use the atomic checkpoint primitive:**
 
-Write `{phase_dir}/CHECKPOINT.md` using the Write tool with the following YAML frontmatter + markdown body. Populate all fields from the checkpoint payload:
-
-```
----
-status: pending
-type: {checkpoint_type}
-why_blocked: "{why_blocked}"
-what_is_uncertain: "{what_is_uncertain}"
-choices: "{choices}"
-allow_freeform: {allow_freeform}
-resume_condition: "{resume_condition}"
-resolved_at: ~
----
-
-## Checkpoint Details
-
-**Type:** {checkpoint_type}
-**Blocked at:** Task {task_number} — {task_name}
-
-[Human-readable summary of what caused the block and what the user needs to do]
-```
-
-Then commit the artifact:
 ```bash
-node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" commit \
-  "chore({phase}-checkpoint): write checkpoint artifact [task {task_number}]" \
-  --files "{phase_dir}/CHECKPOINT.md"
+CHECKPOINT_RESULT=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" checkpoint write \
+  --phase "{phase}" \
+  --type "{checkpoint_type}" \
+  --why-blocked "{why_blocked}" \
+  --what-is-uncertain "{what_is_uncertain}" \
+  --task "{task_number}" \
+  --task-name "{task_name}" \
+  --choices "{choices}" \
+  --resume-condition "{resume_condition}")
+if [[ "$CHECKPOINT_RESULT" == @file:* ]]; then CHECKPOINT_RESULT=$(cat "${CHECKPOINT_RESULT#@file:}"); fi
 ```
 
-Note: If a CHECKPOINT.md already exists in this phase directory, overwrite it — one active checkpoint per phase at a time; prior checkpoints are preserved in git history.
+`checkpoint write` writes `{phase_dir}/CHECKPOINT.md` and commits it atomically. Parse the result for `hash` and `path`. If the command fails, do NOT return a checkpoint — surface the write error instead.
+
+Note: One active checkpoint per phase at a time; prior checkpoints are preserved in git history.
 
 **Required return:** 1) Completed Tasks table (hashes + files) 2) Current Task (what's blocking) 3) Checkpoint Details (user-facing content) 4) Awaiting (what's needed from user)
 
@@ -411,6 +451,15 @@ If user_setup exists: create `{phase}-USER-SETUP.md` using template `~/.claude/g
 </step>
 
 <step name="create_summary">
+**Recover task hashes if context was reset** — `TASK_COMMITS` is in-memory and lost on reset:
+
+```bash
+if [ ${#TASK_COMMITS[@]} -eq 0 ]; then
+  readarray -t TASK_COMMITS < <(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" \
+    task-log reconstruct --phase "{phase}" --plan "{plan}" --raw)
+fi
+```
+
 Create `{phase}-{plan}-SUMMARY.md` at `.planning/phases/XX-name/`. Use `~/.claude/get-stuff-done/templates/summary.md`.
 
 **Frontmatter:** phase, plan, subsystem, tags | requires/provides/affects | tech-stack.added/patterns | key-files.created/modified | key-decisions | requirements-completed (**MUST** copy `requirements` array from PLAN.md frontmatter verbatim) | duration ($DURATION), completed ($PLAN_END_TIME date).
@@ -468,7 +517,17 @@ Keep STATE.md under 150 lines.
 </step>
 
 <step name="issues_review_gate">
-If SUMMARY "Issues Encountered" ≠ "None": yolo → log and continue. Interactive → present issues, wait for acknowledgment.
+If SUMMARY "Issues Encountered" ≠ "None":
+
+```bash
+if ! node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" gate enforce --key gates.issues_review; then
+  # Gate is active — present the issues list and wait for user acknowledgment
+  node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" gate release --key gates.issues_review
+else
+  # Gate is clear — log issues to STATE.md as a blocker and continue
+  :
+fi
+```
 </step>
 
 <step name="update_roadmap">

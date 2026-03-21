@@ -10,6 +10,72 @@ const { extractFrontmatter, parseMustHavesBlock } = require('./frontmatter.cjs')
 const { writeStateMd } = require('./state.cjs');
 const { checkpointResponseSchema, executionSummarySchema } = require('./artifact-schema.cjs');
 
+function extractSummaryReferencedPaths(content, frontmatter = {}) {
+  const found = new Set();
+  const keyFiles = frontmatter['key-files'];
+  if (keyFiles && typeof keyFiles === 'object') {
+    for (const bucket of ['created', 'modified']) {
+      const values = keyFiles[bucket];
+      if (Array.isArray(values)) {
+        for (const value of values) {
+          if (typeof value === 'string' && value.trim()) {
+            found.add(value.trim());
+          }
+        }
+      }
+    }
+  }
+
+  const patterns = [
+    /`([^`]+)`/g,
+    /(?:Created|Modified|Added|Updated|Edited):\s*`?([^\s`]+)`?/gi,
+  ];
+
+  for (const pattern of patterns) {
+    let match;
+    while ((match = pattern.exec(content)) !== null) {
+      const candidate = match[1]?.trim();
+      if (candidate && candidate.includes('/') && !candidate.startsWith('http')) {
+        found.add(candidate);
+      }
+    }
+  }
+
+  return Array.from(found);
+}
+
+function summaryPathRequiresColdStart(filePath) {
+  const normalized = String(filePath || '').replace(/\\/g, '/').toLowerCase();
+  return [
+    /(^|\/)(server|app|index|main)\.[^/]+$/,
+    /(^|\/)(database|db|seed|seeds|migrations)(\/|$)/,
+    /(^|\/)startup[^/]*$/,
+    /(^|\/)docker-compose[^/]*$/,
+    /(^|\/)dockerfile[^/]*$/,
+  ].some(pattern => pattern.test(normalized));
+}
+
+function extractTaskCountFromSummary(content) {
+  const match = content.match(/-\s+\*\*Tasks:\*\*\s+(\d+)/i);
+  return match ? parseInt(match[1], 10) : null;
+}
+
+function extractTaskCommitHashes(content) {
+  const sectionMatch = content.match(/##\s*Task Commits([\s\S]*?)(?:\n##\s|\n#\s|$)/i);
+  if (!sectionMatch) {
+    return { sectionPresent: false, hashes: [] };
+  }
+
+  const hashes = [];
+  const hashPattern = /\b([0-9a-f]{7,40})\b/g;
+  let match;
+  while ((match = hashPattern.exec(sectionMatch[1])) !== null) {
+    hashes.push(match[1]);
+  }
+
+  return { sectionPresent: true, hashes };
+}
+
 function cmdVerifySummary(cwd, summaryPath, checkFileCount, raw) {
   if (!summaryPath) {
     error('summary-path required');
@@ -18,7 +84,6 @@ function cmdVerifySummary(cwd, summaryPath, checkFileCount, raw) {
   const fullPath = path.join(cwd, summaryPath);
   const checkCount = checkFileCount || 2;
 
-  // Check 1: Summary exists
   if (!fs.existsSync(fullPath)) {
     const result = {
       passed: false,
@@ -26,6 +91,7 @@ function cmdVerifySummary(cwd, summaryPath, checkFileCount, raw) {
         summary_exists: false,
         files_created: { checked: 0, found: 0, missing: [] },
         commits_exist: false,
+        task_commits: { required: false, declared_tasks: null, found: 0, unique: 0, section_present: false, invalid: [] },
         self_check: 'not_found',
         schema_valid: false,
       },
@@ -43,7 +109,6 @@ function cmdVerifySummary(cwd, summaryPath, checkFileCount, raw) {
   const phaseNum = parseInt(fm.phase, 10);
   const isLegacy = !isNaN(phaseNum) && phaseNum < 15;
 
-  // Check 1.5: Schema validation (SCHEMA-03)
   const schemaResult = executionSummarySchema.safeParse(fm);
   if (!schemaResult.success) {
     for (const issue of schemaResult.error.issues) {
@@ -56,24 +121,8 @@ function cmdVerifySummary(cwd, summaryPath, checkFileCount, raw) {
     }
   }
 
-  // Check 2: Spot-check files mentioned in summary
-  const mentionedFiles = new Set();
-  const patterns = [
-    /`([^`]+\.[a-zA-Z]+)`/g,
-    /(?:Created|Modified|Added|Updated|Edited):\s*`?([^\s`]+\.[a-zA-Z]+)`?/gi,
-  ];
-
-  for (const pattern of patterns) {
-    let m;
-    while ((m = pattern.exec(content)) !== null) {
-      const filePath = m[1];
-      if (filePath && !filePath.startsWith('http') && filePath.includes('/')) {
-        mentionedFiles.add(filePath);
-      }
-    }
-  }
-
-  const filesToCheck = Array.from(mentionedFiles).slice(0, checkCount);
+  const mentionedFiles = extractSummaryReferencedPaths(content, fm);
+  const filesToCheck = mentionedFiles.slice(0, checkCount);
   const missing = [];
   for (const file of filesToCheck) {
     if (!fs.existsSync(path.join(cwd, file))) {
@@ -81,21 +130,23 @@ function cmdVerifySummary(cwd, summaryPath, checkFileCount, raw) {
     }
   }
 
-  // Check 3: Commits exist
   const commitHashPattern = /\b[0-9a-f]{7,40}\b/g;
-  const hashes = content.match(commitHashPattern) || [];
-  let commitsExist = false;
-  if (hashes.length > 0) {
-    for (const hash of hashes.slice(0, 3)) {
-      const result = execGit(cwd, ['cat-file', '-t', hash]);
-      if (result.exitCode === 0 && result.stdout.trim() === 'commit') {
-        commitsExist = true;
-        break;
-      }
+  const allHashes = Array.from(new Set(content.match(commitHashPattern) || []));
+  const invalidHashes = [];
+  for (const hash of allHashes) {
+    const result = execGit(cwd, ['cat-file', '-t', hash]);
+    if (!(result.exitCode === 0 && result.stdout.trim() === 'commit')) {
+      invalidHashes.push(hash);
     }
   }
+  const commitsExist = allHashes.length > 0 && invalidHashes.length === 0;
 
-  // Check 4: Self-check section
+  const taskCommitInfo = extractTaskCommitHashes(content);
+  const uniqueTaskHashes = Array.from(new Set(taskCommitInfo.hashes));
+  const invalidTaskHashes = uniqueTaskHashes.filter(hash => invalidHashes.includes(hash));
+  const declaredTaskCount = extractTaskCountFromSummary(content);
+  const taskCommitsRequired = !isLegacy;
+
   let selfCheck = 'not_found';
   const selfCheckPattern = /##\s*(?:Self[- ]?Check|Verification|Quality Check)/i;
   if (selfCheckPattern.test(content)) {
@@ -110,8 +161,26 @@ function cmdVerifySummary(cwd, summaryPath, checkFileCount, raw) {
   }
 
   if (missing.length > 0) errors.push('Missing files: ' + missing.join(', '));
-  if (!commitsExist && hashes.length > 0) errors.push('Referenced commit hashes not found in git history');
+  if (allHashes.length > 0 && invalidHashes.length > 0) {
+    errors.push('Referenced commit hashes not found in git history: ' + invalidHashes.join(', '));
+  }
   if (selfCheck === 'failed') errors.push('Self-check section indicates failure');
+
+  if (taskCommitsRequired && !taskCommitInfo.sectionPresent) {
+    errors.push('Missing required ## Task Commits section');
+  }
+  if (taskCommitsRequired && uniqueTaskHashes.length === 0) {
+    errors.push('Task commit section must reference at least one commit');
+  }
+  if (declaredTaskCount !== null && uniqueTaskHashes.length < declaredTaskCount) {
+    errors.push(`Task commit coverage mismatch: declared ${declaredTaskCount}, found ${uniqueTaskHashes.length}`);
+  }
+  if (taskCommitInfo.hashes.length !== uniqueTaskHashes.length) {
+    errors.push('Task commit hashes must be unique');
+  }
+  if (invalidTaskHashes.length > 0) {
+    errors.push('Task commit hashes not found in git history: ' + invalidTaskHashes.join(', '));
+  }
 
   const passed = errors.length === 0;
 
@@ -120,12 +189,68 @@ function cmdVerifySummary(cwd, summaryPath, checkFileCount, raw) {
     schema_valid: schemaResult.success,
     files_created: { checked: filesToCheck.length, found: filesToCheck.length - missing.length, missing },
     commits_exist: commitsExist,
+    task_commits: {
+      required: taskCommitsRequired,
+      declared_tasks: declaredTaskCount,
+      found: taskCommitInfo.hashes.length,
+      unique: uniqueTaskHashes.length,
+      section_present: taskCommitInfo.sectionPresent,
+      invalid: invalidTaskHashes,
+    },
     self_check: selfCheck,
   };
 
   const result = { passed, checks, errors, warnings, legacy: isLegacy };
   output(result, raw, passed ? 'passed' : 'failed');
 }
+
+function cmdVerifyWorkColdStart(cwd, phase, raw) {
+  if (!phase) {
+    error('phase required');
+  }
+
+  const phaseInfo = findPhaseInternal(cwd, phase);
+  if (!phaseInfo?.directory) {
+    output({
+      found: false,
+      phase,
+      summary_files: [],
+      needs_cold_start_smoke_test: false,
+      cold_start_paths: [],
+    }, raw, 'not_found');
+    return;
+  }
+
+  const phaseDir = path.join(cwd, phaseInfo.directory);
+  let files = [];
+  try {
+    files = fs.readdirSync(phaseDir).filter(f => f.endsWith('-SUMMARY.md') || f === 'SUMMARY.md').sort();
+  } catch {
+    files = [];
+  }
+
+  const coldStartPaths = new Set();
+  for (const fileName of files) {
+    try {
+      const content = fs.readFileSync(path.join(phaseDir, fileName), 'utf8');
+      const frontmatter = extractFrontmatter(content);
+      for (const candidate of extractSummaryReferencedPaths(content, frontmatter)) {
+        if (summaryPathRequiresColdStart(candidate)) {
+          coldStartPaths.add(candidate);
+        }
+      }
+    } catch {}
+  }
+
+  output({
+    found: true,
+    phase: phaseInfo.phase_number,
+    summary_files: files.map(fileName => path.posix.join(phaseInfo.directory.replace(/\\/g, '/'), fileName)),
+    needs_cold_start_smoke_test: coldStartPaths.size > 0,
+    cold_start_paths: Array.from(coldStartPaths).sort(),
+  }, raw);
+}
+
 
 function cmdVerifyPlanStructure(cwd, filePath, raw) {
   if (!filePath) { error('file path required'); }
@@ -785,11 +910,60 @@ function cmdVerifyReferences(cwd, filePath, raw) {
   }, raw, missing.length === 0 ? 'valid' : 'invalid');
 }
 
+function cmdVerifyTaskCommit(cwd, hash, options, raw) {
+  if (!hash) {
+    error('task commit hash required');
+  }
+
+  const scope = options?.scope || null;
+  const commitType = execGit(cwd, ['cat-file', '-t', hash]);
+  const exists = commitType.exitCode === 0 && commitType.stdout.trim() === 'commit';
+
+  let isHead = false;
+  let subject = null;
+  let scopeMatches = scope === null;
+
+  if (exists) {
+    const headResult = execGit(cwd, ['rev-parse', '--short', 'HEAD']);
+    isHead = headResult.exitCode === 0 && headResult.stdout.trim() === hash;
+
+    const subjectResult = execGit(cwd, ['log', '-1', '--format=%s', hash]);
+    subject = subjectResult.exitCode === 0 ? subjectResult.stdout.trim() : null;
+
+    if (scope !== null) {
+      const openParen = subject ? subject.indexOf('(') : -1;
+      const closeParen = subject ? subject.indexOf('):') : -1;
+      const subjectScope = openParen !== -1 && closeParen !== -1 && closeParen > openParen
+        ? subject.slice(openParen + 1, closeParen)
+        : null;
+      scopeMatches = subjectScope === scope;
+    }
+  }
+
+  const errors = [];
+  if (!exists) errors.push('Commit hash not found in git history');
+  if (exists && !isHead) errors.push('Task commit is not the current HEAD');
+  if (exists && scope !== null && !scopeMatches) {
+    errors.push(`Task commit subject does not match expected scope ${scope}`);
+  }
+
+  output({
+    valid: errors.length === 0,
+    hash,
+    exists,
+    is_head: isHead,
+    subject,
+    scope: scope || null,
+    scope_matches: scopeMatches,
+    errors,
+  }, raw, errors.length === 0 ? 'valid' : 'invalid');
+}
+
 function cmdVerifyCommits(cwd, hashes, raw) {
   if (!hashes || hashes.length === 0) { error('At least one commit hash required'); }
-
   const valid = [];
   const invalid = [];
+
   for (const hash of hashes) {
     const result = execGit(cwd, ['cat-file', '-t', hash]);
     if (result.exitCode === 0 && result.stdout.trim() === 'commit') {
@@ -2187,12 +2361,428 @@ function cmdVerifyOrphanedState(cwd, phaseArg, raw) {
   }, raw, orphaned ? 'orphaned' : 'clean');
 }
 
+/**
+ * Detect checkpoint bypass: plan has checkpoint tasks but no CHECKPOINT.md was written.
+ *
+ * Used by orchestrators after a Pattern A/B subagent completes to catch silent bypasses —
+ * an agent that ran past a checkpoint without pausing would produce no CHECKPOINT.md.
+ *
+ * Returns:
+ *   { has_checkpoints, checkpoint_count, checkpoint_types, checkpoint_file_exists,
+ *     bypass_suspected, plan_file, phase_dir }
+ *
+ * bypass_suspected = plan has checkpoints AND no CHECKPOINT.md exists in the phase dir.
+ */
+function cmdVerifyCheckpointCoverage(cwd, planFile, phase, raw) {
+  if (!planFile) error('plan file path required');
+
+  const fullPlanPath = path.isAbsolute(planFile) ? planFile : path.join(cwd, planFile);
+  if (!fs.existsSync(fullPlanPath)) {
+    error(`Plan file not found: ${fullPlanPath}`);
+  }
+
+  const planContent = fs.readFileSync(fullPlanPath, 'utf-8');
+
+  // Extract checkpoint task types from plan XML task blocks
+  // Matches: type="checkpoint:human-verify", type="checkpoint:decision", type="checkpoint:human-action"
+  const checkpointPattern = /type="(checkpoint:[^"]+)"/g;
+  const checkpointTypes = [];
+  let match;
+  while ((match = checkpointPattern.exec(planContent)) !== null) {
+    checkpointTypes.push(match[1]);
+  }
+
+  const hasCheckpoints = checkpointTypes.length > 0;
+
+  // Resolve phase dir for CHECKPOINT.md lookup
+  let phaseDir = null;
+  let checkpointFileExists = false;
+
+  if (phase) {
+    const phaseInfo = findPhaseInternal(cwd, phase);
+    if (phaseInfo) {
+      phaseDir = phaseInfo.directory;
+      checkpointFileExists = fs.existsSync(path.join(cwd, phaseDir, 'CHECKPOINT.md'));
+    }
+  }
+
+  // bypass_suspected: plan declares checkpoints but no CHECKPOINT.md artifact exists
+  // This implies the subagent ran past checkpoint tasks without pausing
+  const bypassSuspected = hasCheckpoints && phaseDir !== null && !checkpointFileExists;
+
+  output({
+    has_checkpoints: hasCheckpoints,
+    checkpoint_count: checkpointTypes.length,
+    checkpoint_types: checkpointTypes,
+    checkpoint_file_exists: checkpointFileExists,
+    bypass_suspected: bypassSuspected,
+    plan_file: planFile,
+    phase_dir: phaseDir,
+  }, raw, bypassSuspected ? 'bypass_suspected' : 'ok');
+}
+
+/**
+ * Execution integrity audit — full coherence check for orchestration state.
+ *
+ * Checks ten invariants:
+ *  1. HEAD matches last task log entry (no OOB commit after last task)
+ *  2. No stale pending gate artifacts (unclosed gates left from a prior run)
+ *  3. No checkpoint task in plan without CHECKPOINT.md (bypass detection)
+ *  4. All task log commit hashes exist in git history (force-push erasure)
+ *  5. Last task log entry parses cleanly (interrupted commit-task detection)
+ *  6. Task log hashes ↔ SUMMARY ## Task Commits agreement
+ *  7. All task log hashes are ancestors of HEAD (history rewrite / cherry-pick / branch divergence)
+ *  8. Branch consistency — task log entries recorded on current branch
+ *  9. STATE.md current_phase ↔ roadmap active phase
+ * 10. Warning severity classification (stop-the-line vs ignorable)
+ *
+ * Returns:
+ *   { coherent, checks: { head_matches_task_log, no_pending_gates,
+ *     checkpoint_coverage, task_log_commits_exist, task_log_last_entry_valid,
+ *     task_log_summary_agreement, task_log_ancestry, task_log_branch_consistency,
+ *     state_roadmap_agreement }, errors, warnings: [{ message, severity }] }
+ *
+ * Options: { phase?, plan? } — when provided, enables task-log and checkpoint checks.
+ */
+/**
+ * Callable (non-output) version of the integrity audit.
+ * Returns the result object directly so other commands can compose it.
+ */
+function runVerifyIntegrity(cwd, options) {
+  const phase = options?.phase || null;
+  const plan = options?.plan || null;
+
+  const errors = [];
+  const warnings = [];
+  const checks = {};
+
+  // ── 1. HEAD matches last task log entry ────────────────────────────────────
+  if (phase && plan) {
+    const phaseInfo = findPhaseInternal(cwd, phase);
+    let taskLogCheck = { pass: true, note: 'no_task_log' };
+
+    if (phaseInfo) {
+      const logFile = path.join(cwd, phaseInfo.directory, `${phase}-${plan}-TASK-LOG.jsonl`);
+      if (fs.existsSync(logFile)) {
+        const lines = fs.readFileSync(logFile, 'utf-8').trim().split('\n').filter(Boolean);
+        if (lines.length > 0) {
+          let lastEntry = null;
+          try { lastEntry = JSON.parse(lines[lines.length - 1]); } catch {}
+          if (lastEntry?.hash) {
+            const headResult = execGit(cwd, ['rev-parse', '--short', 'HEAD']);
+            const head = headResult.exitCode === 0 ? headResult.stdout.trim() : null;
+            const matches = head === lastEntry.hash;
+            taskLogCheck = { pass: matches, head, last_hash: lastEntry.hash, last_task: lastEntry.task };
+            if (!matches) {
+              errors.push(`HEAD (${head}) does not match last task log entry (${lastEntry.hash} for task ${lastEntry.task}) — out-of-band commit detected`);
+            }
+          }
+        }
+      }
+    }
+    checks.head_matches_task_log = taskLogCheck;
+  } else {
+    checks.head_matches_task_log = { pass: true, note: 'skipped — no phase/plan provided' };
+  }
+
+  // ── 2. No stale pending gate artifacts ────────────────────────────────────
+  const gatesDir = path.join(cwd, '.planning', 'gates');
+  const pendingKeys = [];
+  if (fs.existsSync(gatesDir)) {
+    for (const f of fs.readdirSync(gatesDir)) {
+      if (f.endsWith('-pending.json')) {
+        let key = null;
+        try {
+          const record = JSON.parse(fs.readFileSync(path.join(gatesDir, f), 'utf-8'));
+          key = record.key || f.replace('-pending.json', '').replace(/_/g, '.');
+          const blockedAt = record.blocked_at ? new Date(record.blocked_at) : null;
+          const ageMs = blockedAt ? Date.now() - blockedAt.getTime() : null;
+          // Warn if stale (>1 hour without release)
+          if (ageMs !== null && ageMs > 3600000) {
+            warnings.push(`Stale pending gate: ${key} (blocked ${Math.round(ageMs / 60000)}min ago)`);
+          }
+        } catch {}
+        pendingKeys.push(key || f);
+      }
+    }
+  }
+  const noPendingGates = pendingKeys.length === 0;
+  checks.no_pending_gates = { pass: noPendingGates, pending_keys: pendingKeys };
+  if (!noPendingGates) {
+    errors.push(`Pending gate artifacts found: ${pendingKeys.join(', ')} — human acknowledgment required`);
+  }
+
+  // ── 3. Checkpoint coverage (plan has checkpoints → CHECKPOINT.md exists) ──
+  if (phase && plan) {
+    const phaseInfo = findPhaseInternal(cwd, phase);
+    let coverageCheck = { pass: true, note: 'no_plan_file' };
+
+    if (phaseInfo) {
+      const planFile = path.join(cwd, phaseInfo.directory, `${phase}-${plan}-PLAN.md`);
+      if (fs.existsSync(planFile)) {
+        const planContent = fs.readFileSync(planFile, 'utf-8');
+        const checkpointPattern = /type="(checkpoint:[^"]+)"/g;
+        const checkpointTypes = [];
+        let m;
+        while ((m = checkpointPattern.exec(planContent)) !== null) checkpointTypes.push(m[1]);
+        const hasCheckpoints = checkpointTypes.length > 0;
+        const checkpointFileExists = fs.existsSync(path.join(cwd, phaseInfo.directory, 'CHECKPOINT.md'));
+        const bypass = hasCheckpoints && !checkpointFileExists;
+        coverageCheck = { pass: !bypass, has_checkpoints: hasCheckpoints, checkpoint_count: checkpointTypes.length, checkpoint_file_exists: checkpointFileExists };
+        if (bypass) {
+          errors.push(`Plan has ${checkpointTypes.length} checkpoint task(s) but no CHECKPOINT.md exists — subagent may have bypassed checkpoints`);
+        }
+      }
+    }
+    checks.checkpoint_coverage = coverageCheck;
+  } else {
+    checks.checkpoint_coverage = { pass: true, note: 'skipped — no phase/plan provided' };
+  }
+
+  // ── 4. All task log hashes exist in git history ────────────────────────────
+  if (phase && plan) {
+    const phaseInfo = findPhaseInternal(cwd, phase);
+    let commitCheck = { pass: true, checked: 0, missing: [] };
+
+    if (phaseInfo) {
+      const logFile = path.join(cwd, phaseInfo.directory, `${phase}-${plan}-TASK-LOG.jsonl`);
+      if (fs.existsSync(logFile)) {
+        const lines = fs.readFileSync(logFile, 'utf-8').trim().split('\n').filter(Boolean);
+        const missing = [];
+        for (const line of lines) {
+          let entry = null;
+          try { entry = JSON.parse(line); } catch { continue; }
+          if (!entry?.hash) continue;
+          const result = execGit(cwd, ['cat-file', '-t', entry.hash]);
+          if (result.exitCode !== 0 || result.stdout.trim() !== 'commit') {
+            missing.push({ task: entry.task, hash: entry.hash });
+          }
+        }
+        commitCheck = { pass: missing.length === 0, checked: lines.length, missing };
+        if (missing.length > 0) {
+          errors.push(`${missing.length} task log hash(es) not found in git history: ${missing.map(m => m.hash).join(', ')}`);
+        }
+      }
+    }
+    checks.task_log_commits_exist = commitCheck;
+  } else {
+    checks.task_log_commits_exist = { pass: true, note: 'skipped — no phase/plan provided' };
+  }
+
+  // ── 5. Partial / truncated last task log entry ─────────────────────────────
+  if (phase && plan) {
+    const phaseInfo = findPhaseInternal(cwd, phase);
+    let partialCheck = { pass: true, note: 'no_task_log' };
+
+    if (phaseInfo) {
+      const logFile = path.join(cwd, phaseInfo.directory, `${phase}-${plan}-TASK-LOG.jsonl`);
+      if (fs.existsSync(logFile)) {
+        const lines = fs.readFileSync(logFile, 'utf-8').trim().split('\n').filter(Boolean);
+        if (lines.length > 0) {
+          const lastLine = lines[lines.length - 1];
+          let parsed = null;
+          let parseOk = false;
+          try { parsed = JSON.parse(lastLine); parseOk = true; } catch {}
+          const truncated = !parseOk;
+          const missingHash = parseOk && !parsed?.hash;
+          partialCheck = {
+            pass: !truncated && !missingHash,
+            truncated,
+            missing_hash: missingHash,
+            entry_count: lines.length,
+          };
+          if (truncated) {
+            errors.push('Last task log entry is malformed / truncated — commit-task may have been interrupted before JSON was flushed');
+          } else if (missingHash) {
+            errors.push('Last task log entry is missing a commit hash — task log is incomplete');
+          }
+        }
+      }
+    }
+    checks.task_log_last_entry_valid = partialCheck;
+  } else {
+    checks.task_log_last_entry_valid = { pass: true, note: 'skipped — no phase/plan provided' };
+  }
+
+  // ── 6. Task log hashes ↔ SUMMARY ## Task Commits agreement ────────────────
+  if (phase && plan) {
+    const phaseInfo = findPhaseInternal(cwd, phase);
+    let summaryAgreement = { pass: true, note: 'no_summary' };
+
+    if (phaseInfo) {
+      const summaryFile = path.join(cwd, phaseInfo.directory, `${phase}-${plan}-SUMMARY.md`);
+      const logFile = path.join(cwd, phaseInfo.directory, `${phase}-${plan}-TASK-LOG.jsonl`);
+
+      if (fs.existsSync(summaryFile) && fs.existsSync(logFile)) {
+        const summaryContent = fs.readFileSync(summaryFile, 'utf-8');
+        const summaryInfo = extractTaskCommitHashes(summaryContent);
+        const summaryHashSet = new Set(summaryInfo.hashes);
+
+        const lines = fs.readFileSync(logFile, 'utf-8').trim().split('\n').filter(Boolean);
+        const logHashes = [];
+        for (const line of lines) {
+          let entry = null;
+          try { entry = JSON.parse(line); } catch { continue; }
+          if (entry?.hash) logHashes.push(entry.hash);
+        }
+        const logHashSet = new Set(logHashes);
+
+        const inLogNotSummary = logHashes.filter(h => !summaryHashSet.has(h));
+        const inSummaryNotLog = summaryInfo.hashes.filter(h => !logHashSet.has(h));
+
+        summaryAgreement = {
+          pass: inLogNotSummary.length === 0 && inSummaryNotLog.length === 0,
+          log_count: logHashes.length,
+          summary_count: summaryInfo.hashes.length,
+          in_log_not_summary: inLogNotSummary,
+          in_summary_not_log: inSummaryNotLog,
+        };
+        if (inLogNotSummary.length > 0) {
+          errors.push(`${inLogNotSummary.length} task log hash(es) absent from SUMMARY ## Task Commits: ${inLogNotSummary.join(', ')}`);
+        }
+        if (inSummaryNotLog.length > 0) {
+          warnings.push(`${inSummaryNotLog.length} hash(es) in SUMMARY ## Task Commits not found in task log (may be legitimate if log was reset): ${inSummaryNotLog.join(', ')}`);
+        }
+      }
+    }
+    checks.task_log_summary_agreement = summaryAgreement;
+  } else {
+    checks.task_log_summary_agreement = { pass: true, note: 'skipped — no phase/plan provided' };
+  }
+
+  // ── 7. All task log hashes are ancestors of HEAD (history rewrite / cherry-pick / branch divergence) ──
+  if (phase && plan) {
+    const phaseInfo = findPhaseInternal(cwd, phase);
+    let ancestryCheck = { pass: true, checked: 0, not_ancestor: [], note: 'no_task_log' };
+
+    if (phaseInfo) {
+      const logFile = path.join(cwd, phaseInfo.directory, `${phase}-${plan}-TASK-LOG.jsonl`);
+      if (fs.existsSync(logFile)) {
+        const lines = fs.readFileSync(logFile, 'utf-8').trim().split('\n').filter(Boolean);
+        const notAncestor = [];
+        let checked = 0;
+        for (const line of lines) {
+          let entry = null;
+          try { entry = JSON.parse(line); } catch { continue; }
+          if (!entry?.hash) continue;
+          checked++;
+          const r = execGit(cwd, ['merge-base', '--is-ancestor', entry.hash, 'HEAD']);
+          if (r.exitCode !== 0) {
+            notAncestor.push({ task: entry.task, hash: entry.hash });
+          }
+        }
+        ancestryCheck = { pass: notAncestor.length === 0, checked, not_ancestor: notAncestor };
+        if (notAncestor.length > 0) {
+          errors.push(`${notAncestor.length} task log hash(es) are not ancestors of HEAD — history may have been rewritten, cherry-picked, or recorded on a different branch: ${notAncestor.map(e => e.hash).join(', ')}`);
+        }
+      }
+    }
+    checks.task_log_ancestry = ancestryCheck;
+  } else {
+    checks.task_log_ancestry = { pass: true, note: 'skipped — no phase/plan provided' };
+  }
+
+  // ── 8. Branch consistency — task log entries recorded on current branch ────
+  if (phase && plan) {
+    const phaseInfo = findPhaseInternal(cwd, phase);
+    let branchCheck = { pass: true, note: 'no_task_log' };
+
+    if (phaseInfo) {
+      const logFile = path.join(cwd, phaseInfo.directory, `${phase}-${plan}-TASK-LOG.jsonl`);
+      if (fs.existsSync(logFile)) {
+        const currentBranchResult = execGit(cwd, ['rev-parse', '--abbrev-ref', 'HEAD']);
+        const currentBranch = currentBranchResult.exitCode === 0 ? currentBranchResult.stdout.trim() : null;
+
+        const lines = fs.readFileSync(logFile, 'utf-8').trim().split('\n').filter(Boolean);
+        const foreignBranchEntries = [];
+        for (const line of lines) {
+          let entry = null;
+          try { entry = JSON.parse(line); } catch { continue; }
+          if (entry?.branch && currentBranch && entry.branch !== currentBranch) {
+            foreignBranchEntries.push({ task: entry.task, hash: entry.hash, recorded_branch: entry.branch });
+          }
+        }
+
+        const hasBranchData = lines.some(l => { try { return !!JSON.parse(l)?.branch; } catch { return false; } });
+        branchCheck = {
+          pass: foreignBranchEntries.length === 0,
+          current_branch: currentBranch,
+          foreign_entries: foreignBranchEntries,
+          note: hasBranchData ? undefined : 'no_branch_field — legacy entries predate branch tracking',
+        };
+        if (foreignBranchEntries.length > 0) {
+          warnings.push(`${foreignBranchEntries.length} task log entry(entries) were recorded on a different branch (${[...new Set(foreignBranchEntries.map(e => e.recorded_branch))].join(', ')}) — task log may have been carried across a branch switch`);
+        }
+      }
+    }
+    checks.task_log_branch_consistency = branchCheck;
+  } else {
+    checks.task_log_branch_consistency = { pass: true, note: 'skipped — no phase/plan provided' };
+  }
+
+  // ── 9. STATE.md current_phase ↔ roadmap active phase ───────────────────────
+  {
+    const statePath = path.join(cwd, '.planning', 'STATE.md');
+    const roadmapPath = path.join(cwd, '.planning', 'ROADMAP.md');
+    let stateRoadmapCheck = { pass: true, note: 'files_missing' };
+
+    if (fs.existsSync(statePath) && fs.existsSync(roadmapPath)) {
+      const stateFm = extractFrontmatter(fs.readFileSync(statePath, 'utf-8'));
+      const statePhase = stateFm?.current_phase ? String(stateFm.current_phase) : null;
+      const roadmapContent = stripShippedMilestones(fs.readFileSync(roadmapPath, 'utf-8'));
+      // In-progress phases are marked with [ ] (not [x]) in ROADMAP
+      const inProgressPattern = /\[\s\]\s+\*\*Phase\s+([0-9]+(?:\.[0-9]+)?)\b/gi;
+      const inProgressPhases = [];
+      let m;
+      while ((m = inProgressPattern.exec(roadmapContent)) !== null) {
+        inProgressPhases.push(m[1]);
+      }
+      const statePhaseInRoadmap = statePhase ? inProgressPhases.some(p => p === statePhase || p === statePhase.replace(/^0+/, '')) : null;
+      stateRoadmapCheck = {
+        pass: statePhase === null || inProgressPhases.length === 0 || statePhaseInRoadmap === true,
+        state_phase: statePhase,
+        roadmap_in_progress: inProgressPhases,
+        agreement: statePhaseInRoadmap,
+      };
+      if (statePhase && inProgressPhases.length > 0 && statePhaseInRoadmap === false) {
+        warnings.push(`STATE.md current_phase (${statePhase}) is not listed as in-progress in ROADMAP.md (in-progress: ${inProgressPhases.join(', ')})`);
+      }
+    }
+    checks.state_roadmap_agreement = stateRoadmapCheck;
+  }
+
+  // ── 10. Classify warning severity (ignorable vs stop-the-line) ─────────────
+  // Annotate each error/warning with a severity tag so callers don't have to guess.
+  // errors are always stop-the-line. warnings get a severity field.
+  const classifiedWarnings = warnings.map(w => {
+    // Stale gates older than 1h — stop-the-line (may block the whole execution)
+    if (/stale pending gate/i.test(w)) return { message: w, severity: 'stop' };
+    // Branch mismatch — stop-the-line (may corrupt task log continuity)
+    if (/task log.*different branch|carried across.*branch/i.test(w)) return { message: w, severity: 'stop' };
+    // Summary/log hash discrepancy from summary side — ignorable if log was explicitly reset
+    if (/in SUMMARY.*not found in task log/i.test(w)) return { message: w, severity: 'ignorable' };
+    // STATE ↔ roadmap disagreement — ignorable, often races between state writes
+    if (/STATE\.md current_phase.*not listed/i.test(w)) return { message: w, severity: 'ignorable' };
+    return { message: w, severity: 'ignorable' };
+  });
+
+  const coherent = errors.length === 0;
+  return { coherent, checks, errors, warnings: classifiedWarnings };
+}
+
+function cmdVerifyIntegrity(cwd, options, raw) {
+  const result = runVerifyIntegrity(cwd, options);
+  output(result, raw, result.coherent ? 'coherent' : 'incoherent');
+}
+
 module.exports = {
   cmdVerifySummary,
+  cmdVerifyWorkColdStart,
   cmdVerifyPlanStructure,
   cmdVerifyPhaseCompleteness,
   cmdVerifyReferences,
   cmdVerifyCommits,
+  cmdVerifyTaskCommit,
   cmdVerifyArtifacts,
   cmdVerifyKeyLinks,
   cmdVerifyContextContract,
@@ -2204,6 +2794,9 @@ module.exports = {
   cmdVerifyPlanQuality,
   cmdVerifyWorkflowReadiness,
   cmdVerifyOrphanedState,
+  cmdVerifyCheckpointCoverage,
+  runVerifyIntegrity,
+  cmdVerifyIntegrity,
   cmdValidateConsistency,
   cmdValidateHealth,
 };

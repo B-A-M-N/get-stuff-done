@@ -18,11 +18,44 @@
  *   resolve-model <agent-type>         Get model for agent based on profile
  *   find-phase <phase>                 Find phase directory by number
  *   commit <message> [--files f1 f2]   Commit planning docs
+ *   commit-task <message> --scope <phase-plan> --files f1 [f2 ...]
+ *     [--phase <phase>] [--plan <plan>] [--task <N>]
+ *     [--prev-hash <hash>]             Verify <hash> is still HEAD before staging — catches
+ *                                      out-of-band commits between tasks automatically
+ *                                      Commit task source files, verify atomically, and
+ *                                      optionally persist hash to per-plan TASK-LOG.jsonl
+ *   task-log read --phase <phase> --plan <plan>
+ *                                      Read TASK-LOG.jsonl for a plan (context-reset recovery)
+ *   task-log reconstruct --phase <phase> --plan <plan>
+ *                                      Output "Task N: hash" lines ready for readarray (--raw)
+ *                                      or { found, lines, count } JSON
  *   verify-summary <path>              Verify a SUMMARY.md file
  *   generate-slug <text>               Convert text to URL-safe slug
  *   current-timestamp [format]         Get timestamp (full|date|filename)
  *   list-todos [area]                  Count and enumerate pending todos
  *   verify-path-exists <path>          Check file/directory existence
+ *   policy should-prompt <key>         Resolve effective prompt policy for gates.* / safety.*
+ *   gate enforce --key <key>           Exit 1 (write pending artifact) when gate should prompt;
+ *                                      exit 0 when clear. Use in `if !` bash blocks.
+ *   gate release --key <key>           Acknowledge gate after human response; write released artifact
+ *   gate check --key <key>             Report gate state (clear/pending/released) without modifying
+ *   checkpoint write --phase N         Atomic checkpoint primitive: write CHECKPOINT.md + commit
+ *     --type <type>                    Type: human-verify | decision | human-action
+ *     --why-blocked "..."              Why the executor cannot continue
+ *     --what-is-uncertain "..."        Unresolved ambiguity or decision gap
+ *     [--task N] [--task-name "..."]   Task number and name for the blocked task
+ *     [--choices "..."]                Decision options (for type=decision)
+ *     [--resume-condition "..."]       What user response allows continuation
+ *     [--no-allow-freeform]            Restrict user to listed choices only
+ *   firecrawl check                    Check if local Firecrawl instance is reachable.
+ *                                      Exits 0 + { available: true, mode: "firecrawl" } when up.
+ *                                      Exits 1 + { available: false, mode: "degraded" } when down.
+ *                                      Also checks planning server at localhost:3010.
+ *   context build --workflow <name>    Build Zod-validated execution snapshot for a workflow
+ *     [--phase N] [--plan M]           Workflows: execute-plan | verify-work | plan-phase
+ *                                      Exits 1 on schema validation failure with diagnostics
+ *   health degraded-mode               Check if running on fallback assumptions
+ *                                      (bad config, missing files, pending gates)
  *   config-ensure-section              Initialize .planning/config.json
  *   history-digest                     Aggregate all SUMMARY.md data
  *   summary-extract <path> [--fields]  Extract structured data from SUMMARY.md
@@ -83,6 +116,8 @@
  *   verify phase-completeness <phase>  Check all plans have summaries
  *   verify references <file>           Check @-refs + paths resolve
  *   verify commits <h1> [h2] ...      Batch verify commit hashes
+ *   verify task-commit <hash>         Validate immediate task commit invariants
+ *     [--scope <phase-plan>]
  *   verify artifacts <plan-file>       Check must_haves.artifacts
  *   verify key-links <plan-file>       Check must_haves.key_links
  *   verify context-contract <context-file> [--plan <plan-file>]
@@ -91,11 +126,19 @@
  *                                      Check unresolved ambiguity / guidance-only carry-forward rules in research output
  *   verify checkpoint-response <file>
  *                                      Validate checkpoint return structure for orchestrator handoff
+ *   verify checkpoint-coverage <plan-file> [--phase <phase>]
+ *                                      Detect checkpoint bypass: plan has checkpoint tasks but no
+ *                                      CHECKPOINT.md was written by the subagent
+ *   verify integrity [--phase N] [--plan M]
+ *                                      Coherence audit: HEAD matches last task log, no stale pending
+ *                                      gates, checkpoint coverage, all task hashes exist in git
  *   verify orphaned-state <phase>
  *                                      Detect interrupted execution (plans with summary but later plans without)
  *   verify workflow-readiness <workflow> --phase <N>
  *                                      Evaluate workflow entry readiness with blocking vs degradable gates
  *   verify plan-quality <phase>        Score plan quality and require revision when quality proxies fail
+ *   verify verify-work-cold-start <phase>
+ *                                      Detect whether verify-work must prepend the cold-start smoke test
  *
  * Template Fill:
  *   template fill summary --phase N    Create pre-filled SUMMARY.md
@@ -155,6 +198,9 @@ const itl = require('./lib/itl.cjs');
 const profilePipeline = require('./lib/profile-pipeline.cjs');
 const profileOutput = require('./lib/profile-output.cjs');
 const nextStep = require('./lib/next-step.cjs');
+const policy = require('./lib/policy.cjs');
+const gate = require('./lib/gate.cjs');
+const context = require('./lib/context.cjs');
 
 // ─── CLI Router ───────────────────────────────────────────────────────────────
 
@@ -188,7 +234,7 @@ async function main() {
   const command = args[0];
 
   if (!command) {
-    error('Usage: gsd-tools <command> [args] [--raw] [--cwd <path>]\nCommands: state, resolve-model, find-phase, commit, verify-summary, verify, frontmatter, template, generate-slug, current-timestamp, list-todos, verify-path-exists, config-ensure-section, init, itl');
+    error('Usage: gsd-tools <command> [args] [--raw] [--cwd <path>]\nCommands: state, resolve-model, find-phase, commit, verify-summary, verify, frontmatter, template, generate-slug, current-timestamp, list-todos, verify-path-exists, policy, config-ensure-section, init, itl');
   }
 
   switch (command) {
@@ -316,6 +362,53 @@ async function main() {
       break;
     }
 
+    case 'commit-task': {
+      // collect message: positional args before first flag
+      const ctMessageParts = [];
+      let ctI = 1;
+      while (ctI < args.length && !args[ctI].startsWith('--')) {
+        ctMessageParts.push(args[ctI++]);
+      }
+      const ctMessage = ctMessageParts.join(' ') || undefined;
+      // parse --scope, --phase, --plan, --task, --files
+      const ctScopeIdx = args.indexOf('--scope');
+      const ctScope = ctScopeIdx !== -1 ? args[ctScopeIdx + 1] : null;
+      const ctPhaseIdx = args.indexOf('--phase');
+      const ctPhase = ctPhaseIdx !== -1 ? args[ctPhaseIdx + 1] : null;
+      const ctPlanIdx = args.indexOf('--plan');
+      const ctPlan = ctPlanIdx !== -1 ? args[ctPlanIdx + 1] : null;
+      const ctTaskIdx = args.indexOf('--task');
+      const ctTask = ctTaskIdx !== -1 ? args[ctTaskIdx + 1] : null;
+      const ctFilesIdx = args.indexOf('--files');
+      const ctFiles = [];
+      if (ctFilesIdx !== -1) {
+        for (let j = ctFilesIdx + 1; j < args.length; j++) {
+          if (args[j].startsWith('--')) break;
+          ctFiles.push(args[j]);
+        }
+      }
+      const ctPrevHashIdx = args.indexOf('--prev-hash');
+      const ctPrevHash = ctPrevHashIdx !== -1 ? args[ctPrevHashIdx + 1] : null;
+      commands.cmdCommitTask(cwd, ctMessage, ctFiles, ctScope, { phase: ctPhase, plan: ctPlan, task: ctTask, prev_hash: ctPrevHash }, raw);
+      break;
+    }
+
+    case 'task-log': {
+      const subcommand = args[1];
+      const tlPhaseIdx = args.indexOf('--phase');
+      const tlPlanIdx = args.indexOf('--plan');
+      const tlPhase = tlPhaseIdx !== -1 ? args[tlPhaseIdx + 1] : null;
+      const tlPlan = tlPlanIdx !== -1 ? args[tlPlanIdx + 1] : null;
+      if (subcommand === 'read') {
+        commands.cmdTaskLogRead(cwd, tlPhase, tlPlan, raw);
+      } else if (subcommand === 'reconstruct') {
+        commands.cmdTaskLogReconstruct(cwd, tlPhase, tlPlan, raw);
+      } else {
+        error('Unknown task-log subcommand. Available: read, reconstruct');
+      }
+      break;
+    }
+
     case 'verify-summary': {
       const summaryPath = args[1];
       const countIndex = args.indexOf('--check-count');
@@ -382,6 +475,11 @@ async function main() {
         verify.cmdVerifyReferences(cwd, args[2], raw);
       } else if (subcommand === 'commits') {
         verify.cmdVerifyCommits(cwd, args.slice(2), raw);
+      } else if (subcommand === 'task-commit') {
+        const scopeIdx = args.indexOf('--scope');
+        verify.cmdVerifyTaskCommit(cwd, args[2], {
+          scope: scopeIdx !== -1 ? args[scopeIdx + 1] : null,
+        }, raw);
       } else if (subcommand === 'artifacts') {
         verify.cmdVerifyArtifacts(cwd, args[2], raw);
       } else if (subcommand === 'key-links') {
@@ -413,8 +511,20 @@ async function main() {
         }, raw);
       } else if (subcommand === 'plan-quality') {
         verify.cmdVerifyPlanQuality(cwd, args[2], raw);
+      } else if (subcommand === 'verify-work-cold-start') {
+        verify.cmdVerifyWorkColdStart(cwd, args[2], raw);
+      } else if (subcommand === 'checkpoint-coverage') {
+        const cpPhaseIdx = args.indexOf('--phase');
+        verify.cmdVerifyCheckpointCoverage(cwd, args[2], cpPhaseIdx !== -1 ? args[cpPhaseIdx + 1] : null, raw);
+      } else if (subcommand === 'integrity') {
+        const intPhaseIdx = args.indexOf('--phase');
+        const intPlanIdx = args.indexOf('--plan');
+        verify.cmdVerifyIntegrity(cwd, {
+          phase: intPhaseIdx !== -1 ? args[intPhaseIdx + 1] : null,
+          plan: intPlanIdx !== -1 ? args[intPlanIdx + 1] : null,
+        }, raw);
       } else {
-        error('Unknown verify subcommand. Available: plan-structure, phase-completeness, references, commits, artifacts, key-links, context-contract, research-contract, checkpoint-response, cross-plan-data-contracts, requirement-coverage, dead-exports, orphaned-state, workflow-readiness, plan-quality');
+        error('Unknown verify subcommand. Available: plan-structure, phase-completeness, references, commits, task-commit, artifacts, key-links, context-contract, research-contract, checkpoint-response, checkpoint-coverage, integrity, cross-plan-data-contracts, requirement-coverage, dead-exports, orphaned-state, workflow-readiness, plan-quality, verify-work-cold-start');
       }
       break;
     }
@@ -439,6 +549,104 @@ async function main() {
         nextStep.cmdClear(cwd, raw);
       } else {
         error('Unknown next-step subcommand. Available: set, get, consume, clear');
+      }
+      break;
+    }
+
+    case 'policy': {
+      const subcommand = args[1];
+      if (subcommand === 'should-prompt') {
+        policy.cmdPolicyShouldPrompt(cwd, args[2], raw);
+      } else {
+        error('Unknown policy subcommand. Available: should-prompt');
+      }
+      break;
+    }
+
+    case 'gate': {
+      const subcommand = args[1];
+      const keyIdx = args.indexOf('--key');
+      const keyArg = keyIdx !== -1 ? args[keyIdx + 1] : null;
+      if (subcommand === 'enforce') {
+        gate.cmdGateEnforce(cwd, keyArg, raw);
+      } else if (subcommand === 'release') {
+        gate.cmdGateRelease(cwd, keyArg, raw);
+      } else if (subcommand === 'check') {
+        gate.cmdGateCheck(cwd, keyArg, raw);
+      } else {
+        error('Unknown gate subcommand. Available: enforce, release, check');
+      }
+      break;
+    }
+
+    case 'checkpoint': {
+      const subcommand = args[1];
+      if (subcommand === 'write') {
+        const cpPhaseIdx = args.indexOf('--phase');
+        const cpPhase = cpPhaseIdx !== -1 ? args[cpPhaseIdx + 1] : null;
+        const cpTypeIdx = args.indexOf('--type');
+        const cpWhyIdx = args.indexOf('--why-blocked');
+        const cpUncertainIdx = args.indexOf('--what-is-uncertain');
+        const cpTaskIdx = args.indexOf('--task');
+        const cpTaskNameIdx = args.indexOf('--task-name');
+        const cpChoicesIdx = args.indexOf('--choices');
+        const cpResumeIdx = args.indexOf('--resume-condition');
+        commands.cmdCheckpointWrite(cwd, cpPhase, {
+          type: cpTypeIdx !== -1 ? args[cpTypeIdx + 1] : null,
+          why_blocked: cpWhyIdx !== -1 ? args[cpWhyIdx + 1] : null,
+          what_is_uncertain: cpUncertainIdx !== -1 ? args[cpUncertainIdx + 1] : null,
+          task: cpTaskIdx !== -1 ? args[cpTaskIdx + 1] : null,
+          task_name: cpTaskNameIdx !== -1 ? args[cpTaskNameIdx + 1] : null,
+          choices: cpChoicesIdx !== -1 ? args[cpChoicesIdx + 1] : '',
+          resume_condition: cpResumeIdx !== -1 ? args[cpResumeIdx + 1] : null,
+          allow_freeform: !args.includes('--no-allow-freeform'),
+        }, raw);
+      } else {
+        error('Unknown checkpoint subcommand. Available: write');
+      }
+      break;
+    }
+
+    case 'health': {
+      const subcommand = args[1];
+      if (subcommand === 'degraded-mode') {
+        commands.cmdHealthDegradedMode(cwd, raw);
+      } else {
+        error('Unknown health subcommand. Available: degraded-mode');
+      }
+      break;
+    }
+
+    case 'firecrawl': {
+      const subcommand = args[1];
+      if (subcommand === 'check') {
+        // Check if the local Firecrawl instance is reachable.
+        // Exits 0 + { available: true } when up, exits 1 + { available: false } when down.
+        // Agents use this instead of raw curl to determine whether to use Firecrawl or fallback tools.
+        const { execSync: _execSync } = require('child_process');
+        const apiUrl = process.env.FIRECRAWL_API_URL || 'http://localhost:3002';
+        const planningServerUrl = process.env.FIRECRAWL_PLANNING_URL || 'http://localhost:3010';
+        let apiUp = false;
+        let planningUp = false;
+        try {
+          _execSync(`curl -sf ${apiUrl}/ >/dev/null 2>&1`, { timeout: 3000 });
+          apiUp = true;
+        } catch {}
+        try {
+          _execSync(`curl -sf ${planningServerUrl}/.planning/STATE.md >/dev/null 2>&1`, { timeout: 3000 });
+          planningUp = true;
+        } catch {}
+        const result = {
+          available: apiUp,
+          api_url: apiUrl,
+          planning_server_available: planningUp,
+          planning_server_url: planningServerUrl,
+          mode: apiUp ? 'firecrawl' : 'degraded',
+        };
+        process.stdout.write(JSON.stringify(result, null, 2) + '\n');
+        process.exit(apiUp ? 0 : 1);
+      } else {
+        error('Unknown firecrawl subcommand. Available: check');
       }
       break;
     }
@@ -859,6 +1067,22 @@ async function main() {
       const autoFlag = args.includes('--auto');
       const forceFlag = args.includes('--force');
       profileOutput.cmdGenerateClaudeMd(cwd, { output: outputPath, auto: autoFlag, force: forceFlag }, raw);
+      break;
+    }
+
+    case 'context': {
+      const sub = args[1];
+      if (sub === 'build') {
+        const workflowIdx = args.indexOf('--workflow');
+        const workflow = workflowIdx !== -1 ? args[workflowIdx + 1] : null;
+        const phaseIdx = args.indexOf('--phase');
+        const phaseVal = phaseIdx !== -1 ? args[phaseIdx + 1] : null;
+        const planIdx = args.indexOf('--plan');
+        const planVal = planIdx !== -1 ? args[planIdx + 1] : null;
+        context.cmdContextBuild(cwd, workflow, { phase: phaseVal, plan: planVal }, raw);
+      } else {
+        error(`Unknown context subcommand: ${sub || '(none)'}. Use: context build --workflow <name>`);
+      }
       break;
     }
 

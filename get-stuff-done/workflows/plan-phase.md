@@ -47,6 +47,17 @@ fi
 
 **If `planning_exists` is false:** Error — run `/gsd:new-project` first.
 
+```bash
+CTX=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" context build \
+  --workflow plan-phase --phase "${PHASE}")
+if [[ "$CTX" == @file:* ]]; then CTX=$(cat "${CTX#@file:}"); fi
+```
+
+Extract from CTX JSON: `git.head`, `git.branch`, `next_phase`, `roadmap_exists`, `research_exists`, `warnings`.
+
+If `warnings` is non-empty: surface to user before proceeding.
+If `next_phase` differs from `$PHASE`: flag the discrepancy — roadmap and argument disagree on which phase is next.
+
 ## 2. Parse and Normalize Arguments
 
 Extract from $ARGUMENTS: phase number (integer or decimal like `2.1`), flags (`--research`, `--skip-research`, `--gaps`, `--skip-verify`, `--prd <filepath>`).
@@ -752,6 +763,16 @@ Offer: 1) Force proceed, 2) Provide guidance and retry, 3) Abandon
 
 ## 13. Present Final Status
 
+Hard gate: enforce `confirm_plan` before routing. Exit 1 = blocked; present plan summary then release.
+
+```bash
+if ! node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" gate enforce --key gates.confirm_plan; then
+  # Gate is active — present plan count and key tasks, wait for user acknowledgment
+  # After user responds: release the gate
+  node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" gate release --key gates.confirm_plan
+fi
+```
+
 Route to `<offer_next>` OR `auto_advance` depending on flags/config.
 
 ## 14. Auto-Advance Check
@@ -772,6 +793,18 @@ Check for auto-advance trigger:
    ```
 
 **If `--auto` flag present OR `AUTO_CHAIN` is true OR `AUTO_CFG` is true:**
+
+Check `confirm_plan` gate before auto-advancing — `gate enforce` in step 13 already wrote a released artifact if the gate was active and acknowledged. Check that it's clear before firing auto-advance:
+
+```bash
+GATE_STATE=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" gate check --key gates.confirm_plan)
+if [[ "$GATE_STATE" == @file:* ]]; then GATE_STATE=$(cat "${GATE_STATE#@file:}"); fi
+GATE_CLEAR=$(echo "$GATE_STATE" | node -e "const d=require('fs').readFileSync('/dev/stdin','utf8');process.stdout.write(JSON.parse(d).clear?'true':'false')")
+```
+
+If `GATE_CLEAR` is `false` — do NOT auto-advance. A pending gate means the user has not yet acknowledged. Wait.
+
+If `GATE_CLEAR` is `true`:
 
 Display banner:
 ```

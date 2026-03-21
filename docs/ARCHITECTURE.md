@@ -96,7 +96,7 @@ Workflow feature flags follow the **absent = enabled** pattern. If a key is miss
 
 Multiple layers prevent common failure modes:
 - Plans are verified before execution (plan-checker agent)
-- Execution produces atomic commits per task
+- Execution is expected to produce atomic commits per task, and modern summaries are mechanically verified for per-task commit coverage
 - Post-execution verification checks against phase goals
 - UAT provides human verification as final gate
 
@@ -171,7 +171,7 @@ Runtime hooks that integrate with the host AI agent:
 
 ### CLI Tools (`get-stuff-done/bin/`)
 
-Node.js CLI utility (`gsd-tools.cjs`) with 11 domain modules:
+Node.js CLI utility (`gsd-tools.cjs`) with 12 domain modules:
 
 | Module | Responsibility |
 |--------|---------------|
@@ -180,13 +180,73 @@ Node.js CLI utility (`gsd-tools.cjs`) with 11 domain modules:
 | `phase.cjs` | Phase directory operations, decimal numbering, plan indexing |
 | `roadmap.cjs` | ROADMAP.md parsing, phase extraction, plan progress |
 | `config.cjs` | config.json read/write, section initialization |
-| `verify.cjs` | Plan structure, phase completeness, reference, commit validation |
+| `verify.cjs` | Plan structure, phase completeness, reference, commit validation, integrity audit |
 | `template.cjs` | Template selection and filling with variable substitution |
 | `frontmatter.cjs` | YAML frontmatter CRUD operations |
 | `init.cjs` | Compound context loading for each workflow type |
 | `milestone.cjs` | Milestone archival, requirements marking |
-| `commands.cjs` | Misc commands (slug, timestamp, todos, scaffolding, stats) |
+| `commands.cjs` | Task commits, checkpoint writes, degraded-mode health, scaffolding, stats |
+| `gate.cjs` | Hard gate enforcement: enforce/release/check with pending/released artifacts |
 | `model-profiles.cjs` | Model profile resolution table |
+
+### Enforcement Boundary
+
+The enforcement boundary is the primary mental model for understanding GSD's reliability guarantees. Every safety property in the system traces back to one or more of these runtime primitives — not to workflow prose. The primitives use exit codes, not JSON fields, to halt execution. Bash scripts that call them in `if !` blocks or check `$?` halt without requiring JSON parsing.
+
+**Hard stops (exit 1 on violation):**
+
+| Primitive | What it enforces |
+|-----------|-----------------|
+| `commit-task --scope S [--prev-hash H]` | Scope match + HEAD continuity across tasks; logs branch field for drift detection |
+| `gate enforce --key K` | Human acknowledgment gate; writes tamper-evident pending artifact |
+| `checkpoint write --phase N --type T` | Atomic CHECKPOINT.md write + commit |
+
+**Audit (exit 0, structured JSON, coherent/incoherent flag):**
+
+| Primitive | What it checks |
+|-----------|---------------|
+| `verify integrity [--phase N] [--plan M]` | 10-check coherence audit (see below) |
+| `verify checkpoint-coverage <plan> [--phase N]` | Silent checkpoint bypass by subagent |
+| `health degraded-mode` | Config validity, missing planning files, stale gates |
+
+**State management:**
+
+| Primitive | What it does |
+|-----------|-------------|
+| `gate release --key K` | Records acknowledgment, clears pending artifact |
+| `gate check --key K` | Reports gate state without modifying |
+
+**`verify integrity` checks all ten invariants in one call:**
+
+| # | Check | Severity on failure |
+|---|-------|---------------------|
+| 1 | HEAD matches last task log entry | error (stop) |
+| 2 | No stale pending gate artifacts | error (stop) |
+| 3 | Checkpoint tasks have CHECKPOINT.md | error (stop) |
+| 4 | All task log hashes exist in git object store | error (stop) |
+| 5 | Last task log entry is valid JSON with hash field | error (stop) |
+| 6 | Task log hashes ↔ SUMMARY ## Task Commits agree | error (stop) |
+| 7 | All task log hashes are ancestors of HEAD | error (stop) |
+| 8 | Task log entries recorded on current branch | warning (stop) |
+| 9 | STATE.md current_phase ↔ roadmap in-progress phase | warning (ignorable) |
+
+Warnings include a `severity` field: `"stop"` means treat as a hard blocker; `"ignorable"` means log and continue.
+
+**Workflow gate pattern:**
+```bash
+if ! node gsd-tools.cjs gate enforce --key gates.confirm_plan; then
+  # Gate is active — present context, wait for human response
+  node gsd-tools.cjs gate release --key gates.confirm_plan
+fi
+```
+
+**Task continuity pattern:**
+```bash
+COMMIT_RESULT=$(node gsd-tools.cjs commit-task "feat(01-01): ..." \
+  --scope 01-01 --phase 01 --plan 01 --task $TASK_NUM \
+  ${PREV_TASK_HASH:+--prev-hash "$PREV_TASK_HASH"} --files ...)
+PREV_TASK_HASH=$(echo "$COMMIT_RESULT" | node -e "process.stdout.write(JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).hash)")
+```
 
 ### ITL Canonical Layer
 

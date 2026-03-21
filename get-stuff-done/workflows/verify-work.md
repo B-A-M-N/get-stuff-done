@@ -34,7 +34,17 @@ INIT=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" init verify-work "$
 if [[ "$INIT" == @file:* ]]; then INIT=$(cat "${INIT#@file:}"); fi
 ```
 
-Parse JSON for: `planner_model`, `checker_model`, `commit_docs`, `phase_found`, `phase_dir`, `phase_number`, `phase_name`, `has_verification`.
+Parse JSON for: `planner_model`, `checker_model`, `commit_docs`, `config_warning`, `phase_found`, `phase_dir`, `phase_number`, `phase_name`, `has_verification`, `summary_files`, `needs_cold_start_smoke_test`, `cold_start_paths`.
+
+```bash
+CTX=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" context build \
+  --workflow verify-work --phase "${PHASE_ARG}")
+if [[ "$CTX" == @file:* ]]; then CTX=$(cat "${CTX#@file:}"); fi
+```
+
+Extract from CTX JSON: `git.head`, `git.branch`, `pointer.phase`, `pointer.plan`, `summary_exists`, `verification_exists`, `warnings`.
+
+If `warnings` is non-empty: surface to user before proceeding.
 </step>
 
 <step name="check_active_session">
@@ -87,11 +97,17 @@ Continue to `create_uat_file`.
 <step name="find_summaries">
 **Find what to test:**
 
-Use `phase_dir` from init (or run init if not already done).
+Use `phase_dir` and `summary_files` from init (or re-run init if not already done).
+
+If `config_warning` is non-null, surface it before continuing so verification does not silently run against fallback defaults.
+
+Prefer the canonical init output instead of rediscovering summaries ad hoc:
 
 ```bash
-ls "$phase_dir"/*-SUMMARY.md 2>/dev/null
+printf '%s\n' "$summary_files"
 ```
+
+If `summary_files` is empty, stop and explain that there are no execution summaries to verify for this phase.
 
 Read each SUMMARY.md to extract testable deliverables.
 </step>
@@ -163,16 +179,16 @@ Use `<verification_seed>` as an input, not a replacement:
 
 **Cold-start smoke test injection:**
 
-After extracting tests from SUMMARYs, scan the SUMMARY files for modified/created file paths. If ANY path matches these patterns:
+Use the canonical decision from init / `verify verify-work-cold-start <phase>`, not prompt-only path scanning.
 
-`server.ts`, `server.js`, `app.ts`, `app.js`, `index.ts`, `index.js`, `main.ts`, `main.js`, `database/*`, `db/*`, `seed/*`, `seeds/*`, `migrations/*`, `startup*`, `docker-compose*`, `Dockerfile*`
-
-Then **prepend** this test to the test list:
+If `needs_cold_start_smoke_test` is true, prepend this test to the test list:
 
 - name: "Cold Start Smoke Test"
 - expected: "Kill any running server/service. Clear ephemeral state (temp DBs, caches, lock files). Start the application from scratch. Server boots without errors, any seed/migration completes, and a primary query (health check, homepage load, or basic API call) returns live data."
 
-This catches bugs that only manifest on fresh start — race conditions in startup sequences, silent seed failures, missing environment setup — which pass against warm state but break in production.
+If available, mention the triggering paths from `cold_start_paths` when presenting why this test was injected.
+
+This catches bugs that only manifest on fresh start: race conditions in startup sequences, silent seed failures, and missing environment setup that pass against warm state but break in production.
 </step>
 
 <step name="create_uat_file">

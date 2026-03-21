@@ -238,7 +238,12 @@ function cmdCommit(cwd, message, files, raw, amend) {
   // Stage files
   const filesToStage = files && files.length > 0 ? files : ['.planning/'];
   for (const file of filesToStage) {
-    execGit(cwd, ['add', file]);
+    const addResult = execGit(cwd, ['add', file]);
+    if (addResult.exitCode !== 0) {
+      const result = { committed: false, hash: null, reason: 'git_add_failed', error: addResult.stderr || addResult.stdout, file };
+      output(result, raw, 'failed');
+      return;
+    }
   }
 
   // Commit
@@ -260,6 +265,260 @@ function cmdCommit(cwd, message, files, raw, amend) {
   const hash = hashResult.exitCode === 0 ? hashResult.stdout : null;
   const result = { committed: true, hash, reason: 'committed' };
   output(result, raw, hash || 'committed');
+}
+
+function cmdCommitTask(cwd, message, files, scope, options, raw) {
+  // options = { phase?, plan?, task? } — all optional; when provided, append to task log
+  if (typeof options === 'boolean' || options == null) {
+    // backward-compat: called as (cwd, message, files, scope, raw)
+    raw = options;
+    options = {};
+  }
+  if (!message) error('commit message required');
+  if (!scope) error('--scope required for commit-task');
+  if (!files || files.length === 0) error('--files required for commit-task');
+
+  // Pre-commit continuity check: if --prev-hash provided, verify it is still HEAD
+  // before touching the working tree. Catches any commit that slipped in between tasks
+  // (manual commits, wrong-scope commits, bypassed enforcement) without requiring a
+  // separate verify step.
+  if (options.prev_hash) {
+    const headResult = execGit(cwd, ['rev-parse', '--short', 'HEAD']);
+    const currentHead = headResult.exitCode === 0 ? headResult.stdout.trim() : null;
+    if (currentHead !== options.prev_hash) {
+      process.stdout.write(JSON.stringify({
+        committed: false,
+        verified: false,
+        hash: null,
+        subject: null,
+        scope,
+        scope_matches: false,
+        errors: [
+          `Continuity check failed: previous task commit ${options.prev_hash} is no longer HEAD (HEAD is ${currentHead || 'unknown'}) — an out-of-band commit occurred between tasks`,
+        ],
+      }, null, 2));
+      process.exit(1);
+    }
+  }
+
+  // Stage files
+  for (const file of files) {
+    const addResult = execGit(cwd, ['add', file]);
+    if (addResult.exitCode !== 0) {
+      output({
+        committed: false, verified: false, hash: null, subject: null,
+        scope, scope_matches: false,
+        errors: [`git add failed for ${file}: ${addResult.stderr || addResult.stdout}`],
+      }, raw, 'failed');
+      return;
+    }
+  }
+
+  // Commit
+  const commitResult = execGit(cwd, ['commit', '-m', message]);
+  if (commitResult.exitCode !== 0) {
+    if (commitResult.stdout.includes('nothing to commit') || commitResult.stderr.includes('nothing to commit')) {
+      process.stdout.write(JSON.stringify({ committed: false, verified: false, hash: null, subject: null, scope, scope_matches: false, errors: ['nothing to commit'] }, null, 2));
+      process.exit(1);
+    }
+    output({ committed: false, verified: false, hash: null, subject: null, scope, scope_matches: false, errors: [commitResult.stderr || 'commit failed'] }, raw, 'failed');
+    return;
+  }
+
+  // Resolve HEAD hash
+  const hashResult = execGit(cwd, ['rev-parse', '--short', 'HEAD']);
+  if (hashResult.exitCode !== 0) {
+    output({ committed: true, verified: false, hash: null, subject: null, scope, scope_matches: false, errors: ['could not resolve HEAD hash'] }, raw, 'failed');
+    return;
+  }
+  const hash = hashResult.stdout.trim();
+
+  // Verify: hash is a real commit object
+  const typeResult = execGit(cwd, ['cat-file', '-t', hash]);
+  const exists = typeResult.exitCode === 0 && typeResult.stdout.trim() === 'commit';
+
+  // Verify: hash is current HEAD (always true here since we just committed, but confirms no race)
+  const headResult = execGit(cwd, ['rev-parse', '--short', 'HEAD']);
+  const isHead = headResult.exitCode === 0 && headResult.stdout.trim() === hash;
+
+  // Verify: commit subject contains the expected scope
+  const subjectResult = execGit(cwd, ['log', '-1', '--format=%s', hash]);
+  const subject = subjectResult.exitCode === 0 ? subjectResult.stdout.trim() : null;
+  const openParen = subject ? subject.indexOf('(') : -1;
+  const closeParen = subject ? subject.indexOf('):') : -1;
+  const subjectScope = openParen !== -1 && closeParen !== -1 && closeParen > openParen
+    ? subject.slice(openParen + 1, closeParen)
+    : null;
+  const scopeMatches = subjectScope === scope;
+
+  const errors = [];
+  if (!exists) errors.push('Commit hash not found in git history');
+  if (exists && !isHead) errors.push('Task commit is not the current HEAD');
+  if (!scopeMatches) errors.push(`Task commit subject does not match expected scope ${scope}`);
+
+  // Persist task hash record when phase/plan/task are provided and commit is valid
+  let task_log_path = null;
+  if (errors.length === 0 && options.phase && options.plan) {
+    const phaseInfo = findPhaseInternal(cwd, options.phase);
+    if (phaseInfo) {
+      const logFile = `${options.phase}-${options.plan}-TASK-LOG.jsonl`;
+      const absDir = path.join(cwd, phaseInfo.directory);
+      task_log_path = path.join(absDir, logFile);
+      const branchResult = execGit(cwd, ['rev-parse', '--abbrev-ref', 'HEAD']);
+      const branch = branchResult.exitCode === 0 ? branchResult.stdout.trim() : null;
+      const record = JSON.stringify({
+        task: options.task != null ? Number(options.task) : null,
+        hash,
+        subject,
+        scope,
+        branch,
+        ts: new Date().toISOString(),
+      });
+      try {
+        fs.appendFileSync(task_log_path, record + '\n', 'utf-8');
+      } catch (appendErr) {
+        // Log append failure is fatal — the commit succeeded (hash is valid) but
+        // the task log is now out of sync. Caller must not proceed; they can
+        // re-append manually using: task-log reconstruct --phase N --plan M
+        const result = {
+          committed: true,
+          verified: false,
+          hash,
+          subject,
+          scope,
+          errors: [`Task log append failed: ${appendErr.message} — commit ${hash} succeeded but was not recorded. Run: task-log reconstruct --phase ${options.phase} --plan ${options.plan}`],
+        };
+        process.stdout.write(JSON.stringify(result, null, 2) + '\n');
+        process.exit(1);
+      }
+    }
+  }
+
+  const result = {
+    committed: true,
+    verified: errors.length === 0,
+    hash,
+    subject,
+    scope,
+    scope_matches: scopeMatches,
+    task_log_path,
+    errors,
+  };
+
+  // Exit 1 when verification fails so bash `if !` blocks halt without requiring JSON parsing.
+  if (errors.length > 0) {
+    process.stdout.write(JSON.stringify(result, null, 2));
+    process.exit(1);
+  }
+  output(result, raw, hash);
+}
+
+function cmdTaskLogRead(cwd, phase, plan, raw) {
+  if (!phase) error('--phase required for task-log read');
+  if (!plan) error('--plan required for task-log read');
+
+  const phaseInfo = findPhaseInternal(cwd, phase);
+  if (!phaseInfo) {
+    output({ phase, plan, found: false, tasks: [], count: 0, error: 'Phase not found' }, raw, 'not_found');
+    return;
+  }
+
+  const logFile = `${phase}-${plan}-TASK-LOG.jsonl`;
+  const logPath = path.join(cwd, phaseInfo.directory, logFile);
+
+  if (!fs.existsSync(logPath)) {
+    output({ phase, plan, found: false, tasks: [], count: 0, log_path: logPath }, raw, 'not_found');
+    return;
+  }
+
+  let tasks = [];
+  let parseErrors = [];
+  try {
+    const lines = fs.readFileSync(logPath, 'utf-8').split('\n').filter(l => l.trim());
+    for (const line of lines) {
+      try {
+        tasks.push(JSON.parse(line));
+      } catch {
+        parseErrors.push(line);
+      }
+    }
+  } catch (err) {
+    output({ phase, plan, found: false, tasks: [], count: 0, error: err.message }, raw, 'error');
+    return;
+  }
+
+  output({
+    phase,
+    plan,
+    found: true,
+    log_path: logPath,
+    tasks,
+    count: tasks.length,
+    parse_errors: parseErrors.length > 0 ? parseErrors : undefined,
+  }, raw, String(tasks.length));
+}
+
+function cmdTaskLogReconstruct(cwd, phase, plan, raw) {
+  if (!phase) error('--phase required for task-log reconstruct');
+  if (!plan) error('--plan required for task-log reconstruct');
+
+  const phaseInfo = findPhaseInternal(cwd, phase);
+  if (!phaseInfo) {
+    if (raw) {
+      process.stdout.write('');
+    } else {
+      output({ found: false, lines: [] }, raw);
+    }
+    return;
+  }
+
+  const logFile = `${phase}-${plan}-TASK-LOG.jsonl`;
+  const logPath = path.join(cwd, phaseInfo.directory, logFile);
+
+  if (!fs.existsSync(logPath)) {
+    if (raw) {
+      process.stdout.write('');
+    } else {
+      output({ found: false, lines: [] }, raw);
+    }
+    return;
+  }
+
+  let tasks = [];
+  try {
+    const fileLines = fs.readFileSync(logPath, 'utf-8').split('\n').filter(l => l.trim());
+    for (const line of fileLines) {
+      try {
+        tasks.push(JSON.parse(line));
+      } catch {
+        // skip unparseable lines
+      }
+    }
+  } catch (err) {
+    if (raw) {
+      process.stdout.write('');
+    } else {
+      output({ found: false, lines: [] }, raw);
+    }
+    return;
+  }
+
+  if (tasks.length === 0) {
+    if (raw) {
+      process.stdout.write('');
+    } else {
+      output({ found: false, lines: [] }, raw);
+    }
+    return;
+  }
+
+  const lines = tasks.map((t, i) => `Task ${t.task != null ? t.task : i + 1}: ${t.hash || t.commit || t.id || JSON.stringify(t)}`);
+
+  if (raw) {
+    process.stdout.write(lines.join('\n') + '\n');
+  } else {
+    output({ found: true, lines, count: lines.length }, raw);
+  }
 }
 
 function cmdSummaryExtract(cwd, summaryPath, fields, raw) {
@@ -692,6 +951,165 @@ function cmdStats(cwd, format, raw) {
   }
 }
 
+/**
+ * Checkpoint write — atomic primitive for checkpoint tasks.
+ *
+ * Writes CHECKPOINT.md to the phase directory, commits it, and returns the
+ * structured checkpoint payload. Replaces the multi-step prompt-obedience pattern
+ * of "write file manually, then commit, then format JSON" with one non-bypassable call.
+ *
+ * Returns: { written, committed, hash, path, type, why_blocked, what_is_uncertain }
+ */
+function cmdCheckpointWrite(cwd, phase, options, raw) {
+  if (!phase) error('--phase required for checkpoint write');
+  if (!options || !options.type) error('--type required (human-verify|decision|human-action)');
+  if (!options.why_blocked) error('--why-blocked required');
+  if (!options.what_is_uncertain) error('--what-is-uncertain required');
+
+  const validTypes = ['human-verify', 'decision', 'human-action'];
+  if (!validTypes.includes(options.type)) {
+    error(`--type must be one of: ${validTypes.join(', ')}`);
+  }
+
+  const phaseInfo = findPhaseInternal(cwd, phase);
+  if (!phaseInfo) {
+    error(`Phase directory not found for phase: ${phase}`);
+  }
+
+  const phaseDir = path.join(cwd, phaseInfo.directory);
+  const checkpointPath = path.join(phaseDir, 'CHECKPOINT.md');
+  const relPath = path.join(phaseInfo.directory, 'CHECKPOINT.md');
+
+  const allowFreeform = options.allow_freeform !== false;
+  const choices = options.choices || '';
+  const resumeCondition = options.resume_condition || 'User provides explicit confirmation';
+  const taskNum = options.task || null;
+  const taskName = options.task_name || '';
+
+  const content = [
+    '---',
+    'status: pending',
+    `type: ${options.type}`,
+    `why_blocked: "${options.why_blocked.replace(/"/g, '\\"')}"`,
+    `what_is_uncertain: "${options.what_is_uncertain.replace(/"/g, '\\"')}"`,
+    `choices: "${choices.replace(/"/g, '\\"')}"`,
+    `allow_freeform: ${allowFreeform}`,
+    `resume_condition: "${resumeCondition.replace(/"/g, '\\"')}"`,
+    'resolved_at: ~',
+    '---',
+    '',
+    '## Checkpoint Details',
+    '',
+    `**Type:** ${options.type}`,
+    taskNum ? `**Blocked at:** Task ${taskNum}${taskName ? ' — ' + taskName : ''}` : '',
+    '',
+    `**Why blocked:** ${options.why_blocked}`,
+    '',
+    `**What is uncertain:** ${options.what_is_uncertain}`,
+    choices ? `\n**Choices:** ${choices}` : '',
+  ].filter(line => line !== undefined).join('\n').trimEnd() + '\n';
+
+  try {
+    fs.writeFileSync(checkpointPath, content, 'utf-8');
+  } catch (err) {
+    error(`Failed to write CHECKPOINT.md: ${err.message}`);
+  }
+
+  // Commit the checkpoint artifact
+  const addResult = execGit(cwd, ['add', relPath]);
+  if (addResult.exitCode !== 0) {
+    error(`git add failed: ${addResult.stderr || addResult.stdout}`);
+  }
+
+  const commitMsg = `chore(${phase}-checkpoint): write checkpoint artifact${taskNum ? ` [task ${taskNum}]` : ''}`;
+  const commitResult = execGit(cwd, ['commit', '-m', commitMsg]);
+  if (commitResult.exitCode !== 0) {
+    // If nothing changed (e.g., same content), treat as written-but-not-committed
+    if (commitResult.stdout.includes('nothing to commit') || commitResult.stderr.includes('nothing to commit')) {
+      output({ written: true, committed: false, hash: null, path: relPath, type: options.type,
+        why_blocked: options.why_blocked, what_is_uncertain: options.what_is_uncertain,
+        note: 'nothing_to_commit — CHECKPOINT.md already up-to-date' }, raw, 'written');
+      return;
+    }
+    error(`git commit failed: ${commitResult.stderr || 'unknown error'}`);
+  }
+
+  const hashResult = execGit(cwd, ['rev-parse', '--short', 'HEAD']);
+  const hash = hashResult.exitCode === 0 ? hashResult.stdout.trim() : null;
+
+  output({
+    written: true,
+    committed: true,
+    hash,
+    path: relPath,
+    type: options.type,
+    why_blocked: options.why_blocked,
+    what_is_uncertain: options.what_is_uncertain,
+    resume_condition: resumeCondition,
+    choices,
+    allow_freeform: allowFreeform,
+  }, raw, hash || 'written');
+}
+
+/**
+ * Health degraded-mode check — canonical "am I running on fallback assumptions?" query.
+ *
+ * Checks:
+ *  - config.json loadable (no _load_error)
+ *  - Required .planning/ files exist (STATE.md, ROADMAP.md, PROJECT.md)
+ *  - Any gates currently pending (stale blocks)
+ *
+ * Returns: { degraded, warnings, fallbacks, gate_pending_keys }
+ */
+function cmdHealthDegradedMode(cwd, raw) {
+  const config = loadConfig(cwd);
+  const warnings = [];
+  const fallbacks = [];
+  const gatePendingKeys = [];
+
+  // Config degradation
+  if (config._load_error) {
+    warnings.push(`config.json unreadable: ${config._load_error}`);
+    fallbacks.push('All config values are defaults (mode=interactive, all gates=on)');
+  }
+
+  // Required planning files
+  const required = [
+    { file: '.planning/STATE.md', label: 'STATE.md' },
+    { file: '.planning/ROADMAP.md', label: 'ROADMAP.md' },
+    { file: '.planning/PROJECT.md', label: 'PROJECT.md' },
+  ];
+  for (const { file, label } of required) {
+    if (!fs.existsSync(path.join(cwd, file))) {
+      warnings.push(`${label} not found — project may not be initialized`);
+      fallbacks.push(`${label} missing: workflows that depend on it will fail`);
+    }
+  }
+
+  // Pending gates
+  const gatesDir = path.join(cwd, '.planning', 'gates');
+  if (fs.existsSync(gatesDir)) {
+    const pendingFiles = fs.readdirSync(gatesDir).filter(f => f.endsWith('-pending.json'));
+    for (const f of pendingFiles) {
+      // Convert filename back to key: gates_confirm_plan-pending.json → gates.confirm_plan
+      const key = f.replace('-pending.json', '').replace(/_/g, '.').replace(/^gates\./, 'gates.');
+      gatePendingKeys.push(key);
+      warnings.push(`Gate pending: ${key} — human acknowledgment required before continuing`);
+    }
+  }
+
+  const degraded = warnings.length > 0;
+
+  output({
+    degraded,
+    warnings,
+    fallbacks,
+    gate_pending_keys: gatePendingKeys,
+    config_mode: config.mode,
+    config_ok: !config._load_error,
+  }, raw, degraded ? 'degraded' : 'ok');
+}
+
 module.exports = {
   cmdGenerateSlug,
   cmdCurrentTimestamp,
@@ -700,6 +1118,11 @@ module.exports = {
   cmdHistoryDigest,
   cmdResolveModel,
   cmdCommit,
+  cmdCommitTask,
+  cmdTaskLogRead,
+  cmdTaskLogReconstruct,
+  cmdCheckpointWrite,
+  cmdHealthDegradedMode,
   cmdSummaryExtract,
   cmdWebsearch,
   cmdProgressRender,
