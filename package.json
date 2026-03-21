@@ -40,7 +40,9 @@
   },
   "devDependencies": {
     "c8": "^11.0.0",
-    "esbuild": "^0.24.0"
+    "esbuild": "^0.24.0",
+    "tree-sitter-javascript": "^0.25.0",
+    "tree-sitter-typescript": "^0.23.2"
   },
   "scripts": {
     "build:hooks": "node scripts/build-hooks.js",
@@ -51,6 +53,7 @@
     "test:all": "node scripts/run-tests.cjs"
   },
   "dependencies": {
+    "web-tree-sitter": "^0.26.7",
     "zod": "^4.3.6"
   }
 }
