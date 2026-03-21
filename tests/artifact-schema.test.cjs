@@ -7,10 +7,14 @@ const {
   checkpointArtifactSchema,
   checkpointResponseSchema,
   executionSummarySchema,
+  contextArtifactSchema,
   parseCheckpointArtifact,
   parseCheckpointResponse,
   parseExecutionSummary,
+  parseContextArtifact,
 } = require('../get-stuff-done/bin/lib/artifact-schema.cjs');
+
+const { generateArtifactId } = require('../get-stuff-done/bin/lib/context-artifact.cjs');
 
 // ---------------------------------------------------------------------------
 // checkpointArtifactSchema
@@ -219,4 +223,95 @@ test('parseCheckpointResponse: is a function exported correctly', () => {
 
 test('parseExecutionSummary: is a function exported correctly', () => {
   assert.strictEqual(typeof parseExecutionSummary, 'function');
+});
+
+test('parseContextArtifact: is a function exported correctly', () => {
+  assert.strictEqual(typeof parseContextArtifact, 'function');
+});
+
+// ---------------------------------------------------------------------------
+// contextArtifactSchema
+// ---------------------------------------------------------------------------
+
+test('contextArtifactSchema: accepts valid complete object', () => {
+  const valid = {
+    id: 'abc-123',
+    source_uri: 'https://example.com',
+    type: 'external',
+    content_markdown: '# Hello',
+    content_hash: 'sha256-hash',
+    normalized_at: '2026-03-24T12:00:00Z',
+    provenance: {
+      producer: 'firecrawl',
+      producer_version: '1.0.0',
+      parameters_hash: null
+    }
+  };
+  assert.doesNotThrow(() => contextArtifactSchema.parse(valid));
+});
+
+test('contextArtifactSchema: rejects missing fields', () => {
+  const invalid = {
+    id: 'abc-123',
+    source_uri: 'https://example.com'
+    // missing everything else
+  };
+  assert.throws(() => contextArtifactSchema.parse(invalid));
+});
+
+test('contextArtifactSchema: rejects invalid type', () => {
+  const invalid = {
+    id: 'abc-123',
+    source_uri: 'https://example.com',
+    type: 'invalid-type',
+    content_markdown: '# Hello',
+    content_hash: 'sha256-hash',
+    normalized_at: '2026-03-24T12:00:00Z',
+    provenance: {
+      producer: 'firecrawl',
+      producer_version: '1.0.0',
+      parameters_hash: null
+    }
+  };
+  assert.throws(() => contextArtifactSchema.parse(invalid));
+});
+
+test('contextArtifactSchema: rejects invalid producer', () => {
+  const invalid = {
+    id: 'abc-123',
+    source_uri: 'https://example.com',
+    type: 'external',
+    content_markdown: '# Hello',
+    content_hash: 'sha256-hash',
+    normalized_at: '2026-03-24T12:00:00Z',
+    provenance: {
+      producer: 'unknown-producer',
+      producer_version: '1.0.0',
+      parameters_hash: null
+    }
+  };
+  assert.throws(() => contextArtifactSchema.parse(invalid));
+});
+
+// ---------------------------------------------------------------------------
+// generateArtifactId
+// ---------------------------------------------------------------------------
+
+test('generateArtifactId: produces deterministic 64-char hex hash', () => {
+  const uri = 'https://example.com/doc';
+  const hash = 'content-hash-123';
+  const id1 = generateArtifactId(uri, hash);
+  const id2 = generateArtifactId(uri, hash);
+  
+  assert.strictEqual(id1, id2, 'Should be deterministic');
+  assert.match(id1, /^[a-f0-9]{64}$/, 'Should be 64-char hex');
+});
+
+test('generateArtifactId: produces different IDs for different inputs', () => {
+  const id1 = generateArtifactId('uri1', 'hash');
+  const id2 = generateArtifactId('uri2', 'hash');
+  const id3 = generateArtifactId('uri1', 'hash-other');
+  
+  assert.notStrictEqual(id1, id2);
+  assert.notStrictEqual(id1, id3);
 });
