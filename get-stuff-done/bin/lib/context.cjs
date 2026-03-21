@@ -20,6 +20,9 @@ const path = require('path');
 const { z } = require('zod');
 const { output, error, safeReadFile, execGit, findPhaseInternal } = require('./core.cjs');
 const { runVerifyIntegrity } = require('./verify.cjs');
+const contextStore = require('./context-store.cjs');
+const contextArtifact = require('./context-artifact.cjs');
+const crypto = require('crypto');
 
 // ─── Fragment schemas ─────────────────────────────────────────────────────────
 
@@ -258,6 +261,71 @@ function buildPlanPhase(cwd) {
 
 // ─── Entry point ──────────────────────────────────────────────────────────────
 
+/**
+ * Reads one or more context artifacts and outputs them as a markdown bundle.
+ */
+function cmdContextRead(cwd, ids, options = {}) {
+  if (!ids || ids.length === 0) {
+    error('At least one artifact ID is required');
+  }
+
+  const artifacts = ids.map(id => contextStore.get(cwd, id)).filter(Boolean);
+  
+  if (artifacts.length === 0) {
+    error('No matching artifacts found for the provided IDs');
+  }
+
+  const bundle = artifacts.map(a => {
+    return `---
+id: ${a.id}
+source: ${a.source_uri}
+normalized_at: ${a.normalized_at}
+---
+
+${a.content_markdown}`;
+  }).join('\n\n---\n\n');
+
+  process.stdout.write(bundle + '\n');
+}
+
+/**
+ * Normalizes a file into a context artifact and stores it.
+ */
+function cmdContextNormalize(cwd, sourceUri, contentPath, options = {}) {
+  if (!sourceUri) error('--source required');
+  if (!contentPath) error('--file required');
+
+  const fullPath = path.resolve(cwd, contentPath);
+  if (!fs.existsSync(fullPath)) {
+    error(`File not found: ${contentPath}`);
+  }
+
+  const content = fs.readFileSync(fullPath, 'utf8');
+  const contentHash = crypto.createHash('sha256').update(content).digest('hex');
+  const id = contextArtifact.generateArtifactId(sourceUri, contentHash);
+
+  const artifact = {
+    id,
+    source_uri: sourceUri,
+    type: options.type || 'internal',
+    content_markdown: content,
+    content_hash: contentHash,
+    normalized_at: new Date().toISOString(),
+    provenance: {
+      producer: options.producer || 'internal-normalizer',
+      producer_version: '1.0.0',
+      parameters_hash: null
+    }
+  };
+
+  try {
+    const saved = contextStore.put(cwd, artifact);
+    output({ id: saved.id }, options.raw, 'stored');
+  } catch (err) {
+    error(`Failed to store artifact: ${err.message}`);
+  }
+}
+
 function cmdContextBuild(cwd, workflow, options, raw) {
   if (!workflow) error('--workflow required (execute-plan | verify-work | plan-phase)');
 
@@ -289,4 +357,8 @@ function cmdContextBuild(cwd, workflow, options, raw) {
   output(result.data, raw, result.data.coherent === false ? 'incoherent' : 'ok');
 }
 
-module.exports = { cmdContextBuild };
+module.exports = { 
+  cmdContextBuild,
+  cmdContextRead,
+  cmdContextNormalize
+};
