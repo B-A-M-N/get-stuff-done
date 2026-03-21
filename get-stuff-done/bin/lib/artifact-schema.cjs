@@ -169,6 +169,28 @@ function parseExecutionSummary(input) {
 }
 
 // ---------------------------------------------------------------------------
+// contextArtifactSchema — validates normalized context artifacts (SCHEMA-CANONICAL)
+// ---------------------------------------------------------------------------
+
+const contextArtifactSchema = z.object({
+  id: z.string(), // Deterministic hash of canonical fields
+  source_uri: z.string(),
+  type: z.enum(['external', 'internal']),
+  content_markdown: z.string(),
+  content_hash: z.string(), // Hash of the normalized markdown
+  normalized_at: z.string(),
+  provenance: z.object({
+    producer: z.enum(['firecrawl', 'internal-normalizer']),
+    producer_version: z.string(),
+    parameters_hash: z.string().nullable()
+  })
+});
+
+function parseContextArtifact(input) {
+  return contextArtifactSchema.parse(input);
+}
+
+// ---------------------------------------------------------------------------
 // Exports
 // ---------------------------------------------------------------------------
 
@@ -176,7 +198,9 @@ module.exports = {
   checkpointArtifactSchema,
   checkpointResponseSchema,
   executionSummarySchema,
+  contextArtifactSchema,
   parseCheckpointArtifact,
   parseCheckpointResponse,
   parseExecutionSummary,
+  parseContextArtifact,
 };
