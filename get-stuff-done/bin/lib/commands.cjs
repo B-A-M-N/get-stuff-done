@@ -7,6 +7,7 @@ const { execSync } = require('child_process');
 const { safeReadFile, loadConfig, isGitIgnored, execGit, normalizePhaseName, comparePhaseNum, getArchivedPhaseDirs, generateSlugInternal, getMilestoneInfo, getMilestonePhaseFilter, resolveModelInternal, stripShippedMilestones, toPosixPath, output, error, findPhaseInternal } = require('./core.cjs');
 const { extractFrontmatter } = require('./frontmatter.cjs');
 const { MODEL_PROFILES } = require('./model-profiles.cjs');
+const authority = require('./authority.cjs');
 
 function cmdGenerateSlug(text, raw) {
   if (!text) {
@@ -303,6 +304,15 @@ function cmdCommitTask(cwd, message, files, scope, options, raw) {
 
   // Stage files
   for (const file of files) {
+    // Sign file before staging if phase/plan/wave available
+    if (options.phase && options.plan) {
+      const wave = options.wave || options.task || '1';
+      const filePath = path.isAbsolute(file) ? file : path.join(cwd, file);
+      if (fs.existsSync(filePath) && !fs.lstatSync(filePath).isDirectory()) {
+        authority.signFile(filePath, options.phase, options.plan, wave);
+      }
+    }
+
     const addResult = execGit(cwd, ['add', file]);
     if (addResult.exitCode !== 0) {
       output({

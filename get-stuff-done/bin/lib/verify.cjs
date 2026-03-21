@@ -2808,6 +2808,32 @@ function cmdVerifyIntegrity(cwd, options, raw) {
   output(result, raw, result.coherent ? 'coherent' : 'incoherent');
 }
 
+function cmdVerifyBypass(cwd, filePath, raw) {
+  const { verifySignature } = require('./authority.cjs');
+  if (!filePath) {
+    error('file path required');
+  }
+
+  const fullPath = path.isAbsolute(filePath) ? filePath : path.join(cwd, filePath);
+  if (!fs.existsSync(fullPath)) {
+    error(`File not found: ${filePath}`);
+  }
+
+  const content = fs.readFileSync(fullPath, 'utf-8');
+  const result = verifySignature(content);
+
+  if (raw) {
+    process.stdout.write(JSON.stringify({ path: filePath, ...result }, null, 2) + '\n');
+  } else {
+    if (result.valid) {
+      process.stdout.write(`✅ AUTHORIZED: ${filePath} (Phase ${result.phase}, Plan ${result.plan}, Wave ${result.wave})\n`);
+    } else {
+      process.stdout.write(`❌ BYPASS DETECTED: ${filePath} - ${result.reason}\n`);
+      process.exit(1);
+    }
+  }
+}
+
 module.exports = {
   cmdVerifySummary,
   cmdVerifyWorkColdStart,
@@ -2832,4 +2858,5 @@ module.exports = {
   cmdVerifyIntegrity,
   cmdValidateConsistency,
   cmdValidateHealth,
+  cmdVerifyBypass,
 };

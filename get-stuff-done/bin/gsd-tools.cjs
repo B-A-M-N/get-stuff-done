@@ -387,6 +387,8 @@ async function main() {
       const ctPlan = ctPlanIdx !== -1 ? args[ctPlanIdx + 1] : null;
       const ctTaskIdx = args.indexOf('--task');
       const ctTask = ctTaskIdx !== -1 ? args[ctTaskIdx + 1] : null;
+      const ctWaveIdx = args.indexOf('--wave');
+      const ctWave = ctWaveIdx !== -1 ? args[ctWaveIdx + 1] : null;
       const ctFilesIdx = args.indexOf('--files');
       const ctFiles = [];
       if (ctFilesIdx !== -1) {
@@ -397,7 +399,7 @@ async function main() {
       }
       const ctPrevHashIdx = args.indexOf('--prev-hash');
       const ctPrevHash = ctPrevHashIdx !== -1 ? args[ctPrevHashIdx + 1] : null;
-      commands.cmdCommitTask(cwd, ctMessage, ctFiles, ctScope, { phase: ctPhase, plan: ctPlan, task: ctTask, prev_hash: ctPrevHash }, raw);
+      commands.cmdCommitTask(cwd, ctMessage, ctFiles, ctScope, { phase: ctPhase, plan: ctPlan, task: ctTask, wave: ctWave, prev_hash: ctPrevHash }, raw);
       break;
     }
 
@@ -417,6 +419,8 @@ async function main() {
       const cptPlan = cptPlanIdx !== -1 ? args[cptPlanIdx + 1] : null;
       const cptTaskIdx = args.indexOf('--task');
       const cptTask = cptTaskIdx !== -1 ? args[cptTaskIdx + 1] : null;
+      const cptWaveIdx = args.indexOf('--wave');
+      const cptWave = cptWaveIdx !== -1 ? args[cptWaveIdx + 1] : null;
       const cptFilesIdx = args.indexOf('--files');
       const cptFiles = [];
       if (cptFilesIdx !== -1) {
@@ -427,7 +431,7 @@ async function main() {
       }
       const cptPrevHashIdx = args.indexOf('--prev-hash');
       const cptPrevHash = cptPrevHashIdx !== -1 ? args[cptPrevHashIdx + 1] : null;
-      commands.cmdCompleteTask(cwd, cptMessage, cptFiles, cptScope, { phase: cptPhase, plan: cptPlan, task: cptTask, prev_hash: cptPrevHash }, raw);
+      commands.cmdCompleteTask(cwd, cptMessage, cptFiles, cptScope, { phase: cptPhase, plan: cptPlan, task: cptTask, wave: cptWave, prev_hash: cptPrevHash }, raw);
       break;
     }
 
@@ -551,6 +555,8 @@ async function main() {
         verify.cmdVerifyPlanQuality(cwd, args[2], raw);
       } else if (subcommand === 'verify-work-cold-start') {
         verify.cmdVerifyWorkColdStart(cwd, args[2], raw);
+      } else if (subcommand === 'verify-bypass') {
+        verify.cmdVerifyBypass(cwd, args[2], raw);
       } else if (subcommand === 'checkpoint-coverage') {
         const cpPhaseIdx = args.indexOf('--phase');
         verify.cmdVerifyCheckpointCoverage(cwd, args[2], cpPhaseIdx !== -1 ? args[cpPhaseIdx + 1] : null, raw);
