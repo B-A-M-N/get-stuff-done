@@ -46,12 +46,41 @@ function checkPath(cwd, targetPath) {
     
     if (relativePath === normalizedPattern || 
         relativePath.startsWith(normalizedPattern + path.sep)) {
-      return { allowed: false, reason: `Path "${targetPath}" is in the deny-list (${pattern})` };
+      
+      // EXCEPTION: Allow reading if it has a valid authority envelope
+      try {
+        const { verifySignature } = require('./authority.cjs');
+        if (fs.existsSync(absoluteTarget)) {
+           const content = fs.readFileSync(absoluteTarget, 'utf-8');
+           const auth = verifySignature(content);
+           if (auth.valid) {
+              return { allowed: true, reason: null }; // Authorized bypass
+           }
+        }
+      } catch (e) {
+        // Ignore and fall through to deny
+      }
+      
+      return { allowed: false, reason: `Path "${targetPath}" is in the deny-list (${pattern}) and lacks authority envelope` };
     }
     
     // Also check if the pattern is a directory and the path is inside it
     if (pattern.endsWith('/') && relativePath.startsWith(normalizedPattern + '/')) {
-        return { allowed: false, reason: `Path "${targetPath}" is inside a denied directory (${pattern})` };
+        // EXCEPTION: Allow reading if it has a valid authority envelope
+        try {
+          const { verifySignature } = require('./authority.cjs');
+          if (fs.existsSync(absoluteTarget)) {
+             const content = fs.readFileSync(absoluteTarget, 'utf-8');
+             const auth = verifySignature(content);
+             if (auth.valid) {
+                return { allowed: true, reason: null }; // Authorized bypass
+             }
+          }
+        } catch (e) {
+          // Ignore and fall through to deny
+        }
+        
+        return { allowed: false, reason: `Path "${targetPath}" is inside a denied directory (${pattern}) and lacks authority envelope` };
     }
   }
 
