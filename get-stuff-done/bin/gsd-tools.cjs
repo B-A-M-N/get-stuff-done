@@ -61,6 +61,9 @@
  *   context build --workflow <name>    Build Zod-validated execution snapshot for a workflow
  *     [--phase N] [--plan M]           Workflows: execute-plan | verify-work | plan-phase
  *                                      Exits 1 on schema validation failure with diagnostics
+ *   context read <ID> [ID...]          Read one or more artifacts as a markdown bundle
+ *   context normalize --source <uri>   Normalize a file into a context artifact
+ *     --file <path> [--type internal|external]
  *   health degraded-mode               Check if running on fallback assumptions
  *                                      (bad config, missing files, pending gates)
  *   config-ensure-section              Initialize .planning/config.json
@@ -1122,8 +1125,21 @@ async function main() {
         const planIdx = args.indexOf('--plan');
         const planVal = planIdx !== -1 ? args[planIdx + 1] : null;
         context.cmdContextBuild(cwd, workflow, { phase: phaseVal, plan: planVal }, raw);
+      } else if (sub === 'read') {
+        const ids = args.slice(2).filter(a => !a.startsWith('--'));
+        context.cmdContextRead(cwd, ids, { raw });
+      } else if (sub === 'normalize') {
+        const sourceIdx = args.indexOf('--source');
+        const fileIdx = args.indexOf('--file');
+        const typeIdx = args.indexOf('--type');
+        const producerIdx = args.indexOf('--producer');
+        context.cmdContextNormalize(cwd, sourceIdx !== -1 ? args[sourceIdx + 1] : null, fileIdx !== -1 ? args[fileIdx + 1] : null, {
+          raw,
+          type: typeIdx !== -1 ? args[typeIdx + 1] : null,
+          producer: producerIdx !== -1 ? args[producerIdx + 1] : null,
+        });
       } else {
-        error(`Unknown context subcommand: ${sub || '(none)'}. Use: context build --workflow <name>`);
+        error(`Unknown context subcommand: ${sub || '(none)'}. Use: context build, context read, or context normalize`);
       }
       break;
     }
