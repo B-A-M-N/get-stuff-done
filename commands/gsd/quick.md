@@ -42,6 +42,14 @@ Context files are resolved inside the workflow (`init quick`) and delegated via 
 </context>
 
 <process>
+## 0. Scope Probing Protocol (Dimension 4)
+Before accepting the task and initiating execution, if the task is non-trivial, probe the scope:
+1. **Complexity:** Does this require touching more than 2 files or introducing new logic patterns?
+2. **Dependency:** Does this rely on unwritten features, or block another planned task?
+3. **Reversibility:** If we merge this and it's wrong, is it a 10-minute revert or a 2-hour untangle?
+
+If any answers are "Yes" or "2-hour untangle", politely refuse `quick` and direct the user to `/gsd:plan-phase`.
+
 Execute the quick workflow from @/home/bamn/get-stuff-done/get-stuff-done/workflows/quick.md end-to-end.
 Preserve all workflow gates (validation, task description, planning, execution, state updates, commits).
 </process>

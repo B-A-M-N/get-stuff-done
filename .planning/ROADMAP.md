@@ -21,7 +21,7 @@ See full archived roadmap: `.planning/milestones/v0.1.0-ROADMAP.md`
 **Goal:** Implement core sandbox components (Guard module, path checks, and shell interceptor) to block unsanctioned file access.
 **Requirements**: SANDBOX-01, SANDBOX-02, SANDBOX-03, SANDBOX-04
 **Depends on:** Phase 22
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 
 Plans:
 - [ ] 23-01-PLAN.md — Core Guard logic and CLI gate implementation
@@ -32,7 +32,7 @@ Plans:
 **Goal:** Implement the ContextArtifact schema, deterministic ID generator, and file-backed store for project context.
 **Requirements**: SCHEMA-CANONICAL, ID-DETERMINISTIC, STORE-FILE-BACKED, CLI-INTEGRATION
 **Depends on:** Phase 23
-**Plans:** 3 plans
+**Plans:** 2/3 plans executed
 
 Plans:
 - [ ] 24-01-PLAN.md — Schema and Identity Foundation
@@ -188,4 +188,4 @@ Plans:
 | 20. Scenario and Contract Tests | 1/1 | Complete    | 2026-03-17 | - |
 | 21. Brownfield Resilience | 4/4 | Complete    | 2026-03-18 | - |
 | 22. Megaprompt Alignment | 1/1 | Complete    | 2026-03-19 | - |
-| 23. Hard Context Sandbox | 0/2 | In Progress | - | - |
+| 23. Hard Context Sandbox | 1/2 | Complete    | 2026-03-21 | - |

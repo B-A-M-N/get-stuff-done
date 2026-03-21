@@ -11,9 +11,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **`/gsd:profile-user` command** — Developer behavioral profiling from session analysis across 8 dimensions (communication, decisions, debugging, UX, vendor choices, frustrations, learning style, explanation depth). Generates `USER-PROFILE.md`, `/gsd:dev-preferences`, and `CLAUDE.md` profile section for personalized responses. Includes `--questionnaire` fallback and `--refresh` for re-analysis
 - **Execution hardening** — Three quality improvements to the execution pipeline:
   - Pre-wave dependency check in `execute-phase`: verifies key-links from prior wave artifacts before spawning next wave
-  - Cross-Plan Data Contracts (Dimension 9) in plan-checker: wired — `verify cross-plan-data-contracts` CLI gate runs as Step 6.5, detects race conditions and data races between parallel plans in the same wave (7 tests added)
+  - [planned] Cross-Plan Data Contracts (Dimension 9) in plan-checker: wired — `verify cross-plan-data-contracts` CLI gate runs as Step 6.5, detects race conditions and data races between parallel plans in the same wave (7 tests added)
   - Executor programmatic context-contract check: `verify context-contract` CLI gate now runs at plan load time — if the plan contradicts locked CONTEXT.md decisions, execution is blocked before any tasks run
-  - Export-level spot check in `verify-phase`: wired — `verify dead-exports` CLI gate runs in gsd-verifier Step 5.5 (invoked automatically via execute-phase → gsd-verifier chain), detects symbols defined in producer files but absent from declared consumer files (9 tests added)
+  - [planned] Export-level spot check in `verify-phase`: wired — `verify dead-exports` CLI gate runs in gsd-verifier Step 5.5 (invoked automatically via execute-phase → gsd-verifier chain), detects symbols defined in producer files but absent from declared consumer files (9 tests added)
 - **BLOCK-07: Orphaned Phase State detection** — `verify orphaned-state <phase>` CLI gate detects interrupted execution (some plans have SUMMARY.md, later plans in the same phase do not). Surfaced in `execute-phase` initialize step with plain-language message and resume instructions. 7 tests added.
 
 ### Fixed

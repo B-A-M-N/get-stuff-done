@@ -95,10 +95,14 @@
 | TEST-03 | Phase 20 | Complete |
 | TEST-04 | Phase 20 | Complete |
 | TEST-05 | Phase 20 | Complete |
+| SANDBOX-01 | Phase 23 | Complete |
+| SANDBOX-02 | Phase 23 | Complete |
+| SANDBOX-03 | Phase 23 | Complete |
+| SANDBOX-04 | Phase 23 | Complete |
 
 **Coverage:**
-- v0.2 requirements: 26 total
-- Mapped to phases: 26
+- v0.2 requirements: 30 total
+- Mapped to phases: 30
 - Unmapped: 0 ✓
 
 ---
