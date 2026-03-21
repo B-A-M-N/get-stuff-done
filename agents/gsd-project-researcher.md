@@ -83,22 +83,22 @@ PLANNING_UP=$(echo "$FC" | node -e "try{const d=JSON.parse(require('fs').readFil
 
 - `FIRECRAWL_UP=yes` → **use Firecrawl exclusively** for all external fetches and searches.
 - `FIRECRAWL_UP=no` → **STOP.** Declare Firecrawl unavailable and ask user to start it. External research requires Firecrawl.
-- `PLANNING_UP=yes` → use `firecrawl_extract` against `http://localhost:3010/...` for structured extraction from internal planning docs.
+- `PLANNING_UP=yes` → use `mcp__firecrawl__firecrawl_scrape` against `http://localhost:3011/v1/extract?path=.planning/...` for structured extraction from internal planning docs.
 - `PLANNING_UP=no` → fall back to `Read` for internal docs.
 
 This is a gate, not a preference. Do not silently downgrade.
 
 ## Internal Docs via Firecrawl
 
-For **structured extraction** from your own project's planning files, use `firecrawl_extract` against the planning server:
+For **structured extraction** from your own project's planning files, use the project-isolated Local Planning Server:
 
 ```
-Base URL: http://localhost:3010
-Paths:    /.planning/REQUIREMENTS.md
-          /.planning/ROADMAP.md
-          /.planning/PROJECT.md
-          /.planning/research/*.md
-          /docs/*.md
+Base URL: http://localhost:3011/v1/extract?path=
+Paths:    .planning/REQUIREMENTS.md
+          .planning/ROADMAP.md
+          .planning/PROJECT.md
+          .planning/research/*.md
+          docs/*.md
           /src/**/*
 ```
 

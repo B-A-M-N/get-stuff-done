@@ -58,6 +58,8 @@
  *                                      Exits 0 + { available: true, mode: "firecrawl" } when up.
  *                                      Exits 1 + { available: false, mode: "degraded" } when down.
  *                                      Also checks planning server at localhost:3010.
+ *   brain health                       Check health of Postgres, RabbitMQ, and Planning Server.
+ *   verify-agent-connectivity          Verify if agents can connect to Local Planning Server.
  *   context build --workflow <name>    Build Zod-validated execution snapshot for a workflow
  *     [--phase N] [--plan M]           Workflows: execute-plan | verify-work | plan-phase
  *                                      Exits 1 on schema validation failure with diagnostics
@@ -662,6 +664,32 @@ async function main() {
         commands.cmdHealthDegradedMode(cwd, raw);
       } else {
         error('Unknown health subcommand. Available: degraded-mode');
+      }
+      break;
+    }
+
+    case 'brain': {
+      const brainManager = require('./lib/brain-manager.cjs');
+      const subcommand = args[1];
+      if (subcommand === 'health') {
+        const status = await brainManager.checkHealth();
+        process.stdout.write(JSON.stringify(status, null, 2) + '\n');
+        process.exit(status.allOk ? 0 : 1);
+      } else {
+        error('Unknown brain subcommand. Available: health');
+      }
+      break;
+    }
+
+    case 'verify-agent-connectivity': {
+      const brainManager = require('./lib/brain-manager.cjs');
+      const status = await brainManager.checkHealth();
+      if (status.planningServer === 'ok') {
+        process.stdout.write(JSON.stringify({ connected: true, server: 'http://localhost:3011' }, null, 2) + '\n');
+        process.exit(0);
+      } else {
+        process.stdout.write(JSON.stringify({ connected: false, error: status.planningServer }, null, 2) + '\n');
+        process.exit(1);
       }
       break;
     }
