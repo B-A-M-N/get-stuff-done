@@ -1124,7 +1124,7 @@ async function main() {
         const phaseVal = phaseIdx !== -1 ? args[phaseIdx + 1] : null;
         const planIdx = args.indexOf('--plan');
         const planVal = planIdx !== -1 ? args[planIdx + 1] : null;
-        context.cmdContextBuild(cwd, workflow, { phase: phaseVal, plan: planVal }, raw);
+        await context.cmdContextBuild(cwd, workflow, { phase: phaseVal, plan: planVal }, raw);
       } else if (sub === 'read') {
         const ids = args.slice(2).filter(a => !a.startsWith('--'));
         context.cmdContextRead(cwd, ids, { raw });

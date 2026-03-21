@@ -6,6 +6,7 @@ const { normalizeMd } = require('./core.cjs');
 const { generateArtifactId } = require('./context-artifact.cjs');
 const { contextArtifactSchema } = require('./artifact-schema.cjs');
 const { parseCode } = require('./ast-parser.cjs');
+const secondBrain = require('./second-brain.cjs');
 
 /**
  * Generates a SHA-256 hash of a string.
@@ -19,9 +20,9 @@ function sha256(content) {
 /**
  * Normalizes internal planning files into ContextArtifacts.
  * @param {string} cwd Project root
- * @returns {Array<Object>} Array of ContextArtifact objects
+ * @returns {Promise<Array<Object>>} Array of ContextArtifact objects
  */
-function normalizeInternal(cwd) {
+async function normalizeInternal(cwd) {
   const pattern = path.join(cwd, '.planning/*.{md,js,ts}').split(path.sep).join('/');
   const files = glob.sync(pattern);
   const artifacts = [];
@@ -69,6 +70,9 @@ function normalizeInternal(cwd) {
 
     // Validate against schema
     contextArtifactSchema.parse(artifact);
+    
+    // Ingest into Second Brain
+    await secondBrain.ingestArtifact(artifact);
     
     artifacts.push(artifact);
   }

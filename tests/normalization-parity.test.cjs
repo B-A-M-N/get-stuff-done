@@ -20,11 +20,11 @@ describe('Normalization Parity', () => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  test('internal and external artifacts share canonical structure', () => {
+  test('internal and external artifacts share canonical structure', async () => {
     // 1. Internal Normalization
     const projectMd = path.join(tmpDir, '.planning', 'PROJECT.md');
     fs.writeFileSync(projectMd, '# Project\nTest vision.', 'utf8');
-    const internalArtifacts = normalizeInternal(tmpDir);
+    const internalArtifacts = await normalizeInternal(tmpDir);
     const internal = internalArtifacts[0];
 
     // 2. External Normalization
@@ -66,13 +66,13 @@ describe('Normalization Parity', () => {
     assert.strictEqual(first.content_hash, second.content_hash, 'Hashes should be identical');
   });
 
-  test('context build integrates with normalizers', () => {
+  test('context build integrates with normalizers', async () => {
     // This test ensures that when artifacts are put into the store,
     // they can be retrieved by their canonical ID.
     const projectMd = path.join(tmpDir, '.planning', 'PROJECT.md');
     fs.writeFileSync(projectMd, '# Project\nTest vision.', 'utf8');
     
-    const internalArtifacts = normalizeInternal(tmpDir);
+    const internalArtifacts = await normalizeInternal(tmpDir);
     internalArtifacts.forEach(a => contextStore.put(tmpDir, a));
 
     const artifactIds = contextStore.list(tmpDir);

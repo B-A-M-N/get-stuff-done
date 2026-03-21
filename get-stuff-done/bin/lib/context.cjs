@@ -182,14 +182,14 @@ function checkpointPresent(cwd, phase) {
 
 // ─── Per-workflow builders ────────────────────────────────────────────────────
 
-function ensureInternalParity(cwd) {
+async function ensureInternalParity(cwd) {
   const { normalizeInternal } = require('./internal-normalizer.cjs');
-  const artifacts = normalizeInternal(cwd);
+  const artifacts = await normalizeInternal(cwd);
   artifacts.forEach(a => contextStore.put(cwd, a));
 }
 
-function buildExecutePlan(cwd, options) {
-  ensureInternalParity(cwd);
+async function buildExecutePlan(cwd, options) {
+  await ensureInternalParity(cwd);
   const warnings = [];
   const git = readGitState(cwd);
   const pointer = readPlanPointer(cwd, options.phase, options.plan);
@@ -215,8 +215,8 @@ function buildExecutePlan(cwd, options) {
   return { schema_version: 2, workflow: 'execute-plan', git, pointer, pending_gates, last_task, checkpoint_present, integrity, coherent, warnings };
 }
 
-function buildVerifyWork(cwd, options) {
-  ensureInternalParity(cwd);
+async function buildVerifyWork(cwd, options) {
+  await ensureInternalParity(cwd);
   const warnings = [];
   const git = readGitState(cwd);
   const pointer = readPlanPointer(cwd, options.phase, options.plan);
@@ -237,8 +237,8 @@ function buildVerifyWork(cwd, options) {
   return { schema_version: 1, workflow: 'verify-work', git, pointer, summary_exists, verification_exists, warnings };
 }
 
-function buildPlanPhase(cwd) {
-  ensureInternalParity(cwd);
+async function buildPlanPhase(cwd) {
+  await ensureInternalParity(cwd);
   const warnings = [];
   const git = readGitState(cwd);
 
@@ -335,7 +335,7 @@ function cmdContextNormalize(cwd, sourceUri, contentPath, options = {}) {
   }
 }
 
-function cmdContextBuild(cwd, workflow, options, raw) {
+async function cmdContextBuild(cwd, workflow, options, raw) {
   if (!workflow) error('--workflow required (execute-plan | verify-work | plan-phase)');
 
   const schema = SCHEMAS[workflow];
@@ -344,9 +344,9 @@ function cmdContextBuild(cwd, workflow, options, raw) {
   let snapshot;
   try {
     switch (workflow) {
-      case 'execute-plan': snapshot = buildExecutePlan(cwd, options || {}); break;
-      case 'verify-work':  snapshot = buildVerifyWork(cwd, options || {});  break;
-      case 'plan-phase':   snapshot = buildPlanPhase(cwd);                  break;
+      case 'execute-plan': snapshot = await buildExecutePlan(cwd, options || {}); break;
+      case 'verify-work':  snapshot = await buildVerifyWork(cwd, options || {});  break;
+      case 'plan-phase':   snapshot = await buildPlanPhase(cwd);                  break;
     }
   } catch (err) {
     process.stdout.write(JSON.stringify({ error: 'context build failed', details: err.message }, null, 2));

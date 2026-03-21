@@ -66,11 +66,12 @@ Plans:
 **Goal:** Implement the isolated memory foundation using Postgres and RabbitMQ to serve as the project's local consciousness.
 **Requirements**: BRAIN-INFRA-01, BRAIN-STORAGE-01, BRAIN-INGEST-01, BRAIN-VERIFY-01
 **Depends on:** Phase 26
-**Plans:** 2 plans
+**Plans:** 3 plans
 
 Plans:
 - [ ] 27-01-PLAN.md — Infrastructure Foundation (Postgres & RabbitMQ)
 - [ ] 27-02-PLAN.md — Pipeline Integration and Verification
+- [ ] 27-03-PLAN.md — Local Planning Server implementation
 
 ---
 
