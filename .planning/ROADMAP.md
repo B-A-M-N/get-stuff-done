@@ -29,13 +29,15 @@ Plans:
 
 ### Phase 24: Research - Canonical Identity & Storage
 
-**Goal:** [To be planned]
-**Requirements**: TBD
+**Goal:** Implement the ContextArtifact schema, deterministic ID generator, and file-backed store for project context.
+**Requirements**: SCHEMA-CANONICAL, ID-DETERMINISTIC, STORE-FILE-BACKED, CLI-INTEGRATION
 **Depends on:** Phase 23
-**Plans:** 0 plans
+**Plans:** 3 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 24 to break down)
+- [ ] 24-01-PLAN.md — Schema and Identity Foundation
+- [ ] 24-02-PLAN.md — Artifact Storage and Verification
+- [ ] 24-03-PLAN.md — CLI Integration
 
 ### Phase 25: Research - Unified Normalization Pipeline
 
