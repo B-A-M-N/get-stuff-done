@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v0.2
 milestone_name: milestone
-status: executing
-stopped_at: Completed 30-01-SUMMARY.md
-last_updated: "2026-03-23T13:50:00Z"
+status: completed
+stopped_at: Completed 31-01-SUMMARY.md
+last_updated: "2026-03-23T19:04:41.073Z"
 last_activity: "2026-03-23 — Phase 30 complete: blocking authority verification, complete-task protocol, Planning Server read routing, policy grant caching."
 progress:
   total_phases: 11
   completed_phases: 9
-  total_plans: 23
+  total_plans: 22
   completed_plans: 21
   percent: 96
 ---
@@ -55,6 +55,7 @@ Progress: [██████████▧] 96% (21/22 plans complete, Phase 3
 | 30 | 1 | ongoing | - |
 
 *Updated after each plan completion*
+| Phase 31 P01 | 25m | 4 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -99,6 +100,12 @@ Progress: [██████████▧] 96% (21/22 plans complete, Phase 3
 - [Phase 28]: Integrate Authority Envelope signing into `safeWriteFile` to ensure all writes are authenticated.
 - [Phase 29]: Treat Firecrawl as a centralized "Control Plane" for external context, mimicking StrongDM's visibility for internal resources.
 - [Phase 30]: Authority verification must block execution (exit 13) on any missing/invalid signature; use complete-task for all file writes; route all internal file reads through Planning Server.
+- [Phase 31]: Use SHA-256 of absolute project root (12 hex chars) as project identifier
+- [Phase 31]: Default Postgres DB name: gsd_local_brain_<hash>; allow GSD_DB_NAME override
+- [Phase 31]: Use fs.realpathSync in Planning Server to prevent symlink traversal attacks
+- [Phase 31]: Store project metadata in project_identity table in Postgres (gsd_local_brain schema)
+- [Phase 31]: Add project_id column to firecrawl_audit for multi-project filtering
+- [Phase 31]: Include project_id in ledger entries (audit.cjs) using same hash algorithm
 
 ### Blockers/Concerns
 
@@ -106,8 +113,8 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-23T13:50:00Z
-Stopped at: Completed 30-01-SUMMARY.md
+Last session: 2026-03-23T19:04:41.071Z
+Stopped at: Completed 31-01-SUMMARY.md
 Resume file: None
 Checkpoint Status: None
 Checkpoint Path: None

@@ -138,9 +138,9 @@
 
 ### ISOLATION — Multi-Project Safety
 
-- [ ] **ISOLATION-01**: Project-unique database identity — Postgres DB name includes project root hash to prevent collision
-- [ ] **ISOLATION-02**: Planning Server path traversal prevention — uses realpath to ensure files served are within project root
-- [ ] **ISOLATION-03**: Audit project segregation — all audit records tagged with project identifier for multi-project deployments
+- [x] **ISOLATION-01**: Project-unique database identity — Postgres DB name includes project root hash to prevent collision
+- [x] **ISOLATION-02**: Planning Server path traversal prevention — uses realpath to ensure files served are within project root
+- [x] **ISOLATION-03**: Audit project segregation — all audit records tagged with project identifier for multi-project deployments
 
 ### OBSERV — Enhanced Observability
 
