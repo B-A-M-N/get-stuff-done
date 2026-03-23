@@ -5,6 +5,7 @@ const crypto = require('crypto');
 const broker = require('./broker.cjs');
 const { normalizeMd } = require('./core.cjs');
 const { parseCode } = require('./ast-parser.cjs');
+const secondBrain = require('./second-brain.cjs');
 
 const PORT = process.env.GSD_PLANNING_PORT || 3011;
 
