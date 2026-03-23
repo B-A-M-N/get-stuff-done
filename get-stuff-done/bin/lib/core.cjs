@@ -7,6 +7,53 @@ const path = require('path');
 const { execSync, spawnSync } = require('child_process');
 const { MODEL_PROFILES } = require('./model-profiles.cjs');
 
+// ─── Logging ────────────────────────────────────────────────────────────
+
+const LOG_LEVELS = { debug: 0, info: 1, warn: 2, error: 3 };
+let currentLogLevel = LOG_LEVELS.info;
+
+// Initialize from environment at module load
+const envLogLevel = process.env.GSD_LOG_LEVEL;
+if (envLogLevel && LOG_LEVELS.hasOwnProperty(envLogLevel)) {
+  currentLogLevel = LOG_LEVELS[envLogLevel];
+}
+
+function setLogLevel(level) {
+  if (LOG_LEVELS.hasOwnProperty(level)) {
+    currentLogLevel = LOG_LEVELS[level];
+  }
+}
+
+function getTimestamp() {
+  return new Date().toISOString();
+}
+
+function colorize(level, message) {
+  const colors = {
+    debug: '\x1b[36m', // cyan
+    info: '\x1b[32m',  // green
+    warn: '\x1b[33m',  // yellow
+    error: '\x1b[31m'  // red
+  };
+  const reset = '\x1b[0m';
+  return (colors[level] || '') + message + reset;
+}
+
+function log(level, message, meta = {}) {
+  if (LOG_LEVELS[level] < currentLogLevel) return;
+  const timestamp = getTimestamp();
+  const prefix = `[${timestamp}] [${level.toUpperCase()}]`;
+  const metaStr = Object.keys(meta).length ? ' ' + JSON.stringify(meta) : '';
+  const line = `${prefix} ${message}${metaStr}`;
+  const coloredLine = colorize(level, line);
+  process.stderr.write(coloredLine + '\n');
+}
+
+function logDebug(message, meta = {}) { log('debug', message, meta); }
+function logInfo(message, meta = {}) { log('info', message, meta); }
+function logWarn(message, meta = {}) { log('warn', message, meta); }
+function logError(message, meta = {}) { log('error', message, meta); }
+
 // ─── Path helpers ────────────────────────────────────────────────────────────
 
 /** Normalize a relative path to always use forward slashes (cross-platform). */
@@ -129,6 +176,7 @@ function loadConfig(cwd) {
     node_repair_budget: 2,
     parallelization: true,
     brave_search: false,
+    log_level: 'info',
     gates: {
       confirm_project: true,
       confirm_phases: true,
@@ -171,7 +219,7 @@ function loadConfig(cwd) {
       return defaults.parallelization;
     })();
 
-    return {
+    const config = {
       mode: get('mode') ?? defaults.mode,
       granularity: get('granularity') ?? defaults.granularity,
       model_profile: get('model_profile') ?? defaults.model_profile,
@@ -195,8 +243,14 @@ function loadConfig(cwd) {
       gates: { ...defaults.gates, ...((parsed.gates && typeof parsed.gates === 'object') ? parsed.gates : {}) },
       safety: { ...defaults.safety, ...((parsed.safety && typeof parsed.safety === 'object') ? parsed.safety : {}) },
       model_overrides: parsed.model_overrides || null,
+      log_level: get('log_level') ?? defaults.log_level,
       _load_error: null,
     };
+
+    // Apply log level to logger (config takes precedence over env set at module load)
+    setLogLevel(config.log_level);
+
+    return config;
   } catch (err) {
     return { ...defaults, _load_error: fs.existsSync(configPath) ? 'Failed to read config.json: ' + err.message : null };
   }
@@ -742,4 +796,9 @@ module.exports = {
   toPosixPath,
   safeFs,
   safeGit,
+  setLogLevel,
+  logDebug,
+  logInfo,
+  logWarn,
+  logError,
 };
