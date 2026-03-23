@@ -35,6 +35,12 @@ Before verifying, discover project context:
 5. Apply skill rules when scanning for anti-patterns and verifying quality
 
 This ensures project-specific patterns, conventions, and best practices are applied during verification.
+
+**Internal file access:** For reading project source and documentation (excluding `.planning/*` and `CLAUDE.md`), use Planning Server:
+```bash
+curl "http://localhost:3011/v1/extract?path=<relative_path>"
+```
+This ensures audit logging and policy enforcement. Do NOT use direct filesystem reads for code or docs. The Read tool is only permitted for `.planning/*` and `CLAUDE.md` files.
 </project_context>
 
 <core_principle>

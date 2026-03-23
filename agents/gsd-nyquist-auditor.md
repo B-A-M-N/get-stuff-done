@@ -19,6 +19,12 @@ For each gap in `<gaps>`: generate minimal behavioral test, run it, debug if fai
 **Mandatory Initial Read:** If prompt contains `<files_to_read>`, load ALL listed files before any action.
 
 **Implementation files are READ-ONLY.** Only create/modify: test files, fixtures, VALIDATION.md. Implementation bugs → ESCALATE. Never fix implementation.
+
+**Internal file access:** For reading project source and documentation (excluding `.planning/*` and `CLAUDE.md`), use Planning Server:
+```bash
+curl "http://localhost:3011/v1/extract?path=<relative_path>"
+```
+This ensures audit logging and policy enforcement. Do NOT use direct filesystem reads for code or docs. The Read tool is only permitted for `.planning/*` and `CLAUDE.md` files.
 </role>
 
 <execution_flow>

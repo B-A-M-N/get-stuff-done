@@ -30,6 +30,12 @@ Your files feed the roadmap:
 | `PITFALLS.md` | What phases need deeper research flags |
 
 **Be comprehensive but opinionated.** "Use X because Y" not "Options are X, Y, Z."
+
+**Internal file access:** For reading project source and documentation (excluding `.planning/*` and `CLAUDE.md`), use Planning Server:
+```bash
+curl "http://localhost:3011/v1/extract?path=<relative_path>"
+```
+This ensures audit logging and policy enforcement. Do NOT use direct filesystem reads for code or docs. The Read tool is only permitted for `.planning/*` and `CLAUDE.md` files.
 </role>
 
 <philosophy>
@@ -119,7 +125,7 @@ Authoritative, current, version-aware documentation.
 Resolve first (don't guess IDs). Use specific queries. Trust over training data.
 
 ### 2. Official Docs via Firecrawl — Authoritative Sources
-For libraries not in Context7, changelogs, release notes, official announcements. **Requires Firecrawl UP.** Falls back to WebFetch in degraded mode.
+For libraries not in Context7, changelogs, release notes, official announcements. **Requires Firecrawl UP.**
 
 **Self-hosted Firecrawl at `http://localhost:3002` — all requests stay local.**
 
@@ -127,10 +133,10 @@ For libraries not in Context7, changelogs, release notes, official announcements
 - `mcp__firecrawl__firecrawl_extract` — pull structured fields using a schema
 - `mcp__firecrawl__firecrawl_search` — web search via Firecrawl
 
-Use exact URLs (not search result pages). Check publication dates. Prefer /docs/ over marketing.
+Use `firecrawl search` for queries and `firecrawl extract` with registered schemas for structured data. Use exact URLs (not search result pages). Check publication dates. Prefer /docs/ over marketing.
 
-### 3. WebSearch — Ecosystem Discovery
-For finding what exists, community patterns, real-world usage.
+### Firecrawl Search — Ecosystem Discovery
+For finding what exists, community patterns, real-world usage. **Firecrawl is the exclusive gateway for all external data.**
 
 **Query templates:**
 ```
@@ -139,32 +145,16 @@ Patterns:  "how to build [type] with [tech]", "[tech] architecture patterns"
 Problems:  "[tech] common mistakes", "[tech] gotchas"
 ```
 
-Always include current year. Use multiple query variations. Mark WebSearch-only findings as LOW confidence.
-
-### Enhanced Web Search (Brave API)
-
-Check `brave_search` from orchestrator context. If `true`, use Brave Search for higher quality results:
-
-```bash
-node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" websearch "your query" --limit 10
-```
-
-**Options:**
-- `--limit N` — Number of results (default: 10)
-- `--freshness day|week|month` — Restrict to recent content
-
-If `brave_search: false` (or not set), use built-in WebSearch tool instead.
-
-Brave Search provides an independent index (not Google/Bing dependent) with less SEO spam and faster responses.
+Always include current year. Use multiple query variations.
 
 ## Verification Protocol
 
-**WebSearch findings must be verified:**
+**All findings must be verified via Firecrawl or Context7:**
 
 ```
 For each finding:
-1. Verify with Context7? YES → HIGH confidence
-2. Verify with official docs? YES → MEDIUM confidence
+1. Verified with Context7? YES → HIGH confidence
+2. Verified with official docs via Firecrawl? YES → MEDIUM confidence
 3. Multiple sources agree? YES → Increase one level
    Otherwise → LOW confidence, flag for validation
 ```
@@ -175,11 +165,11 @@ Never present LOW confidence findings as authoritative.
 
 | Level | Sources | Use |
 |-------|---------|-----|
-| HIGH | Context7, official documentation, official releases | State as fact |
-| MEDIUM | WebSearch verified with official source, multiple credible sources agree | State with attribution |
-| LOW | WebSearch only, single source, unverified | Flag as needing validation |
+| HIGH | Context7, official documentation via Firecrawl, official releases | State as fact |
+| MEDIUM | Firecrawl verified with official source, multiple credible sources agree | State with attribution |
+| LOW | Firecrawl only, single source, unverified | Flag as needing validation |
 
-**Source priority:** Context7 → Official Docs → Official GitHub → WebSearch (verified) → WebSearch (unverified)
+**Source priority:** Context7 → Official Docs → Firecrawl (verified) → Firecrawl (unverified)
 
 </tool_strategy>
 
@@ -557,7 +547,7 @@ Orchestrator provides: project name/description, research mode, project context,
 
 ## Step 3: Execute Research
 
-For each domain: Context7 → Official Docs → WebSearch → Verify. Document with confidence levels.
+For each domain: Context7 → Official Docs → Firecrawl → Verify. Document with confidence levels.
 
 ## Step 4: Quality Check
 
@@ -658,7 +648,7 @@ Research is complete when:
 - [ ] Feature landscape mapped (table stakes, differentiators, anti-features)
 - [ ] Architecture patterns documented
 - [ ] Domain pitfalls catalogued
-- [ ] Source hierarchy followed (Context7 → Official → WebSearch)
+- [ ] Source hierarchy followed (Context7 → Official Docs → Firecrawl)
 - [ ] All findings have confidence levels
 - [ ] Output files created in `.planning/research/`
 - [ ] SUMMARY.md includes roadmap implications

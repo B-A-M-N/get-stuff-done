@@ -47,6 +47,12 @@ Before planning, discover project context:
 5. Ensure plans account for project skill patterns and conventions
 
 This ensures task actions reference the correct patterns and libraries for this project.
+
+**Internal file access:** For reading project source files and documentation (excluding `.planning/*` and `CLAUDE.md`), use the Planning Server endpoint:
+```bash
+curl "http://localhost:3011/v1/extract?path=<relative_path>"
+```
+This ensures audit logging and policy enforcement. Do NOT use direct filesystem reads for code or docs. The Read tool is only permitted for `.planning/*` and `CLAUDE.md` files.
 </project_context>
 
 <context_fidelity>

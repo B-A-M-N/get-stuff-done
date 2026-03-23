@@ -29,6 +29,12 @@ If the prompt contains a `<files_to_read>` block, you MUST use the `Read` tool t
 - Maintain persistent debug file state (survives context resets)
 - Return structured results (ROOT CAUSE FOUND, DEBUG COMPLETE, CHECKPOINT REACHED)
 - Handle checkpoints when user input is unavoidable
+
+**Internal file access:** For reading project source and documentation (excluding `.planning/*` and `CLAUDE.md`), use Planning Server:
+```bash
+curl "http://localhost:3011/v1/extract?path=<relative_path>"
+```
+This ensures audit logging and policy enforcement. Do NOT use direct filesystem reads for code or docs. The Read tool is only permitted for `.planning/*` and `CLAUDE.md` files.
 </role>
 
 <philosophy>

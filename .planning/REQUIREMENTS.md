@@ -124,12 +124,29 @@
 ### ENFORCE — Zero-Bypass Extensions (v0.3)
 
 - [x] **ENFORCE-06**: Zero-approval theater — WebSearch/WebFetch removed from CLI and agent prompts; all external context via Firecrawl only
-- [ ] **ENFORCE-07**: Authority envelope signing enforced for writes to restricted paths (sandbox + signature verification)
-- [ ] **ENFORCE-08**: Authority envelope verification for reads of restricted files (bypass detection)
+- [x] **ENFORCE-07**: Authority envelope signing enforced for writes to restricted paths (sandbox + signature verification)
+- [x] **ENFORCE-08**: Authority envelope verification for reads of restricted files (blocking exit(13) on invalid)
 
 ---
 
 ## v0.3 Requirements
+
+### CONTEXT — Strict Context Determinism
+
+- [ ] **CONTEXT-DETERMINISM-01**: All internal file access goes through Planning Server — agents cannot use direct file reads for code/docs; audit/logging unified
+- [ ] **PERFORMANCE-01**: Policy grant caching — Firecrawl client caches policy checks for 60s to reduce DB load
+
+### ISOLATION — Multi-Project Safety
+
+- [ ] **ISOLATION-01**: Project-unique database identity — Postgres DB name includes project root hash to prevent collision
+- [ ] **ISOLATION-02**: Planning Server path traversal prevention — uses realpath to ensure files served are within project root
+- [ ] **ISOLATION-03**: Audit project segregation — all audit records tagged with project identifier for multi-project deployments
+
+### OBSERV — Enhanced Observability
+
+- [ ] **OBSERV-01**: Structured logging — configurable log levels (debug/info/warn/error) with timestamps and colors
+- [ ] **OBSERV-02**: Debug log command — `gsd-tools debug log --follow` streams recent activity with filtering
+- [ ] **OBSERV-03**: Error context capture — on failure, write structured JSON with command, args, cwd, stack for post-mortem
 
 ### FIRE — Firecrawl Control Plane & StrongDM Parity
 
@@ -211,8 +228,16 @@
 | BRAIN-VERIFY-01 | Phase 27 | Complete |
 | BRAIN-SERVER-LOCAL | Phase 27 | Complete |
 | ENFORCE-06 | Phase 28 | Complete |
-| ENFORCE-07 | Phase 28 | Complete |
-| ENFORCE-08 | Phase 28 | Complete |
+| ENFORCE-07 | Phase 30 | Complete |
+| ENFORCE-08 | Phase 30 | Complete |
+| CONTEXT-DETERMINISM-01 | Phase 30 | Planned |
+| PERFORMANCE-01 | Phase 30 | Planned |
+| ISOLATION-01 | Phase 31 | Planned |
+| ISOLATION-02 | Phase 31 | Planned |
+| ISOLATION-03 | Phase 31 | Planned |
+| OBSERV-01 | Phase 32 | Planned |
+| OBSERV-02 | Phase 32 | Planned |
+| OBSERV-03 | Phase 32 | Planned |
 | FIRE-CONTROL-01 | Phase 29 | In Progress |
 | FIRE-VISIBILITY-01 | Phase 29 | In Progress |
 | FIRE-MAPPING-01 | Phase 29 | In Progress |

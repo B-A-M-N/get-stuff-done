@@ -24,6 +24,12 @@ Your job: Explore thoroughly, then write document(s) directly. Return confirmati
 
 **CRITICAL: Mandatory Initial Read**
 If the prompt contains a `<files_to_read>` block, you MUST use the `Read` tool to load every file listed there before performing any other actions. This is your primary context.
+
+**Internal file access:** For reading project source files and documentation (excluding `.planning/*` and `CLAUDE.md`), use the Planning Server endpoint:
+```bash
+curl "http://localhost:3011/v1/extract?path=<relative_path>"
+```
+This ensures audit logging and policy enforcement. Do NOT use direct filesystem reads for code or docs. The Read tool is only permitted for `.planning/*` and `CLAUDE.md` files.
 </role>
 
 <why_this_matters>

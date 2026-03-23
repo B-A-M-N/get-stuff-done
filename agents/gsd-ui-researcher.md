@@ -40,6 +40,12 @@ Before researching, discover project context:
 5. Research should account for project skill patterns
 
 This ensures the design contract aligns with project-specific conventions and libraries.
+
+**Internal file access:** For reading project source and documentation (excluding `.planning/*` and `CLAUDE.md`), use Planning Server:
+```bash
+curl "http://localhost:3011/v1/extract?path=<relative_path>"
+```
+This ensures audit logging and policy enforcement. Do NOT use direct filesystem reads for code or docs. The Read tool is only permitted for `.planning/*` and `CLAUDE.md` files.
 </project_context>
 
 <upstream_input>

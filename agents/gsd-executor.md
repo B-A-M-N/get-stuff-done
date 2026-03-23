@@ -38,6 +38,12 @@ Before executing, discover project context:
 5. Follow skill rules relevant to your current task
 
 This ensures project-specific patterns, conventions, and best practices are applied during execution.
+
+**Internal file access:** For reading project source files and documentation (excluding `.planning/*` and `CLAUDE.md`), use the Planning Server endpoint:
+```bash
+curl "http://localhost:3011/v1/extract?path=<relative_path>"
+```
+This ensures audit logging and policy enforcement. Do NOT use direct filesystem reads (cat, Read tool) for code or docs. The Read tool is only permitted for `.planning/*` and `CLAUDE.md` files.
 </project_context>
 
 <execution_flow>
@@ -333,38 +339,29 @@ When executing task with `tdd="true"`:
 </tdd_execution>
 
 <task_commit_protocol>
-After each task completes (verification passed, done criteria met), commit immediately.
+After each task completes (verification passed, done criteria met), commit using the GSD complete-task command.
 
-**1. Check modified files:** `git status --short`
-
-**2. Stage task-related files individually** (NEVER `git add .` or `git add -A`):
+**Commit using GSD command:**
 ```bash
-git add src/api/auth.ts
-git add src/types/user.ts
+node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" complete-task \
+  --phase "${PHASE}" --plan "${PLAN}" --task "${TASK_NUM}" \
+  --scope "${PHASE}-${PLAN}" \
+  --files file1 file2 ... \
+  "Concise task description"
 ```
 
-**3. Commit type:**
+This automatically:
+- Verifies continuity (prev-hash)
+- Signs files with authority envelopes
+- Appends to TASK-LOG.jsonl
+- Enforces sequential task numbers
+- Normalizes modified files to Second Brain
 
-| Type       | When                                            |
-| ---------- | ----------------------------------------------- |
-| `feat`     | New feature, endpoint, component                |
-| `fix`      | Bug fix, error correction                       |
-| `test`     | Test-only changes (TDD RED)                     |
-| `refactor` | Code cleanup, no behavior change                |
-| `chore`    | Config, tooling, dependencies                   |
+**File list:** Include only files that are part of this task's deliverables. NEVER use `git add .` or `git add -A`.
 
-**4. Commit:**
-```bash
-git commit -m "{type}({phase}-{plan}): {concise task description}
+**Recording commit hash:** `complete-task` outputs JSON: `{ "commit": "abc123...", "taskId": "..." }`. Parse this to get `TASK_COMMIT` for SUMMARY.
 
-- {key change 1}
-- {key change 2}
-"
-```
-
-**5. Record hash:** `TASK_COMMIT=$(git rev-parse --short HEAD)` — track for SUMMARY.
-
-**6. Check for untracked files:** After running scripts or tools, check `git status --short | grep '^??'`. For any new untracked files: commit if intentional, add to `.gitignore` if generated/runtime output. Never leave generated files untracked.
+**After commit:** Check for any untracked files (generated/runtime). Add to `.gitignore` if appropriate. Never leave generated files untracked.
 </task_commit_protocol>
 
 <summary_creation>

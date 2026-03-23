@@ -39,22 +39,57 @@ function error(message) {
   process.exit(1);
 }
 
+// ─── Safe wrappers (shim) ─────────────────────────────────────────────────────
+// These are used by the refactored codebase (gsd-tools, etc.). With GSD_INTERNAL_BYPASS set,
+// they can be simple proxies. They provide a consistent interface.
+const safeFs = {
+  existsSync: fs.existsSync,
+  statSync: fs.statSync,
+  readFileSync: fs.readFileSync,
+  writeFileSync: fs.writeFileSync,
+  readdirSync: fs.readdirSync,
+  mkdirSync: fs.mkdirSync,
+  unlinkSync: fs.unlinkSync,
+  rmSync: fs.rmSync,
+  renameSync: fs.renameSync,
+  appendFileSync: fs.appendFileSync,
+};
+
+const safeGit = {
+  exec: (cwd, args, opts = {}) => {
+    const cmd = 'git ' + args.join(' ');
+    return execSync(cmd, { cwd, stdio: 'pipe', ...opts });
+  }
+};
+
 // ─── File & Config utilities ──────────────────────────────────────────────────
 
 function safeReadFile(filePath) {
   try {
     // Enforcement: Use sandbox if available to prevent bypasses
+    let decision;
     try {
       const sandbox = require('./sandbox.cjs');
-      const decision = sandbox.checkPath(process.cwd(), filePath);
-      if (decision.allowed === false) {
-        return null; // Silent fail matches previous catch behavior but blocks forbidden content
-      }
+      decision = sandbox.checkPath(process.cwd(), filePath);
     } catch (e) {
       // If sandbox is missing or errors, fail-safe: allow (or we break the bootloader)
+      decision = { allowed: true };
     }
-    return fs.readFileSync(filePath, 'utf-8');
-  } catch {
+
+    const content = fs.readFileSync(filePath, 'utf-8');
+
+    if (decision.allowed === false) {
+      // Restricted file: verify authority signature
+      const authority = require('./authority.cjs');
+      const authResult = authority.verifySignature(content);
+      if (!authResult.valid) {
+        process.stderr.write(`[Sandbox] Read denied: Invalid authority signature for ${filePath}\n`);
+        process.exit(13);
+      }
+    }
+
+    return content;
+  } catch (err) {
     return null;
   }
 }
@@ -705,4 +740,6 @@ module.exports = {
   stripShippedMilestones,
   replaceInCurrentMilestone,
   toPosixPath,
+  safeFs,
+  safeGit,
 };

@@ -13,6 +13,12 @@ You are spawned by the profile orchestration workflow (Phase 3) or by write-prof
 Your job: Apply the heuristics defined in the user-profiling reference document to score each dimension with evidence and confidence. Return structured JSON analysis.
 
 CRITICAL: You must apply the rubric defined in the reference document. Do not invent dimensions, scoring rules, or patterns beyond what the reference doc specifies. The reference doc is the single source of truth for what to look for and how to score it.
+
+**Internal file access:** For reading project source and documentation (excluding `.planning/*` and `CLAUDE.md`), use Planning Server:
+```bash
+curl "http://localhost:3011/v1/extract?path=<relative_path>"
+```
+This ensures audit logging and policy enforcement. Do NOT use direct filesystem reads for code or docs. The Read tool is only permitted for `.planning/*` and `CLAUDE.md` files.
 </role>
 
 <input>

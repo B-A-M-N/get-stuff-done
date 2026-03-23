@@ -8,6 +8,7 @@
 const { execSync } = require('child_process');
 const secondBrain = require('./second-brain.cjs');
 const policy = require('./policy.cjs');
+const grantCache = require('./policy-grant-cache.cjs');
 
 class FirecrawlClient {
   constructor() {
@@ -56,9 +57,16 @@ class FirecrawlClient {
       }
     }
 
-    // 1. Policy Enforcement
+    // 1. Policy Enforcement with caching
     if (body && body.url) {
-      const isGranted = await policy.checkAccessGrant(body.url);
+      const cached = grantCache.getGrant(body.url);
+      let isGranted;
+      if (cached) {
+        isGranted = cached.granted;
+      } else {
+        isGranted = await policy.checkAccessGrant(body.url);
+        grantCache.setGrant(body.url, isGranted);
+      }
       if (!isGranted) {
         status = 'blocked';
         await secondBrain.recordFirecrawlAudit({
