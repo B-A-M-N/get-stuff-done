@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v0.2
 milestone_name: milestone
 status: executing
-stopped_at: Completed 29-03-SUMMARY.md
-last_updated: "2026-03-23T08:15:00Z"
-last_activity: 2026-03-23 — Phase 29 complete: Firecrawl control plane, schema registry, and audit/health parity achieved.
+stopped_at: Completed 30-01-SUMMARY.md
+last_updated: "2026-03-23T13:50:00Z"
+last_activity: "2026-03-23 — Phase 30 complete: blocking authority verification, complete-task protocol, Planning Server read routing, policy grant caching."
 progress:
-  total_phases: 7
-  completed_phases: 6
-  total_plans: 19
-  completed_plans: 16
+  total_phases: 11
+  completed_phases: 9
+  total_plans: 23
+  completed_plans: 21
   percent: 96
 ---
 
@@ -26,12 +26,12 @@ See: .planning/PROJECT.md (updated 2026-03-17)
 ## Current Position
 
 Milestone: `v0.3.0`
-Phase: 29 of 10 (Firecrawl Control Plane & StrongDM Parity)
-Plan: 3 of 3 in current phase
+Phase: 30 of 10 (Strict Context Determinism & Enforcement Hardening)
+Plan: 1 of 1 in current phase
 Status: Phase Complete
-Last activity: 2026-03-23 — Phase 29 complete: Firecrawl control plane, schema registry, and audit/health parity achieved.
+Last activity: 2026-03-23 — Phase 30 complete: blocking authority verification, complete-task protocol, Planning Server read routing, policy grant caching.
 
-Progress: [██████████▧] 96% (27/28 plans complete, Phase 29 done)
+Progress: [██████████▧] 96% (21/22 plans complete, Phase 30 done)
 
 ## Performance Metrics
 
@@ -51,6 +51,8 @@ Progress: [██████████▧] 96% (27/28 plans complete, Phase 2
 | 26 | 2 | 45min | 22min |
 | 27 | 3 | 60min | 20min |
 | 28 | 3 | 50min | 16min |
+| 29 | 3 | ~45min | 15min |
+| 30 | 1 | ongoing | - |
 
 *Updated after each plan completion*
 
@@ -82,6 +84,7 @@ Progress: [██████████▧] 96% (27/28 plans complete, Phase 2
 - **AST-Awareness:** Tree-Sitter integration for symbol extraction (AST-PARSER-01)
 - **Memory Foundation:** Postgres + SQLite fallback for local brain (BRAIN-INFRA-01)
 - **Zero-Bypass:** Authority envelopes and sandbox enforcement on writes (ENFORCE-01)
+- **Strict Context Determinism:** Blocking authority verification on reads, Planning Server read routing, complete-task enforcement, policy grant caching (ENFORCE-07/08, CONTEXT-DETERMINISM-01, PERFORMANCE-01)
 
 ### Decisions
 
@@ -95,6 +98,7 @@ Progress: [██████████▧] 96% (27/28 plans complete, Phase 2
 - [Phase 28]: Centralize file operations in `core.cjs` via `safeWriteFile` to enforce sandbox checks on all write attempts.
 - [Phase 28]: Integrate Authority Envelope signing into `safeWriteFile` to ensure all writes are authenticated.
 - [Phase 29]: Treat Firecrawl as a centralized "Control Plane" for external context, mimicking StrongDM's visibility for internal resources.
+- [Phase 30]: Authority verification must block execution (exit 13) on any missing/invalid signature; use complete-task for all file writes; route all internal file reads through Planning Server.
 
 ### Blockers/Concerns
 
@@ -102,8 +106,8 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-21T18:27:34.108Z
-Stopped at: Completed 26-02-PLAN.md
+Last session: 2026-03-23T13:50:00Z
+Stopped at: Completed 30-01-SUMMARY.md
 Resume file: None
 Checkpoint Status: None
 Checkpoint Path: None

@@ -110,30 +110,20 @@ Plans:
 **Goal:** Achieve full context determinism by routing all internal reads through Planning Server, making authority verification blocking, ensuring executor protocol compliance, and adding policy grant caching.
 **Requirements**: ENFORCE-07, ENFORCE-08, CONTEXT-DETERMINISM-01, PERFORMANCE-01
 **Depends on:** Phase 29
-**Status**: [Planned]
+**Status**: [Completed 2026-03-23]
 
 Plans:
-- [ ] 30-01-PLAN.md — Authority enforcement on reads, executor protocol fix, Planning Server exclusivity, grant caching, traceability fix
+- [x] 30-01-PLAN.md — Authority enforcement on reads, executor protocol fix, Planning Server exclusivity, grant caching, traceability fix
 
 ### Phase 31: Project Isolation & Multi-Project Safety
 
 **Goal:** Ensure GSD can be safely reused across multiple projects without data leakage or database collision. Project-specific database identity, path traversal prevention, and isolation documentation.
 **Requirements**: ISOLATION-01, ISOLATION-02, ISOLATION-03
-**Depends on:** Phase 29, Phase 30
-**Status**: [Planned]
-
-Plans:
-- [ ] 31-01-PLAN.md — Project-unique DB naming, Planning Server realpath checks, audit project tagging, security documentation
-
-### Phase 32: Enhanced Observability & Debugging Experience
-
-**Goal:** Provide operators with easy-to-use logging, debugging, and diagnostics tools to rapidly identify and resolve issues during execution.
-**Requirements**: OBSERV-01, OBSERV-02, OBSERV-03
 **Depends on:** Phase 30
 **Status**: [Planned]
 
 Plans:
-- [ ] 32-01-PLAN.md — Structured logging levels, debug command, execution trace, and error context
+- [ ] 31-01-PLAN.md — Project-unique DB naming, Planning Server realpath checks, audit project tagging, security documentation
 
 ### Phase 32: Enhanced Observability & Debugging Experience
 
