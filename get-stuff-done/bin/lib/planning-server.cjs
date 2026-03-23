@@ -65,8 +65,26 @@ const server = http.createServer(async (req, res) => {
     const planningDir = path.resolve(projectRoot, '.planning');
     const targetPath = path.resolve(planningDir, relativePath);
 
-    // Security: Prevent path traversal
-    if (!targetPath.startsWith(planningDir)) {
+    // Security: Prevent path traversal outside .planning directory, including symlink attacks
+    let realTarget;
+    try {
+      realTarget = fs.realpathSync(targetPath);
+    } catch (e) {
+      realTarget = null; // File may not exist; fall back to simple check
+    }
+
+    let realPlanningDir;
+    try {
+      realPlanningDir = fs.realpathSync(planningDir);
+    } catch (e) {
+      realPlanningDir = planningDir; // Should be resolvable, but fallback
+    }
+
+    const isOutside = realTarget
+      ? !realTarget.startsWith(realPlanningDir)
+      : !targetPath.startsWith(planningDir);
+
+    if (isOutside) {
       res.statusCode = 403;
       res.setHeader('Content-Type', 'application/json');
       res.end(JSON.stringify({ error: 'Access denied: Path outside .planning directory' }));
