@@ -3,7 +3,7 @@
 ## Milestones
 
 - [x] **v0.2.0 Orchestration Integrity** - Phases 15-22 (shipped 2026-03-18)
-- [ ] **v0.3.0 Trusted Context & Local Memory** - Phases 23-32 (Target: TBD after Phase 29 completion)
+- [x] **v0.3.0 Trusted Context & Local Memory** - Phases 23-32 (Completed 2026-03-23)
 
 ## Archived Milestones
 
@@ -120,20 +120,20 @@ Plans:
 **Goal:** Ensure GSD can be safely reused across multiple projects without data leakage or database collision. Project-specific database identity, path traversal prevention, and isolation documentation.
 **Requirements**: ISOLATION-01, ISOLATION-02, ISOLATION-03
 **Depends on:** Phase 30
-**Status**: [Planned]
+**Status**: [Completed 2026-03-23]
 
 Plans:
-- [ ] 31-01-PLAN.md — Project-unique DB naming, Planning Server realpath checks, audit project tagging, security documentation
+- [x] 31-01-PLAN.md — Project-unique DB naming, Planning Server realpath checks, audit project tagging, security documentation
 
 ### Phase 32: Enhanced Observability & Debugging Experience
 
 **Goal:** Provide operators with easy-to-use logging, debugging, and diagnostics tools to rapidly identify and resolve issues during execution.
 **Requirements**: OBSERV-01, OBSERV-02, OBSERV-03
 **Depends on:** Phase 30
-**Status**: [Planned]
+**Status**: [Completed 2026-03-23]
 
 Plans:
-- [ ] 32-01-PLAN.md — Structured logging levels, debug command, execution trace, and error context
+- [x] 32-01-PLAN.md — Structured logging levels, debug command, execution trace, and error context
 
 ---
 

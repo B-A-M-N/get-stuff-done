@@ -144,9 +144,9 @@
 
 ### OBSERV — Enhanced Observability
 
-- [ ] **OBSERV-01**: Structured logging — configurable log levels (debug/info/warn/error) with timestamps and colors
-- [ ] **OBSERV-02**: Debug log command — `gsd-tools debug log --follow` streams recent activity with filtering
-- [ ] **OBSERV-03**: Error context capture — on failure, write structured JSON with command, args, cwd, stack for post-mortem
+- [x] **OBSERV-01**: Structured logging — configurable log levels (debug/info/warn/error) with timestamps and colors
+- [x] **OBSERV-02**: Debug log command — `gsd-tools debug log --follow` streams recent activity with filtering
+- [x] **OBSERV-03**: Error context capture — on failure, write structured JSON with command, args, cwd, stack for post-mortem
 
 ### FIRE — Firecrawl Control Plane & StrongDM Parity
 
@@ -230,14 +230,14 @@
 | ENFORCE-06 | Phase 28 | Complete |
 | ENFORCE-07 | Phase 30 | Complete |
 | ENFORCE-08 | Phase 30 | Complete |
-| CONTEXT-DETERMINISM-01 | Phase 30 | Planned |
-| PERFORMANCE-01 | Phase 30 | Planned |
-| ISOLATION-01 | Phase 31 | Planned |
-| ISOLATION-02 | Phase 31 | Planned |
-| ISOLATION-03 | Phase 31 | Planned |
-| OBSERV-01 | Phase 32 | Planned |
-| OBSERV-02 | Phase 32 | Planned |
-| OBSERV-03 | Phase 32 | Planned |
+| CONTEXT-DETERMINISM-01 | Phase 30 | Complete |
+| PERFORMANCE-01 | Phase 30 | Complete |
+| ISOLATION-01 | Phase 31 | Complete |
+| ISOLATION-02 | Phase 31 | Complete |
+| ISOLATION-03 | Phase 31 | Complete |
+| OBSERV-01 | Phase 32 | Complete |
+| OBSERV-02 | Phase 32 | Complete |
+| OBSERV-03 | Phase 32 | Complete |
 | FIRE-CONTROL-01 | Phase 29 | In Progress |
 | FIRE-VISIBILITY-01 | Phase 29 | In Progress |
 | FIRE-MAPPING-01 | Phase 29 | In Progress |
