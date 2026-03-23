@@ -75,10 +75,12 @@ function recordAuditEntry(cwd, entry) {
   }
 
   const identity = getIdentity(cwd);
+  const projectId = crypto.createHash('sha256').update(cwd).digest('hex').substring(0, 12);
   const fullEntry = {
     audit_id: crypto.randomUUID(),
     timestamp: new Date().toISOString(),
     actor: identity,
+    project_id: projectId,
     ...entry
   };
 

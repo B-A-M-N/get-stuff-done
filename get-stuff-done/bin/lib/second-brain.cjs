@@ -73,6 +73,62 @@ class SecondBrain {
         this.fallbackToSqlite();
       }
     });
+    this._initializeProjectIsolation().catch(() => {});
+  }
+
+  async _initializeProjectIsolation() {
+    if (this.offlineMode) return;
+
+    // Ensure gsd_local_brain schema exists in Postgres
+    if (!this.useSqlite) {
+      try {
+        await this.pool.query('CREATE SCHEMA IF NOT EXISTS gsd_local_brain');
+      } catch (err) {
+        // Ignore schema existence errors
+      }
+    }
+
+    // Ensure project_identity table exists and register this project
+    await this._ensureProjectIdentityTable();
+    await this._registerProjectIdentity();
+  }
+
+  async _ensureProjectIdentityTable() {
+    if (this.offlineMode) return;
+    if (!this.useSqlite) {
+      try {
+        await this.pool.query(`
+          CREATE TABLE IF NOT EXISTS gsd_local_brain.project_identity (
+            project_id TEXT PRIMARY KEY,
+            project_root TEXT NOT NULL,
+            initialized_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+          )
+        `);
+      } catch (err) {
+        if (!err.message.includes('already exists')) {
+          console.warn('[SecondBrain] Failed to create project_identity table:', err.message);
+        }
+      }
+    }
+    // For SQLite, table created in fallbackToSqlite
+  }
+
+  async _registerProjectIdentity() {
+    if (this.offlineMode) return;
+    const now = new Date().toISOString();
+    if (!this.useSqlite) {
+      try {
+        await this.pool.query(
+          `INSERT INTO gsd_local_brain.project_identity (project_id, project_root, initialized_at)
+           VALUES ($1, $2, $3)
+           ON CONFLICT (project_id) DO UPDATE SET project_root = $2, initialized_at = $3`,
+          [this.projectId, this.projectRoot, now]
+        );
+      } catch (err) {
+        console.warn('[SecondBrain] Failed to register project identity:', err.message);
+      }
+    }
+    // For SQLite, handled separately
   }
 
   fallbackToSqlite() {
@@ -118,7 +174,8 @@ class SecondBrain {
           url TEXT,
           schema_json TEXT,
           status TEXT,
-          latency_ms INTEGER
+          latency_ms INTEGER,
+          project_id TEXT
         );
         CREATE TABLE IF NOT EXISTS grants (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -139,6 +196,11 @@ class SecondBrain {
           last_successful_extraction DATETIME,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
+        CREATE TABLE IF NOT EXISTS project_identity (
+          project_id TEXT PRIMARY KEY,
+          project_root TEXT NOT NULL,
+          initialized_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
         CREATE INDEX IF NOT EXISTS idx_symbols_name ON symbols(name);
         CREATE INDEX IF NOT EXISTS idx_symbols_artifact ON symbols(artifact_id);
         CREATE INDEX IF NOT EXISTS idx_firecrawl_audit_ts ON firecrawl_audit(timestamp);
@@ -150,6 +212,15 @@ class SecondBrain {
       
       this.useSqlite = true;
       console.log('[SecondBrain] Using SQLite fallback at', dbPath);
+      // Insert project identity for SQLite
+      try {
+        this.sqliteDb.prepare(`
+          INSERT OR REPLACE INTO project_identity (project_id, project_root, initialized_at)
+          VALUES (?, ?, CURRENT_TIMESTAMP)
+        `).run(this.projectId, this.projectRoot);
+      } catch (err) {
+        console.error('[SecondBrain] Failed to register project identity in SQLite:', err.message);
+      }
     } catch (err) {
       console.error('[SecondBrain] Failed to initialize SQLite fallback:', err.message);
       this.offlineMode = true;
@@ -162,8 +233,8 @@ class SecondBrain {
     if (!this.useSqlite) {
       try {
         await this.pool.query(
-          'INSERT INTO gsd_local_brain.firecrawl_audit (action, url, schema_json, status, latency_ms) VALUES ($1, $2, $3, $4, $5)',
-          [audit.action, audit.url || null, audit.schema_json || null, audit.status, audit.latency_ms || null]
+          'INSERT INTO gsd_local_brain.firecrawl_audit (action, url, schema_json, status, latency_ms, project_id) VALUES ($1, $2, $3, $4, $5, $6)',
+          [audit.action, audit.url || null, audit.schema_json || null, audit.status, audit.latency_ms || null, this.projectId]
         );
         return;
       } catch (err) {
@@ -176,10 +247,10 @@ class SecondBrain {
     if (this.useSqlite && this.sqliteDb) {
       try {
         const stmt = this.sqliteDb.prepare(`
-          INSERT INTO firecrawl_audit (action, url, schema_json, status, latency_ms)
-          VALUES (?, ?, ?, ?, ?)
+          INSERT INTO firecrawl_audit (action, url, schema_json, status, latency_ms, project_id)
+          VALUES (?, ?, ?, ?, ?, ?)
         `);
-        stmt.run(audit.action, audit.url || null, audit.schema_json || null, audit.status, audit.latency_ms || null);
+        stmt.run(audit.action, audit.url || null, audit.schema_json || null, audit.status, audit.latency_ms || null, this.projectId);
       } catch (err) {
         console.error('[SecondBrain] Failed to record Firecrawl audit in SQLite:', err.message);
       }
@@ -923,6 +994,12 @@ class SecondBrain {
     if (this.offlineMode) return;
     if (!this.useSqlite) {
       try {
+        // Ensure gsd_local_brain schema exists
+        await this.pool.query('CREATE SCHEMA IF NOT EXISTS gsd_local_brain');
+
+        // Add project_id column to firecrawl_audit if not exists
+        await this.pool.query('ALTER TABLE gsd_local_brain.firecrawl_audit ADD COLUMN IF NOT EXISTS project_id TEXT');
+
         await this.pool.query(`
           CREATE INDEX IF NOT EXISTS idx_firecrawl_audit_timestamp ON gsd_local_brain.firecrawl_audit(timestamp DESC);
           CREATE INDEX IF NOT EXISTS idx_firecrawl_audit_url ON gsd_local_brain.firecrawl_audit(url);
