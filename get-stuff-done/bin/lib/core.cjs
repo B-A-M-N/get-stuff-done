@@ -115,8 +115,17 @@ const safeFs = {
 
 const safeGit = {
   exec: (cwd, args, opts = {}) => {
-    const cmd = 'git ' + args.join(' ');
-    return execSync(cmd, { cwd, stdio: 'pipe', ...opts });
+    const result = spawnSync('git', args, {
+      cwd,
+      stdio: 'pipe',
+      encoding: 'utf-8',
+      ...opts
+    });
+    return {
+      exitCode: result.status ?? 1,
+      stdout: (result.stdout ?? '').toString().trim(),
+      stderr: (result.stderr ?? '').toString().trim(),
+    };
   }
 };
 
