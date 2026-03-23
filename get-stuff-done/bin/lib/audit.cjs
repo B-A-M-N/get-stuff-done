@@ -214,10 +214,96 @@ function cmdDebugLog(cwd, options, raw) {
   }
 }
 
+// ─── Error Context Capture ─────────────────────────────────────────────────────
+
+/**
+ * Capture structured error context for debugging and post-mortem analysis.
+ * @param {Error} err - The error object
+ * @param {Object} context - Additional context (e.g., type, command, etc.)
+ * @returns {Object} Structured error context
+ */
+function captureErrorContext(err, context = {}) {
+  return {
+    timestamp: new Date().toISOString(),
+    command: process.argv.slice(1).join(' '),
+    cwd: process.cwd(),
+    env: {
+      GSD_LOG_LEVEL: process.env.GSD_LOG_LEVEL,
+      GSD_INTERNAL_BYPASS: process.env.GSD_INTERNAL_BYPASS
+    },
+    message: err.message,
+    stack: err.stack,
+    ...context
+  };
+}
+
+/**
+ * Write error context to the .planning/errors directory.
+ * Creates directory if it doesn't exist.
+ * @param {Object} ctx - Error context object from captureErrorContext
+ */
+function writeErrorContext(ctx) {
+  const errorsDir = path.join(process.cwd(), '.planning', 'errors');
+  if (!safeFs.existsSync(errorsDir)) {
+    safeFs.mkdirSync(errorsDir, { recursive: true });
+  }
+  const errorFile = path.join(errorsDir, 'latest.json');
+  safeFs.writeFileSync(errorFile, JSON.stringify(ctx, null, 2), 'utf-8');
+}
+
+/**
+ * CLI command to show recent error context
+ */
+function cmdErrorsRecent(cwd, raw) {
+  const errorFile = path.join(cwd, '.planning', 'errors', 'latest.json');
+  if (!safeFs.existsSync(errorFile)) {
+    if (raw) {
+      process.stdout.write('{}\n');
+    } else {
+      process.stdout.write('No error context found.\n');
+    }
+    return;
+  }
+
+  try {
+    const content = safeFs.readFileSync(errorFile, 'utf-8');
+    if (raw) {
+      process.stdout.write(content + '\n');
+    } else {
+      const ctx = JSON.parse(content);
+      process.stdout.write(`Error captured at ${ctx.timestamp}\n`);
+      process.stdout.write(`Command: ${ctx.command}\n`);
+      process.stdout.write(`Message: ${ctx.message}\n`);
+      if (ctx.stack) {
+        process.stdout.write(`Stack trace:\n${ctx.stack}\n`);
+      }
+      // Print any additional context keys
+      const extraKeys = Object.keys(ctx).filter(k => !['timestamp','command','cwd','env','message','stack'].includes(k));
+      if (extraKeys.length > 0) {
+        process.stdout.write(`Additional context: ${extraKeys.map(k => `${k}=${JSON.stringify(ctx[k])}`).join(', ')}\n`);
+      }
+    }
+  } catch (err) {
+    // If parsing fails, output raw content if raw mode, else error message
+    if (raw) {
+      // We already have content variable? Let's read again to be safe
+      try {
+        const rawContent = safeFs.readFileSync(errorFile, 'utf-8');
+        process.stdout.write(rawContent + '\n');
+      } catch {}
+    } else {
+      process.stdout.write(`Error reading context file: ${err.message}\n`);
+    }
+  }
+}
+
 module.exports = {
   recordAuditEntry,
   cmdAuditLog,
   cmdAuditRead,
   getIdentity,
-  cmdDebugLog
+  cmdDebugLog,
+  captureErrorContext,
+  writeErrorContext,
+  cmdErrorsRecent
 };
