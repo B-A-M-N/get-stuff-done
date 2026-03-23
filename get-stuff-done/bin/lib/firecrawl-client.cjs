@@ -5,7 +5,7 @@
  * endpoints, while enforcing audit logging for StrongDM-style visibility.
  */
 
-const { execSync } = require('child_process');
+const https = require('https');
 const secondBrain = require('./second-brain.cjs');
 const policy = require('./policy.cjs');
 const grantCache = require('./policy-grant-cache.cjs');
@@ -15,6 +15,54 @@ class FirecrawlClient {
     this.apiUrl = process.env.FIRECRAWL_API_URL || 'http://localhost:3002';
     this.apiKey = process.env.FIRECRAWL_API_KEY || 'local';
     this.rateLimitBuckets = new Map();
+  }
+
+  /**
+   * Internal helper to make HTTPS requests with timeout and error handling.
+   */
+  async _makeRequest(url, method = 'POST', headers = {}, body = null, timeout = 30000) {
+    const urlObj = new URL(url);
+    const options = {
+      hostname: urlObj.hostname,
+      port: urlObj.port || (urlObj.protocol === 'https:' ? 443 : 80),
+      path: urlObj.pathname + urlObj.search,
+      method,
+      headers: {
+        ...headers,
+        timeout,
+      },
+      timeout,
+    };
+
+    return new Promise((resolve, reject) => {
+      const req = https.request(options, (res) => {
+        let data = '';
+        res.on('data', chunk => data += chunk);
+        res.on('end', () => {
+          if (res.statusCode >= 200 && res.statusCode < 300) {
+            try {
+              const parsed = JSON.parse(data);
+              resolve({ statusCode: res.statusCode, data: parsed });
+            } catch (e) {
+              reject(new Error(`Invalid JSON response: ${e.message}`));
+            }
+          } else {
+            reject(new Error(`HTTP ${res.statusCode}: ${data}`));
+          }
+        });
+      });
+
+      req.on('error', reject);
+      req.on('timeout', () => {
+        req.destroy();
+        reject(new Error('Request timeout'));
+      });
+
+      if (body) {
+        req.write(body);
+      }
+      req.end();
+    });
   }
 
   /**
@@ -81,16 +129,19 @@ class FirecrawlClient {
 
     try {
       const url = `${this.apiUrl}/v1/${endpoint}`;
-      const curlCmd = `curl -sf -X POST "${url}" \
-        -H "Content-Type: application/json" \
-        -H "Authorization: Bearer ${this.apiKey}" \
-        ${body ? `-d '${JSON.stringify(body)}'` : ''}`;
+      const postData = body ? JSON.stringify(body) : null;
+      const headers = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.apiKey}`,
+      };
+      if (postData) {
+        headers['Content-Length'] = Buffer.byteLength(postData);
+      }
 
-      const response = execSync(curlCmd, { timeout: 30000 });
-      result = JSON.parse(response.toString());
+      const response = await this._makeRequest(url, 'POST', headers, postData, 30000);
+      result = response.data;
     } catch (err) {
       status = 'error';
-      errorMsg = err.message;
       throw err;
     } finally {
       const latency = Date.now() - start;
@@ -143,15 +194,21 @@ class FirecrawlClient {
     let apiUp = false;
     let planningUp = false;
 
+    // Check Firecrawl API
     try {
-      execSync(`curl -sf ${this.apiUrl}/ >/dev/null 2>&1`, { timeout: 3000 });
+      await this._makeRequest(this.apiUrl + '/', 'GET', {}, null, 3000);
       apiUp = true;
-    } catch {}
+    } catch (e) {
+      // ignore errors
+    }
 
+    // Check Planning Server
     try {
-      execSync(`curl -sf ${planningServerUrl}/health >/dev/null 2>&1`, { timeout: 3000 });
+      await this._makeRequest(planningServerUrl + '/health', 'GET', {}, null, 3000);
       planningUp = true;
-    } catch {}
+    } catch (e) {
+      // ignore errors
+    }
 
     const latency = Date.now() - start;
     await secondBrain.recordFirecrawlAudit({
@@ -162,8 +219,8 @@ class FirecrawlClient {
 
     const lastAudit = await secondBrain.getFirecrawlAudit(1);
 
-    return { 
-      available: apiUp, 
+    return {
+      available: apiUp,
       api_url: this.apiUrl,
       planning_server_available: planningUp,
       planning_server_url: planningServerUrl,

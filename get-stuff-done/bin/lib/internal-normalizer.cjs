@@ -2,7 +2,8 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const glob = require('glob');
-const { normalizeMd } = require('./core.cjs');
+const https = require('https');
+const { normalizeMd, safeFs } = require('./core.cjs');
 const { generateArtifactId } = require('./context-artifact.cjs');
 const { contextArtifactSchema } = require('./artifact-schema.cjs');
 const { parseCode } = require('./ast-parser.cjs');
@@ -28,33 +29,93 @@ async function normalizeInternal(cwd) {
 
   // Try to ping the local planning server
   try {
-    const { execSync } = require('child_process');
-    execSync(`curl -sf ${planningUrl}/health >/dev/null 2>&1`, { timeout: 1000 });
+    await new Promise((resolve, reject) => {
+      const healthUrl = `${planningUrl}/health`;
+      const urlObj = new URL(healthUrl);
+      const req = https.request({
+        hostname: urlObj.hostname,
+        port: urlObj.port || 443,
+        path: urlObj.pathname,
+        method: 'GET',
+        timeout: 1000,
+      }, (res) => {
+        res.on('data', () => {}); // consume data
+        res.on('end', () => {
+          if (res.statusCode === 200) resolve();
+          else reject(new Error(`HTTP ${res.statusCode}`));
+        });
+      });
+      req.on('error', reject);
+      req.on('timeout', () => {
+        req.destroy();
+        reject(new Error('timeout'));
+      });
+      req.end();
+    });
     useServer = true;
   } catch (e) {
     // Fall back to local filesystem if server is down
   }
 
-  const pattern = path.join(cwd, '.planning/*.{md,js,ts}').split(path.sep).join('/');
-  const files = glob.sync(pattern);
+  const patterns = [
+    path.join(cwd, '.planning/**/*.{md,js,ts}').split(path.sep).join('/'),
+    path.join(cwd, 'get-stuff-done/**/*.{js,ts}').split(path.sep).join('/'),
+    path.join(cwd, 'packages/**/*.{js,ts}').split(path.sep).join('/')
+  ];
+  
+  const files = patterns.reduce((acc, pattern) => {
+    return acc.concat(glob.sync(pattern, {
+      ignore: ['**/node_modules/**', '**/.git/**']
+    }));
+  }, []);
+  
   const artifacts = [];
 
   for (const filePath of files) {
     const sourceUri = path.relative(cwd, filePath).split(path.sep).join('/');
     let rawContent;
+    const start = Date.now();
     
     if (useServer) {
       try {
-        const { execSync } = require('child_process');
         // Fetch structured extraction from local planning server
-        const response = execSync(`curl -sf "${planningUrl}/v1/extract?path=${encodeURIComponent(sourceUri)}"`, { timeout: 2000 });
-        const parsed = JSON.parse(response.toString());
-        rawContent = parsed.data.markdown;
+        const extractUrl = `${planningUrl}/v1/extract?path=${encodeURIComponent(sourceUri)}`;
+        const response = await new Promise((resolve, reject) => {
+          const urlObj = new URL(extractUrl);
+          const req = https.request({
+            hostname: urlObj.hostname,
+            port: urlObj.port || 443,
+            path: urlObj.pathname + urlObj.search,
+            method: 'GET',
+            timeout: 2000,
+          }, (res) => {
+            let data = '';
+            res.on('data', chunk => data += chunk);
+            res.on('end', () => {
+              if (res.statusCode === 200) {
+                try {
+                  resolve(JSON.parse(data));
+                } catch (e) {
+                  reject(new Error(`Invalid JSON: ${e.message}`));
+                }
+              } else {
+                reject(new Error(`HTTP ${res.statusCode}`));
+              }
+            });
+          });
+          req.on('error', reject);
+          req.on('timeout', () => {
+            req.destroy();
+            reject(new Error('timeout'));
+          });
+          req.end();
+        });
+        rawContent = response.data.markdown;
       } catch (e) {
-        rawContent = fs.readFileSync(filePath, 'utf-8');
+        rawContent = safeFs.readFileSync(filePath, 'utf-8');
       }
     } else {
-      rawContent = fs.readFileSync(filePath, 'utf-8');
+      rawContent = safeFs.readFileSync(filePath, 'utf-8');
     }
     
     const ext = path.extname(filePath).toLowerCase();
@@ -86,7 +147,8 @@ async function normalizeInternal(cwd) {
         producer: 'internal-normalizer',
         producer_version: '1.1.0',
         parameters_hash: null
-      }
+      },
+      is_sanctioned: true
     };
 
     if (analysis && (analysis.symbols.length > 0 || analysis.dependencies.length > 0)) {

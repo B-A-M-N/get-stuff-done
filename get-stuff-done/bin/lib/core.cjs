@@ -4,7 +4,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { execSync, spawnSync } = require('child_process');
+const { spawnSync } = require('child_process');
 const { MODEL_PROFILES } = require('./model-profiles.cjs');
 
 // ─── Logging ────────────────────────────────────────────────────────────
@@ -362,15 +362,14 @@ function resolvePromptPolicy(config, keyPath) {
 
 function isGitIgnored(cwd, targetPath) {
   try {
+    // Use spawnSync with argument array to avoid shell injection.
     // --no-index checks .gitignore rules regardless of whether the file is tracked.
-    // Without it, git check-ignore returns "not ignored" for tracked files even when
-    // .gitignore explicitly lists them — a common source of confusion when .planning/
-    // was committed before being added to .gitignore.
-    execSync('git check-ignore -q --no-index -- ' + targetPath.replace(/[^a-zA-Z0-9._\-/]/g, ''), {
+    const result = spawnSync('git', ['check-ignore', '-q', '--no-index', '--', targetPath], {
       cwd,
       stdio: 'pipe',
+      encoding: 'utf-8',
     });
-    return true;
+    return result.status === 0;
   } catch {
     return false;
   }
