@@ -146,10 +146,12 @@ Plans:
 **Goal:** Fix P0 showstopper bugs to restore basic system functionality.
 **Requirements**: EXEC-REPAIR-01, EXEC-REPAIR-02, EXEC-REPAIR-03
 **Depends on:** None
-**Status**: [Planned]
+**Status**: [Complete]
+**Plans:** 2/2 plans complete
 
 Plans:
-- [ ] 39-01-PLAN.md — Implement safeWriteFile, fix safeGit.exec return type, move secondBrain require to top-level
+- [x] 39-01-PLAN.md — Implement safeWriteFile, fix safeGit.exec return type, move secondBrain require to top-level
+- [x] 39-02-PLAN.md — Create unit tests for safeWriteFile and safeGit.exec, regression and smoke tests
 
 ---
 
