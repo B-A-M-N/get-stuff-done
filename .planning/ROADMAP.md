@@ -3,7 +3,7 @@
 ## Milestones
 
 - [x] **v0.2.0 Orchestration Integrity** - Phases 15-22 (shipped 2026-03-18)
-- [ ] **v0.3.0 Trusted Context & Local Memory** - Phases 23-29 (Target: 2026-03-23)
+- [ ] **v0.3.0 Trusted Context & Local Memory** - Phases 23-32 (Target: TBD after Phase 29 completion)
 
 ## Archived Milestones
 
@@ -98,12 +98,52 @@ Plans:
 **Goal:** Transform Firecrawl into a centralized control plane for context management, providing strongdm-style visibility and control over all data flowing into the agent.
 **Requirements**: FIRE-CONTROL-01, FIRE-VISIBILITY-01, FIRE-MAPPING-01, FIRE-ENFORCEMENT-01, FIRE-RETENTION-01, FIRE-REPORTING-01, FIRE-HEALTH-01
 **Depends on:** Phase 28
-**Status**: [In Progress]
+**Status**: [Completed 2026-03-23]
 
 Plans:
 - [x] 29-01-PLAN.md — Firecrawl Control Plane Bridge (complete)
-- [ ] 29-02-PLAN.md — Schema registry, extract parity fix, rate limiting
-- [ ] 29-03-PLAN.md — Audit filtering, retention cleanup, health metrics
+- [x] 29-02-PLAN.md — Schema registry, extract parity fix, rate limiting (complete)
+- [x] 29-03-PLAN.md — Audit filtering, retention cleanup, health metrics (complete)
+
+### Phase 30: Strict Context Determinism & Enforcement Hardening
+
+**Goal:** Achieve full context determinism by routing all internal reads through Planning Server, making authority verification blocking, ensuring executor protocol compliance, and adding policy grant caching.
+**Requirements**: ENFORCE-07, ENFORCE-08, CONTEXT-DETERMINISM-01, PERFORMANCE-01
+**Depends on:** Phase 29
+**Status**: [Planned]
+
+Plans:
+- [ ] 30-01-PLAN.md — Authority enforcement on reads, executor protocol fix, Planning Server exclusivity, grant caching, traceability fix
+
+### Phase 31: Project Isolation & Multi-Project Safety
+
+**Goal:** Ensure GSD can be safely reused across multiple projects without data leakage or database collision. Project-specific database identity, path traversal prevention, and isolation documentation.
+**Requirements**: ISOLATION-01, ISOLATION-02, ISOLATION-03
+**Depends on:** Phase 29, Phase 30
+**Status**: [Planned]
+
+Plans:
+- [ ] 31-01-PLAN.md — Project-unique DB naming, Planning Server realpath checks, audit project tagging, security documentation
+
+### Phase 32: Enhanced Observability & Debugging Experience
+
+**Goal:** Provide operators with easy-to-use logging, debugging, and diagnostics tools to rapidly identify and resolve issues during execution.
+**Requirements**: OBSERV-01, OBSERV-02, OBSERV-03
+**Depends on:** Phase 30
+**Status**: [Planned]
+
+Plans:
+- [ ] 32-01-PLAN.md — Structured logging levels, debug command, execution trace, and error context
+
+### Phase 32: Enhanced Observability & Debugging Experience
+
+**Goal:** Provide operators with easy-to-use logging, debugging, and diagnostics tools to rapidly identify and resolve issues during execution.
+**Requirements**: OBSERV-01, OBSERV-02, OBSERV-03
+**Depends on:** Phase 30
+**Status**: [Planned]
+
+Plans:
+- [ ] 32-01-PLAN.md — Structured logging levels, debug command, execution trace, and error context
 
 ---
 

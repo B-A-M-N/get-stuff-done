@@ -42,6 +42,7 @@
  *   list-todos [area]                  Count and enumerate pending todos
  *   verify-path-exists <path>          Check file/directory existence
  *   policy should-prompt <key>         Resolve effective prompt policy for gates.* / safety.*
+ *   policy check-access --url <u>      Check if a resource access is granted by policies
  *   gate enforce --key <key>           Exit 1 (write pending artifact) when gate should prompt;
  *                                      exit 0 when clear. Use in `if !` bash blocks.
  *   gate release --key <key>           Acknowledge gate after human response; write released artifact
@@ -55,9 +56,36 @@
  *     [--resume-condition "..."]       What user response allows continuation
  *     [--no-allow-freeform]            Restrict user to listed choices only
  *   firecrawl check                    Check if local Firecrawl instance is reachable.
- *                                      Exits 0 + { available: true, mode: "firecrawl" } when up.
- *                                      Exits 1 + { available: false, mode: "degraded" } when down.
- *                                      Also checks planning server at localhost:3010.
+ *   firecrawl scrape --url <url>      Scrape a URL and return markdown
+ *   firecrawl search --query <q>      Search for structured results
+ *   firecrawl extract --url <u>       Extract structured data using a schema
+ *     --schema '{json}'
+ *   firecrawl map --url <u>           Map all URLs under a domain
+ *   firecrawl audit [options]         Show StrongDM-style Firecrawl request audit log
+ *     --limit N                         Limit results (default 20)
+ *     --from <ISO>                      Filter by start timestamp
+ *     --to <ISO>                        Filter by end timestamp
+ *     --domain <pattern>                Filter by URL domain pattern
+ *     --status <status>                 Filter by status (success/error/denied/blocked)
+ *     --action <action>                 Filter by action (scrape/extract/search/map)
+ *   firecrawl audit cleanup [--days N]  Delete audit records older than N days (default 90)
+ *   firecrawl health                   Display Firecrawl health metrics
+ *   firecrawl sync --phase N          Sync external context for a phase (scans URLs)
+ *   firecrawl list                    List all ingested context (Internal & External)
+ *   firecrawl grants                  List active access grants
+ *   firecrawl grant --url <p>         Authorize access to a URL pattern
+ *     [--type internal|external] [--ttl N]
+ *   firecrawl revoke --url <p>        Revoke access to a URL pattern
+ *   firecrawl schemas register --pattern <p> --schema-file <path> [--version <v>] [--approved-by <who>]
+ *                                    Register a domain schema for extraction
+ *   firecrawl schemas list [--pattern <p>]
+ *                                    List registered schemas
+ *   firecrawl schemas stale [--days <N>]
+ *                                    List schemas not used in N days (default 30)
+ *   firecrawl schemas approve --pattern <p>
+ *                                    Mark a schema as approved (updates approved_by)
+ *   searxng check                      Check if local SearXNG instance is reachable
+ *   searxng search --query <q>         Perform an audit-logged web search
  *   brain health                       Check health of Postgres, RabbitMQ, and Planning Server.
  *   verify-agent-connectivity          Verify if agents can connect to Local Planning Server.
  *   context build --workflow <name>    Build Zod-validated execution snapshot for a workflow
@@ -193,7 +221,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { error } = require('./lib/core.cjs');
+const { error, output, safeFs } = require('./lib/core.cjs');
 const state = require('./lib/state.cjs');
 const phase = require('./lib/phase.cjs');
 const roadmap = require('./lib/roadmap.cjs');
@@ -205,17 +233,41 @@ const commands = require('./lib/commands.cjs');
 const init = require('./lib/init.cjs');
 const frontmatter = require('./lib/frontmatter.cjs');
 const itl = require('./lib/itl.cjs');
+const audit = require('./lib/audit.cjs');
+const openboxPolicy = require('./lib/openbox-policy.cjs');
+const integrityLog = require('./lib/integrity-log.cjs');
 const profilePipeline = require('./lib/profile-pipeline.cjs');
 const profileOutput = require('./lib/profile-output.cjs');
 const nextStep = require('./lib/next-step.cjs');
 const policy = require('./lib/policy.cjs');
 const gate = require('./lib/gate.cjs');
 const context = require('./lib/context.cjs');
+const firecrawlClient = require('./lib/firecrawl-client.cjs');
+const searxngClient = require('./lib/searxng-client.cjs');
+const schemaRegistry = require('./lib/schema-registry.cjs');
 
 // ─── CLI Router ───────────────────────────────────────────────────────────────
 
 async function main() {
   const args = process.argv.slice(2);
+
+  // Internal tools are trusted to access .planning/
+  process.env.GSD_INTERNAL_BYPASS = 'true';
+  process.env.GSD_MEMORY_MODE = 'sqlite';
+
+  // 1. Initialize High-Fidelity Infrastructure
+  try {
+    const astParser = require('./lib/ast-parser.cjs');
+    // We don't await here to keep boot time fast, 
+    // but command handlers that need it should check status.
+    astParser.init().catch(e => {
+      if (process.env.GSD_DEBUG === 'true') {
+        process.stderr.write(`[AST] High-fidelity parser initialization failed: ${e.message}\n`);
+      }
+    });
+  } catch (e) {
+    // Fail-safe to regex fallback
+  }
 
   // Optional cwd override for sandboxed subagents running outside project root.
   let cwd = process.cwd();
@@ -233,7 +285,7 @@ async function main() {
     cwd = path.resolve(value);
   }
 
-  if (!fs.existsSync(cwd) || !fs.statSync(cwd).isDirectory()) {
+  if (!safeFs.existsSync(cwd) || !safeFs.statSync(cwd).isDirectory()) {
     error(`Invalid --cwd: ${cwd}`);
   }
 
@@ -342,6 +394,8 @@ async function main() {
       } else if (subcommand === 'harvest-context') {
         const phaseIdx = args.indexOf('--phase');
         state.cmdStateHarvestContext(cwd, phaseIdx !== -1 ? args[phaseIdx + 1] : null, raw);
+      } else if (subcommand === 'baseline-characterize') {
+        state.cmdStateSnapshotManifest(cwd, raw);
       } else {
         state.cmdStateLoad(cwd, raw);
       }
@@ -423,6 +477,7 @@ async function main() {
       const cptTask = cptTaskIdx !== -1 ? args[cptTaskIdx + 1] : null;
       const cptWaveIdx = args.indexOf('--wave');
       const cptWave = cptWaveIdx !== -1 ? args[cptWaveIdx + 1] : null;
+      const cptForceScope = args.includes('--force-scope');
       const cptFilesIdx = args.indexOf('--files');
       const cptFiles = [];
       if (cptFilesIdx !== -1) {
@@ -433,7 +488,7 @@ async function main() {
       }
       const cptPrevHashIdx = args.indexOf('--prev-hash');
       const cptPrevHash = cptPrevHashIdx !== -1 ? args[cptPrevHashIdx + 1] : null;
-      commands.cmdCompleteTask(cwd, cptMessage, cptFiles, cptScope, { phase: cptPhase, plan: cptPlan, task: cptTask, wave: cptWave, prev_hash: cptPrevHash }, raw);
+      commands.cmdCompleteTask(cwd, cptMessage, cptFiles, cptScope, { phase: cptPhase, plan: cptPlan, task: cptTask, wave: cptWave, prev_hash: cptPrevHash, force_scope: cptForceScope }, raw);
       break;
     }
 
@@ -603,8 +658,13 @@ async function main() {
       const subcommand = args[1];
       if (subcommand === 'should-prompt') {
         policy.cmdPolicyShouldPrompt(cwd, args[2], raw);
+      } else if (subcommand === 'check-access') {
+        const urlIdx = args.indexOf('--url');
+        if (urlIdx === -1) error('--url is required for check-access');
+        const allowed = await policy.checkAccessGrant(args[urlIdx + 1]);
+        output({ allowed }, raw, allowed ? 'Access granted' : 'Access denied');
       } else {
-        error('Unknown policy subcommand. Available: should-prompt');
+        error('Unknown policy subcommand. Available: should-prompt, check-access');
       }
       break;
     }
@@ -697,33 +757,176 @@ async function main() {
     case 'firecrawl': {
       const subcommand = args[1];
       if (subcommand === 'check') {
-        // Check if the local Firecrawl instance is reachable.
-        // Exits 0 + { available: true } when up, exits 1 + { available: false } when down.
-        // Agents use this instead of raw curl to determine whether to use Firecrawl or fallback tools.
-        const { execSync: _execSync } = require('child_process');
-        const apiUrl = process.env.FIRECRAWL_API_URL || 'http://localhost:3002';
-        const planningServerUrl = process.env.FIRECRAWL_PLANNING_URL || 'http://localhost:3011';
-        let apiUp = false;
-        let planningUp = false;
+        const result = await firecrawlClient.check();
+        output(result, raw, result.available ? 'ok' : 'down');
+      } else if (subcommand === 'scrape') {
+        const urlIdx = args.indexOf('--url');
+        if (urlIdx === -1) error('--url is required for scrape');
+        const result = await firecrawlClient.scrape(args[urlIdx + 1]);
+        output(result, raw);
+      } else if (subcommand === 'search') {
+        const queryIdx = args.indexOf('--query');
+        if (queryIdx === -1) error('--query is required for search');
+        const result = await firecrawlClient.search(args[queryIdx + 1]);
+        output(result, raw);
+      } else if (subcommand === 'extract') {
+        const urlIdx = args.indexOf('--url');
+        const schemaIdx = args.indexOf('--schema');
+        if (urlIdx === -1) error('--url is required for extract');
+        if (schemaIdx === -1) error('--schema is required for extract');
+        let schema;
         try {
-          _execSync(`curl -sf ${apiUrl}/ >/dev/null 2>&1`, { timeout: 3000 });
-          apiUp = true;
-        } catch {}
-        try {
-          _execSync(`curl -sf ${planningServerUrl}/.planning/STATE.md >/dev/null 2>&1`, { timeout: 3000 });
-          planningUp = true;
-        } catch {}
-        const result = {
-          available: apiUp,
-          api_url: apiUrl,
-          planning_server_available: planningUp,
-          planning_server_url: planningServerUrl,
-          mode: apiUp ? 'firecrawl' : 'degraded',
+          schema = JSON.parse(args[schemaIdx + 1]);
+        } catch {
+          error('Invalid JSON for --schema');
+        }
+        const result = await firecrawlClient.extract(args[urlIdx + 1], schema);
+        output(result, raw);
+      } else if (subcommand === 'map') {
+        const urlIdx = args.indexOf('--url');
+        if (urlIdx === -1) error('--url is required for map');
+        const result = await firecrawlClient.map(args[urlIdx + 1]);
+        output(result, raw);
+      } else if (subcommand === 'audit') {
+        // Check if subcommand is 'audit cleanup'
+        const nextArg = args[2];
+        if (nextArg === 'cleanup') {
+          const daysIdx = args.indexOf('--days');
+          const days = daysIdx !== -1 ? parseInt(args[daysIdx + 1], 10) : 90;
+          const secondBrain = require('./lib/second-brain.cjs');
+          const deleted = await secondBrain.cleanupOldAudits(days);
+          if (deleted > 0) {
+            output({ deleted }, raw, `Deleted ${deleted} old audit record(s)`);
+          } else {
+            output({ deleted }, raw, 'No records to delete');
+          }
+          break;
+        }
+
+        // Regular audit listing with filters
+        const limitIdx = args.indexOf('--limit');
+        const limit = limitIdx !== -1 ? parseInt(args[limitIdx + 1], 10) : 20;
+
+        const fromIdx = args.indexOf('--from');
+        const toIdx = args.indexOf('--to');
+        const domainIdx = args.indexOf('--domain');
+        const statusIdx = args.indexOf('--status');
+        const actionIdx = args.indexOf('--action');
+
+        const filters = {
+          from: fromIdx !== -1 ? args[fromIdx + 1] : undefined,
+          to: toIdx !== -1 ? args[toIdx + 1] : undefined,
+          domain: domainIdx !== -1 ? args[domainIdx + 1] : undefined,
+          status: statusIdx !== -1 ? args[statusIdx + 1] : undefined,
+          action: actionIdx !== -1 ? args[actionIdx + 1] : undefined,
         };
-        process.stdout.write(JSON.stringify(result, null, 2) + '\n');
-        process.exit(apiUp ? 0 : 1);
+
+        const logs = await require('./lib/second-brain.cjs').getFirecrawlAudit(limit, filters);
+        output(logs, raw);
+      } else if (subcommand === 'health') {
+        const secondBrain = require('./lib/second-brain.cjs');
+        const health = await secondBrain.getFirecrawlHealthSummary();
+        output(health, raw);
+      } else if (subcommand === 'sync') {
+        const phaseIdx = args.indexOf('--phase');
+        if (phaseIdx === -1) error('--phase is required for sync');
+        const phaseNum = args[phaseIdx + 1];
+        const { ensureExternalParity } = require('./lib/context.cjs');
+        const synced = await ensureExternalParity(cwd, phaseNum);
+        output({ synced }, raw, synced ? 'Context synced via Firecrawl' : 'No new URLs found');
+      } else if (subcommand === 'list') {
+        const logs = await require('./lib/second-brain.cjs').listContext();
+        output(logs, raw);
+      } else if (subcommand === 'grants') {
+        const grants = await policy.listAccessPolicies();
+        output(grants, raw);
+      } else if (subcommand === 'grant') {
+        const urlIdx = args.indexOf('--url');
+        if (urlIdx === -1) error('--url pattern is required for grant');
+        const pattern = args[urlIdx + 1];
+        const typeIdx = args.indexOf('--type');
+        const type = typeIdx !== -1 ? args[typeIdx + 1] : 'external';
+        const ttlIdx = args.indexOf('--ttl');
+        const ttl = ttlIdx !== -1 ? parseInt(args[ttlIdx + 1], 10) : null;
+        await policy.grantAccess(pattern, type, ttl);
+        output({ granted: pattern }, raw, `Access granted to: ${pattern}`);
+      } else if (subcommand === 'revoke') {
+        const urlIdx = args.indexOf('--url');
+        if (urlIdx === -1) error('--url pattern is required for revoke');
+        const pattern = args[urlIdx + 1];
+        await policy.revokeAccess(pattern);
+        output({ revoked: pattern }, raw, `Access revoked for: ${pattern}`);
+      } else if (subcommand === 'schemas') {
+        const schemaSubCmd = args[2];
+        if (!schemaSubCmd) error('Missing schemas subcommand. Available: register, list, stale, approve');
+        if (schemaSubCmd === 'register') {
+          const patternIdx = args.indexOf('--pattern');
+          const schemaFileIdx = args.indexOf('--schema-file');
+          const versionIdx = args.indexOf('--version');
+          const approvedByIdx = args.indexOf('--approved-by');
+          if (patternIdx === -1) error('--pattern is required for register');
+          if (schemaFileIdx === -1) error('--schema-file is required for register');
+          const pattern = args[patternIdx + 1];
+          const schemaPath = args[schemaFileIdx + 1];
+          const version = versionIdx !== -1 ? args[versionIdx + 1] : '1.0.0';
+          const approvedBy = approvedByIdx !== -1 ? args[approvedByIdx + 1] : null;
+          const schemaContent = safeReadFile(schemaPath);
+          if (!schemaContent) error(`Schema file not found: ${schemaPath}`);
+          let schema;
+          try {
+            schema = JSON.parse(schemaContent);
+          } catch (e) {
+            error(`Invalid JSON in schema file: ${e.message}`);
+          }
+          await schemaRegistry.register(pattern, schema, version, approvedBy);
+          output({ registered: pattern }, raw, `Schema registered for pattern: ${pattern}`);
+        } else if (schemaSubCmd === 'list') {
+          const patternIdx = args.indexOf('--pattern');
+          const filter = patternIdx !== -1 ? args[patternIdx + 1] : null;
+          const schemas = await schemaRegistry.list(filter);
+          output(schemas, raw);
+        } else if (schemaSubCmd === 'stale') {
+          const daysIdx = args.indexOf('--days');
+          const days = daysIdx !== -1 ? parseInt(args[daysIdx + 1], 10) : 30;
+          const stale = await schemaRegistry.findStale(days);
+          output(stale, raw);
+        } else if (schemaSubCmd === 'approve') {
+          const patternIdx = args.indexOf('--pattern');
+          if (patternIdx === -1) error('--pattern is required for approve');
+          const pattern = args[patternIdx + 1];
+          const existing = await schemaRegistry.list(pattern);
+          if (!existing || existing.length === 0) {
+            error(`No schema found for pattern: ${pattern}`);
+          }
+          const schemaEntry = existing[0];
+          await schemaRegistry.register(
+            pattern,
+            schemaEntry.schema_json,
+            schemaEntry.version,
+            process.env.USER || 'unknown'
+          );
+          output({ approved: pattern }, raw, `Schema approved for pattern: ${pattern}`);
+        } else {
+          error('Unknown schemas subcommand. Available: register, list, stale, approve');
+        }
       } else {
-        error('Unknown firecrawl subcommand. Available: check');
+        error('Unknown firecrawl subcommand. Available: check, scrape, search, extract, map, audit, audit cleanup, health, sync, list, grants, grant, revoke, schemas');
+      }
+      break;
+    }
+
+    case 'searxng': {
+      const subcommand = args[1];
+      if (subcommand === 'check') {
+        const result = await searxngClient.check();
+        output(result, raw, result.available ? 'ok' : 'down');
+      } else if (subcommand === 'search') {
+        const queryIdx = args.indexOf('--query');
+        if (queryIdx === -1) error('--query is required for search');
+        const result = await searxngClient.search(args[queryIdx + 1]);
+        output(result, raw);
+      } else {
+        error('Unknown searxng subcommand. Available: check, search');
       }
       break;
     }
@@ -979,7 +1182,7 @@ async function main() {
         try { providerResponse = JSON.parse(args[responseJsonIndex + 1]); }
         catch { error('Invalid JSON for --provider-response-json'); }
       } else if (responseFileIndex !== -1) {
-        try { providerResponse = JSON.parse(fs.readFileSync(args[responseFileIndex + 1], 'utf8')); }
+        try { providerResponse = JSON.parse(safeFs.readFileSync(args[responseFileIndex + 1], 'utf8')); }
         catch (e) { error('Could not read/parse --provider-response-file: ' + e.message); }
       }
 
@@ -1044,6 +1247,46 @@ async function main() {
         itl.cmdItlLatest(cwd, raw);
       } else {
         error('Unknown itl subcommand. Available: interpret, init-seed, discuss-seed, verify-seed, latest');
+      }
+      break;
+    }
+
+    case 'audit': {
+      const subcommand = args[1];
+      if (subcommand === 'log') {
+        const phaseIdx = args.indexOf('--phase');
+        const planIdx = args.indexOf('--plan');
+        const taskIdx = args.indexOf('--task');
+        const narrativeRefIdx = args.indexOf('--narrative-ref');
+        const justificationIdx = args.indexOf('--justification');
+        const filesIdx = args.indexOf('--files');
+        const commitIdx = args.indexOf('--commit-hash');
+        const authIdx = args.indexOf('--authority-hash');
+
+        audit.cmdAuditLog(cwd, {
+          phase: phaseIdx !== -1 ? args[phaseIdx + 1] : null,
+          plan: planIdx !== -1 ? args[planIdx + 1] : null,
+          task: taskIdx !== -1 ? args[taskIdx + 1] : null,
+          narrative_ref: narrativeRefIdx !== -1 ? args[narrativeRefIdx + 1] : null,
+          justification: justificationIdx !== -1 ? args[justificationIdx + 1] : null,
+          files: filesIdx !== -1 ? args[filesIdx + 1] : null,
+          commit_hash: commitIdx !== -1 ? args[commitIdx + 1] : null,
+          authority_hash: authIdx !== -1 ? args[authIdx + 1] : null,
+        }, raw);
+      } else if (subcommand === 'read') {
+        const limitIdx = args.indexOf('--limit');
+        const limit = limitIdx !== -1 ? parseInt(args[limitIdx + 1], 10) : 10;
+        audit.cmdAuditRead(cwd, limit, raw);
+      } else if (subcommand === 'analyze-impact') {
+        const filesIdx = args.indexOf('--files');
+        const idIdx = args.indexOf('--id');
+        openboxPolicy.cmdAnalyzeImpact(cwd, filesIdx !== -1 ? args[filesIdx + 1] : '', idIdx !== -1 ? args[idIdx + 1] : null, raw);
+      } else if (subcommand === 'integrity') {
+        const limitIdx = args.indexOf('--limit');
+        const limit = limitIdx !== -1 ? parseInt(args[limitIdx + 1], 10) : 20;
+        integrityLog.cmdIntegrityRead(cwd, limit, raw);
+      } else {
+        error('Unknown audit subcommand. Available: log, read, analyze-impact, integrity');
       }
       break;
     }

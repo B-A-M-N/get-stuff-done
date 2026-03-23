@@ -18,10 +18,11 @@
 const fs = require('fs');
 const path = require('path');
 const { z } = require('zod');
-const { output, error, safeReadFile, execGit, findPhaseInternal } = require('./core.cjs');
+const { output, error, safeReadFile, safeWriteFile, execGit, findPhaseInternal, safeFs, safeGit } = require('./core.cjs');
 const { runVerifyIntegrity } = require('./verify.cjs');
 const contextStore = require('./context-store.cjs');
 const contextArtifact = require('./context-artifact.cjs');
+const schemaRegistry = require('./schema-registry.cjs');
 const crypto = require('crypto');
 
 // ─── Fragment schemas ─────────────────────────────────────────────────────────
@@ -68,6 +69,12 @@ const IntegrityResultSchema = z.object({
   checks: z.record(z.string(), z.unknown()),
 });
 
+const IntentFingerprintSchema = z.object({
+  hash: z.string(),
+  ts: z.string(),
+  plan_ref: z.string(),
+});
+
 const SCHEMAS = {
   'execute-plan': z.object({
     schema_version: z.literal(2),
@@ -80,6 +87,9 @@ const SCHEMAS = {
     integrity: IntegrityResultSchema,
     coherent: z.boolean(),
     warnings: z.array(WarningSchema),
+    fingerprint: IntentFingerprintSchema.optional(),
+    baseline_active: z.boolean().default(false),
+    firecrawl_parity: z.boolean().default(false),
   }),
 
   'verify-work': z.object({
@@ -100,15 +110,16 @@ const SCHEMAS = {
     roadmap_exists: z.boolean(),
     research_exists: z.boolean(),
     warnings: z.array(WarningSchema),
+    firecrawl_parity: z.boolean().default(false),
   }),
 };
 
 // ─── Shared readers ───────────────────────────────────────────────────────────
 
 function readGitState(cwd) {
-  const headResult = execGit(cwd, ['rev-parse', '--short', 'HEAD']);
-  const branchResult = execGit(cwd, ['rev-parse', '--abbrev-ref', 'HEAD']);
-  const statusResult = execGit(cwd, ['status', '--porcelain']);
+  const headResult = safeGit.exec(cwd, ['rev-parse', '--short', 'HEAD']);
+  const branchResult = safeGit.exec(cwd, ['rev-parse', '--abbrev-ref', 'HEAD']);
+  const statusResult = safeGit.exec(cwd, ['status', '--porcelain']);
   return {
     head: headResult.exitCode === 0 ? headResult.stdout.trim() : 'unknown',
     branch: branchResult.exitCode === 0 ? branchResult.stdout.trim() : 'unknown',
@@ -147,11 +158,11 @@ function readPendingGates(cwd) {
   const gatesDir = path.join(cwd, '.planning', 'gates');
   const pending = [];
   try {
-    const files = fs.readdirSync(gatesDir).filter(f => f.endsWith('-pending.json'));
+    const files = safeFs.readdirSync(gatesDir).filter(f => f.endsWith('-pending.json'));
     const now = Date.now();
     for (const f of files) {
       try {
-        const data = JSON.parse(fs.readFileSync(path.join(gatesDir, f), 'utf-8'));
+        const data = JSON.parse(safeFs.readFileSync(path.join(gatesDir, f), 'utf-8'));
         const blockedMs = new Date(data.blocked_at).getTime();
         const age_seconds = Math.floor((now - blockedMs) / 1000);
         pending.push({ key: data.key, blocked_at: data.blocked_at, age_seconds, stale: age_seconds > 3600 });
@@ -177,10 +188,65 @@ function checkpointPresent(cwd, phase) {
   if (phase == null) return false;
   const phaseInfo = findPhaseInternal(cwd, String(phase));
   if (!phaseInfo) return false;
-  return fs.existsSync(path.join(cwd, phaseInfo.directory, 'CHECKPOINT.md'));
+  return safeFs.existsSync(path.join(cwd, phaseInfo.directory, 'CHECKPOINT.md'));
 }
 
 // ─── Per-workflow builders ────────────────────────────────────────────────────
+
+async function ensureExternalParity(cwd, phase, plan) {
+  const firecrawlClient = require('./firecrawl-client.cjs');
+  const { normalizeFirecrawl } = require('./firecrawl-normalizer.cjs');
+  const urls = new Set();
+
+  if (phase != null) {
+    const phaseInfo = findPhaseInternal(cwd, String(phase));
+    if (phaseInfo) {
+      const files = [
+        path.join(cwd, phaseInfo.directory, `${phase}-RESEARCH.md`),
+        plan != null ? path.join(cwd, phaseInfo.directory, `${phase}-${plan}-PLAN.md`) : null
+      ].filter(Boolean);
+
+      for (const f of files) {
+        const content = safeReadFile(f);
+        if (content) {
+          const matches = content.match(/https?:\/\/[^\s)\]]+/g);
+          if (matches) matches.forEach(u => urls.add(u));
+        }
+      }
+    }
+  }
+
+  const results = [];
+  for (const url of urls) {
+    try {
+      const existing = contextStore.findBySource(cwd, url);
+      if (existing.length === 0) {
+        // Look up approved schema for this URL's domain
+        const schemaInfo = await schemaRegistry.lookup(url);
+        if (!schemaInfo) {
+          console.warn(`[ensureExternalParity] No registered schema for URL: ${url}; skipping`);
+          continue;
+        }
+        // Use extract with the registered schema
+        const extractResult = await firecrawlClient.extract(url, schemaInfo.schema);
+        if (extractResult && extractResult.success) {
+          const artifact = normalizeFirecrawl(extractResult);
+          contextStore.put(cwd, artifact);
+          results.push(artifact);
+          // Mark schema as used (fire-and-forget)
+          try {
+            await schemaRegistry.markSchemaUsed(schemaInfo.domainPattern);
+          } catch (e) {
+            // ignore marking errors
+          }
+        }
+      }
+    } catch (e) {
+      // Skip failed extractions
+    }
+  }
+  return results.length > 0 || urls.size > 0;
+}
 
 async function ensureInternalParity(cwd) {
   const { normalizeInternal } = require('./internal-normalizer.cjs');
@@ -190,12 +256,43 @@ async function ensureInternalParity(cwd) {
 
 async function buildExecutePlan(cwd, options) {
   await ensureInternalParity(cwd);
-  const warnings = [];
   const git = readGitState(cwd);
   const pointer = readPlanPointer(cwd, options.phase, options.plan);
+  const firecrawl_parity = await ensureExternalParity(cwd, pointer.phase, pointer.plan);
+
+  const warnings = [];
   const pending_gates = readPendingGates(cwd);
   const last_task = readLastTaskEntry(cwd, pointer.phase, pointer.plan);
   const checkpoint_present = checkpointPresent(cwd, pointer.phase);
+
+  // HardLine: Intent Fingerprinting
+  let fingerprint;
+  if (pointer.phase != null && pointer.plan != null) {
+    const phaseInfo = findPhaseInternal(cwd, String(pointer.phase));
+    if (phaseInfo) {
+      const planPath = path.join(cwd, phaseInfo.directory, `${pointer.phase}-${pointer.plan}-PLAN.md`);
+      const planContent = safeReadFile(planPath) || '';
+      const stateContent = safeReadFile(path.join(cwd, '.planning', 'STATE.md')) || '';
+      
+      const combined = `plan:${planContent}\nstate:${stateContent}`;
+      const hash = crypto.createHash('sha256').update(combined).digest('hex');
+      
+      fingerprint = {
+        hash,
+        ts: new Date().toISOString(),
+        plan_ref: `${pointer.phase}-${pointer.plan}`,
+      };
+
+      // Persist current fingerprint for drift detection
+      const fpPath = path.join(cwd, '.planning', 'current_intent_fingerprint.json');
+      safeFs.mkdirSync(path.dirname(fpPath), { recursive: true });
+      safeWriteFile(fpPath, JSON.stringify(fingerprint, null, 2), 'utf-8');
+    }
+  }
+
+  // HardLine: Baseline Detection
+  const baselinePath = path.join(cwd, '.planning', 'baseline_manifest.json');
+  const baseline_active = safeFs.existsSync(baselinePath);
 
   // Run full integrity audit so `coherent` is a verified invariant, not just a field presence check.
   const integrity = runVerifyIntegrity(cwd, {
@@ -212,7 +309,7 @@ async function buildExecutePlan(cwd, options) {
 
   const coherent = integrity.coherent && git.head !== 'unknown' && pointer.phase != null;
 
-  return { schema_version: 2, workflow: 'execute-plan', git, pointer, pending_gates, last_task, checkpoint_present, integrity, coherent, warnings };
+  return { schema_version: 2, workflow: 'execute-plan', git, pointer, pending_gates, last_task, checkpoint_present, integrity, coherent, warnings, fingerprint, baseline_active, firecrawl_parity };
 }
 
 async function buildVerifyWork(cwd, options) {
@@ -226,8 +323,8 @@ async function buildVerifyWork(cwd, options) {
 
   if (pointer.phase_dir) {
     const plan = pointer.plan != null ? pointer.plan : 1;
-    summary_exists = fs.existsSync(path.join(cwd, pointer.phase_dir, `${pointer.phase}-${plan}-SUMMARY.md`));
-    verification_exists = fs.existsSync(path.join(cwd, pointer.phase_dir, 'VERIFICATION.md'));
+    summary_exists = safeFs.existsSync(path.join(cwd, pointer.phase_dir, `${pointer.phase}-${plan}-SUMMARY.md`));
+    verification_exists = safeFs.existsSync(path.join(cwd, pointer.phase_dir, 'VERIFICATION.md'));
   } else {
     warnings.push({ message: 'phase directory not found — cannot check summary/verification artifacts', severity: 'ignorable' });
   }
@@ -239,11 +336,10 @@ async function buildVerifyWork(cwd, options) {
 
 async function buildPlanPhase(cwd) {
   await ensureInternalParity(cwd);
-  const warnings = [];
   const git = readGitState(cwd);
 
   const roadmapPath = path.join(cwd, '.planning', 'ROADMAP.md');
-  const roadmap_exists = fs.existsSync(roadmapPath);
+  const roadmap_exists = safeFs.existsSync(roadmapPath);
 
   // Determine next incomplete phase from roadmap
   let next_phase = null;
@@ -253,19 +349,22 @@ async function buildPlanPhase(cwd) {
     if (phaseMatches.length > 0) next_phase = Number(phaseMatches[0][1]);
   }
 
+  const firecrawl_parity = await ensureExternalParity(cwd, next_phase, null);
+  const warnings = [];
+
   // Check if RESEARCH.md exists for next_phase
   let research_exists = false;
   if (next_phase != null) {
     const phaseInfo = findPhaseInternal(cwd, String(next_phase));
     if (phaseInfo) {
-      research_exists = fs.existsSync(path.join(cwd, phaseInfo.directory, `${next_phase}-RESEARCH.md`));
+      research_exists = safeFs.existsSync(path.join(cwd, phaseInfo.directory, `${next_phase}-RESEARCH.md`));
     }
   }
 
   if (!roadmap_exists) warnings.push({ message: 'ROADMAP.md not found — cannot determine next phase', severity: 'stop' });
   if (next_phase == null && roadmap_exists) warnings.push({ message: 'no pending phases found in ROADMAP.md', severity: 'ignorable' });
 
-  return { schema_version: 1, workflow: 'plan-phase', git, next_phase, roadmap_exists, research_exists, warnings };
+  return { schema_version: 1, workflow: 'plan-phase', git, next_phase, roadmap_exists, research_exists, warnings, firecrawl_parity };
 }
 
 // ─── Entry point ──────────────────────────────────────────────────────────────
@@ -305,11 +404,11 @@ function cmdContextNormalize(cwd, sourceUri, contentPath, options = {}) {
   if (!contentPath) error('--file required');
 
   const fullPath = path.resolve(cwd, contentPath);
-  if (!fs.existsSync(fullPath)) {
+  if (!safeFs.existsSync(fullPath)) {
     error(`File not found: ${contentPath}`);
   }
 
-  const content = fs.readFileSync(fullPath, 'utf8');
+  const content = safeFs.readFileSync(fullPath, 'utf8');
   const contentHash = crypto.createHash('sha256').update(content).digest('hex');
   const id = contextArtifact.generateArtifactId(sourceUri, contentHash);
 
@@ -369,5 +468,6 @@ async function cmdContextBuild(cwd, workflow, options, raw) {
 module.exports = { 
   cmdContextBuild,
   cmdContextRead,
-  cmdContextNormalize
+  cmdContextNormalize,
+  ensureExternalParity
 };
