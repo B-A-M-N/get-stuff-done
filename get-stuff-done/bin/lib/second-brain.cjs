@@ -382,7 +382,7 @@ class SecondBrain {
    */
   async checkGrant(resource) {
     // Fail-Closed: Access is denied if governance database is unavailable
-    if (this.offlineMode || !this.useSqlite || !this.sqliteDb) {
+    if (this.offlineMode || (this.useSqlite && !this.sqliteDb)) {
       // Emergency Bypass: allow access to planning server only to allow self-initialization
       if (resource.startsWith('http://localhost:3011')) return true;
       return false;
