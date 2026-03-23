@@ -82,7 +82,18 @@ function output(result, raw, rawValue) {
 }
 
 function error(message) {
-  process.stderr.write('Error: ' + message + '\n');
+  // Capture error context if in critical command context
+  if (process.env.GSD_CAPTURE_ERROR_CONTEXT === 'true') {
+    try {
+      const audit = require('./audit.cjs');
+      const err = new Error(message);
+      const ctx = audit.captureErrorContext(err, { command: process.argv.slice(1).join(' ') });
+      audit.writeErrorContext(ctx);
+    } catch (e) {
+      // ignore errors in error handling
+    }
+  }
+  logError(message);
   process.exit(1);
 }
 
@@ -138,6 +149,37 @@ function safeReadFile(filePath) {
     return content;
   } catch (err) {
     return null;
+  }
+}
+
+function safeWriteFile(filePath, content, options = {}) {
+  // Allow string format for test convenience: 'phase:39,plan:01,wave:1'
+  if (typeof options === 'string') {
+    const parsed = {};
+    options.split(',').forEach(part => {
+      const [key, value] = part.split(':');
+      if (key && value) parsed[key.trim()] = value.trim();
+    });
+    options = parsed;
+  }
+
+  try {
+    let finalContent = content;
+    if (options.phase && options.plan && options.wave) {
+      // Lazy-require to avoid circular dependency
+      const authority = require('./authority.cjs');
+      const signature = authority.generateSignature(content, options.phase, options.plan, options.wave);
+      const ext = path.extname(filePath).toLowerCase();
+      const envelope = ext === '.md'
+        ? `<!-- GSD-AUTHORITY: ${options.phase}-${options.plan}-${options.wave}:${signature} -->`
+        : `// GSD-AUTHORITY: ${options.phase}-${options.plan}-${options.wave}:${signature}`;
+      finalContent = content.trimEnd() + '\n' + envelope + '\n';
+    }
+    safeFs.writeFileSync(filePath, finalContent, 'utf-8');
+    return true;
+  } catch (err) {
+    logError(`safeWriteFile failed: ${filePath}: ${err.message}`);
+    return false;
   }
 }
 
@@ -770,10 +812,33 @@ function getMilestonePhaseFilter(cwd) {
   return isDirInMilestone;
 }
 
+// Global error handlers for uncaught exceptions and unhandled rejections
+process.on('uncaughtException', (err) => {
+  try {
+    const audit = require('./audit.cjs');
+    const ctx = audit.captureErrorContext(err, { type: 'uncaughtException' });
+    audit.writeErrorContext(ctx);
+  } catch (e) {}
+  logError(`Uncaught Exception: ${err.message}`);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason) => {
+  try {
+    const err = reason instanceof Error ? reason : new Error(String(reason));
+    const audit = require('./audit.cjs');
+    const ctx = audit.captureErrorContext(err, { type: 'unhandledRejection' });
+    audit.writeErrorContext(ctx);
+  } catch (e) {}
+  logError(`Unhandled Rejection: ${reason}`);
+  process.exit(1);
+});
+
 module.exports = {
   output,
   error,
   safeReadFile,
+  safeWriteFile,
   loadConfig,
   resolvePromptPolicy,
   isGitIgnored,
