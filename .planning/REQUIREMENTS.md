@@ -99,6 +99,9 @@
 | SANDBOX-02 | Phase 23 | Complete |
 | SANDBOX-03 | Phase 23 | Complete |
 | SANDBOX-04 | Phase 23 | Complete |
+| EXEC-REPAIR-01 | Phase 39 | Complete |
+| EXEC-REPAIR-02 | Phase 39 | Complete |
+| EXEC-REPAIR-03 | Phase 39 | Complete |
 
 **Coverage:**
 - v0.2 requirements: 39 total
