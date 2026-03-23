@@ -3,6 +3,7 @@ const broker = require('./broker.cjs');
 const fs = require('fs');
 const path = require('path');
 const { safeFs } = require('./core.cjs');
+const crypto = require('crypto');
 
 let DatabaseSync;
 try {
@@ -20,10 +21,17 @@ class SecondBrain {
     if (process.env.PGPASSWORD === '') delete process.env.PGPASSWORD;
     if (process.env.PGUSER === '') delete process.env.PGUSER;
 
+    // Compute project identifier and database name for isolation
+    const projectRoot = path.resolve(process.cwd());
+    this.projectRoot = projectRoot;
+    const projectHash = crypto.createHash('sha256').update(projectRoot).digest('hex').substring(0, 12);
+    this.projectId = projectHash;
+    this.databaseName = process.env.GSD_DB_NAME || `gsd_local_brain_${projectHash}`;
+
     const config = {
       host: process.env.PGHOST || 'localhost',
       port: process.env.PGPORT || 5432,
-      database: process.env.PGDATABASE || 'gsd_local_brain',
+      database: process.env.PGDATABASE || this.databaseName,
       connectionTimeoutMillis: 2000, // Shorter timeout for faster fallback
     };
 
