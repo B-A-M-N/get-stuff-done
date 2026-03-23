@@ -119,3 +119,114 @@
 | BRAIN-SERVER-LOCAL | Phase 27 | Complete |
 
 <!-- GSD-AUTHORITY: 28-02-3:f99811b45e84926c5b636e0b397449694f995d5695628f49c48d8cc8045f8930 -->
+
+
+### ENFORCE — Zero-Bypass Extensions (v0.3)
+
+- [x] **ENFORCE-06**: Zero-approval theater — WebSearch/WebFetch removed from CLI and agent prompts; all external context via Firecrawl only
+- [ ] **ENFORCE-07**: Authority envelope signing enforced for writes to restricted paths (sandbox + signature verification)
+- [ ] **ENFORCE-08**: Authority envelope verification for reads of restricted files (bypass detection)
+
+---
+
+## v0.3 Requirements
+
+### FIRE — Firecrawl Control Plane & StrongDM Parity
+
+- [ ] **FIRE-CONTROL-01**: Centralized access to Firecrawl via `gsd-tools` (all operations funnel through `firecrawl-client.cjs`)
+- [ ] **FIRE-VISIBILITY-01**: Schema-validated extraction of external documentation — all external context uses `extract` with approved schemas, not `scrape`
+- [ ] **FIRE-MAPPING-01**: Verified Context Mapping — domain-to-schema registry enabling automatic selection of extraction schema based on URL domain
+- [ ] **FIRE-ENFORCEMENT-01**: Rate limiting and quota enforcement per domain pattern to prevent abuse and manage Firecrawl load
+- [ ] **FIRE-RETENTION-01**: Audit log lifecycle management — partitioned storage, TTL-based cleanup, and archival strategy
+- [ ] **FIRE-REPORTING-01**: Queryable audit logs with filters (date range, domain, action, status) for compliance and debugging
+- [ ] **FIRE-HEALTH-01**: Metrics dashboard showing error rates, latency by domain, and sync health status
+
+---
+
+## v3 Requirements (Deferred)
+
+- Automated schema discovery from documentation (FIRE-MAPPING-02)
+- Distributed rate limiting across multiple GSD instances
+- Real-time alerting on anomaly patterns
+- Integration with external SIEM/log aggregation
+
+## Out of Scope
+
+| Feature | Reason |
+|---------|--------|
+| Replace Firecrawl with custom scraper | Firecrawl is production-ready, self-hostable, and provides extract/map |
+| Build separate audit UI | CLI + Grafana/Prometheus for now; web UI is separate product |
+| Multi-tenant audit isolation | Single-user tool scope |
+| PII redaction in logs | Assume trusted environment; can add later if needed |
+
+---
+
+## Traceability
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| ENFORCE-01 | Phase 17 | Complete |
+| ENFORCE-02 | Phase 17 | Complete |
+| ENFORCE-03 | Phase 17 | Complete |
+| ENFORCE-04 | Phase 17 | Complete |
+| ENFORCE-05 | Phase 17 | Complete |
+| CHECKPOINT-04 | Phase 15 | Complete |
+| CHECKPOINT-01 | Phase 16 | Complete |
+| CHECKPOINT-02 | Phase 16 | Complete |
+| CHECKPOINT-03 | Phase 16 | Complete |
+| CONTEXT-01 | Phase 18 | Complete |
+| CONTEXT-02 | Phase 18 | Complete |
+| CONTEXT-03 | Phase 18 | Complete |
+| CONTEXT-04 | Phase 18 | Complete |
+| SURFACE-01 | Phase 19 | Complete |
+| SURFACE-02 | Phase 19 | Complete |
+| SURFACE-03 | Phase 19 | Complete |
+| SCHEMA-02 | Phase 19 | Complete |
+| SCHEMA-03 | Phase 19 | Complete |
+| TEST-01 | Phase 20 | Complete |
+| TEST-02 | Phase 20 | Complete |
+| TEST-03 | Phase 20 | Complete |
+| TEST-04 | Phase 20 | Complete |
+| TEST-05 | Phase 20 | Complete |
+| SANDBOX-01 | Phase 23 | Complete |
+| SANDBOX-02 | Phase 23 | Complete |
+| SANDBOX-03 | Phase 23 | Complete |
+| SANDBOX-04 | Phase 23 | Complete |
+| SCHEMA-CANONICAL | Phase 24 | Complete |
+| ID-DETERMINISTIC | Phase 24 | Complete |
+| STORE-FILE-BACKED | Phase 24 | Complete |
+| CLI-INTEGRATION | Phase 24 | Complete |
+| NORMAL-INTERNAL | Phase 25 | Complete |
+| NORMAL-FIRE | Phase 25 | Complete |
+| NORMAL-PARITY | Phase 25 | Complete |
+| CLI-PARITY | Phase 25 | Complete |
+| AST-SCHEMA-01 | Phase 26 | Complete |
+| AST-PARSER-01 | Phase 26 | Complete |
+| AST-INTERNAL-01 | Phase 26 | Complete |
+| AST-EXTERNAL-01 | Phase 26 | Complete |
+| AST-VERIFY-01 | Phase 26 | Complete |
+| BRAIN-INFRA-01 | Phase 27 | Complete |
+| BRAIN-STORAGE-01 | Phase 27 | Complete |
+| BRAIN-INGEST-01 | Phase 27 | Complete |
+| BRAIN-VERIFY-01 | Phase 27 | Complete |
+| BRAIN-SERVER-LOCAL | Phase 27 | Complete |
+| ENFORCE-06 | Phase 28 | Complete |
+| ENFORCE-07 | Phase 28 | Complete |
+| ENFORCE-08 | Phase 28 | Complete |
+| FIRE-CONTROL-01 | Phase 29 | In Progress |
+| FIRE-VISIBILITY-01 | Phase 29 | In Progress |
+| FIRE-MAPPING-01 | Phase 29 | In Progress |
+| FIRE-ENFORCEMENT-01 | Phase 29 | In Progress |
+| FIRE-RETENTION-01 | Phase 29 | In Progress |
+| FIRE-REPORTING-01 | Phase 29 | In Progress |
+| FIRE-HEALTH-01 | Phase 29 | In Progress |
+
+**Coverage:**
+- v0.2 requirements: 39 total ✓
+- v0.3 requirements: 7 total (in progress)
+- Unmapped: 0 ✓
+
+---
+
+*Last updated: 2026-03-23 — Added v0.3 Firecrawl Control Plane requirements*
+<!-- GSD-AUTHORITY: 29-02-1:PENDING -->

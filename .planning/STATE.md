@@ -1,37 +1,20 @@
 ---
 gsd_state_version: 1.0
-milestone: v0.1
-milestone_name: milestone
-status: completed
-stopped_at: Completed 26-02-PLAN.md
+milestone: v0.3.0
+milestone_name: Trusted Context & Local Memory
+status: in_progress
+stopped_at: Initializing Phase 29
 checkpoint_status: None
 checkpoint_path: None
-last_updated: "2026-03-21T21:27:31.197Z"
-last_activity: 2026-03-19 — Agents and workflows aligned with MEGAPROMPT.md canonical enforcement contract.
+last_updated: "2026-03-22T21:40:00.000Z"
+last_activity: 2026-03-23 — Completed ENFORCE-06: purged WebSearch/WebFetch from gsd-project-researcher, enforced Firecrawl-only external discovery.
 progress:
-  total_phases: 6
-  completed_phases: 6
-  total_plans: 15
-  completed_plans: 15
+  total_phases: 29
+  completed_phases: 28
+  total_plans: 30
+  completed_plans: 28
+  percent: 96
 ---
-
----
-gsd_state_version: 1.0
-milestone: v0.2.0
-milestone_name: Orchestration Integrity
-status: complete
-stopped_at: Milestone v0.2.0 Complete
-checkpoint_status: 
-checkpoint_path: 
-last_updated: "2026-03-18T22:45:00.000Z"
-last_activity: 2026-03-18 — Milestone v0.2.0 Orchestration Integrity complete and verified.
-progress:
-  total_phases: 8
-  completed_phases: 8
-  total_plans: 20
-  completed_plans: 20
-  percent: 100
-  ---
 
 # Project State
 
@@ -40,44 +23,38 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-17)
 
 **Core value:** Runtime-bound orchestration integrity — enforcement that cannot be bypassed by following a different workflow path.
-**Current focus:** Megaprompt Alignment Complete
+**Current focus:** Firecrawl Control Plane & StrongDM Parity
 
 ## Current Position
 
-Milestone: `v0.2.0`
-Phase: 22 of 22 (Megaprompt Alignment)
-Plan: 1 of 1 in current phase
-Status: Complete
-Last activity: 2026-03-19 — Agents and workflows aligned with MEGAPROMPT.md canonical enforcement contract.
+Milestone: `v0.3.0`
+Phase: 29 of 29 (Firecrawl Control Plane & StrongDM Parity)
+Plan: 1 of 3 in current phase
+Status: In Progress
+Last activity: 2026-03-22 — Infrastructure gaps closed and Firecrawl Control Plane initiated.
 
-Progress: [████████████] 100%
+Progress: [████████████] 96%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 19
+- Total plans completed: 27
 - Average duration: 15min
-- Total execution time: 285min
+- Total execution time: 405min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 15 | 4 | 20min | 5min |
-| 16 | 4 | 30min | 7min |
-| 17 | 2 | 25min | 12min |
-| 18 | 2 | 25min | 12min |
-| 19 | 1 | 25min | 25min |
-| 20 | 1 | 30min | 30min |
-| 21 | 4 | 60min | 15min |
+| 23 | 2 | 20min | 10min |
+| 24 | 3 | 45min | 15min |
+| 25 | 2 | 30min | 15min |
+| 26 | 2 | 45min | 22min |
+| 27 | 3 | 60min | 20min |
+| 28 | 3 | 50min | 16min |
 
 *Updated after each plan completion*
-| Phase 23 P01 | 10m | 2 tasks | 3 files |
-| Phase 24 P01 | 35m | 3 tasks | 3 files |
-| Phase 24 P02 | 10m | 2 tasks | 2 files |
-| Phase 26 P01 | 20m | 3 tasks | 2 files |
-| Phase 26 P02 | 25m | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -99,25 +76,27 @@ Progress: [████████████] 100%
 - **Surface Hardening:** Library extraction and /gsd:diagnose (SURFACE-01/02/03)
 - **Full Coverage:** E2E loop tests and Brownfield Mega Audit (TEST-01/02/03/04/05)
 
+### v0.3.0 Trusted Context & Local Memory (In Progress)
+
+- **Hard Context Sandbox:** Path checks and shell interception (SANDBOX-01)
+- **Canonical Storage:** ContextArtifact schema and deterministic store (SCHEMA-CANONICAL)
+- **Unified Normalization:** Internal/External doc normalization (NORMAL-INTERNAL)
+- **AST-Awareness:** Tree-Sitter integration for symbol extraction (AST-PARSER-01)
+- **Memory Foundation:** Postgres + SQLite fallback for local brain (BRAIN-INFRA-01)
+- **Zero-Bypass:** Authority envelopes and sandbox enforcement on writes (ENFORCE-01)
+
 ### Decisions
 
-- [Phase 15]: Zod v4 migration for better error reporting and schema composition.
-- [Phase 16]: Standardize on frontmatter as the machine-readable source of truth for all artifacts.
-- [Phase 17]: Use `gsd-tools state json` as the gate mechanism for bash-based workflows.
-- [Phase 18]: Implement token-aware truncation for context harvesting to support massive legacy projects.
-- [Phase 19]: Extract internal sub-processes to `lib/` to clean up the primary workflow surface.
-- [Phase 21]: Implement "Legacy Compliance" mode in schemas to ensure backward compatibility.
 - [Phase 23]: Use exit code 13 for blocked paths in the CLI to distinguish from other errors.
 - [Phase 23]: Implement sandbox as a core library (sandbox.cjs) for reuse across components.
-- [Phase 24]: Use SHA-256 for deterministic identity generation based on source_uri and content_hash
-- [Phase 24]: Define a strict canonical schema for context artifacts using Zod
+- [Phase 24]: Use SHA-256 for deterministic identity generation based on source_uri and content_hash.
+- [Phase 24]: Define a strict canonical schema for context artifacts using Zod.
 - [Phase 24]: Use .planning/context/artifacts/ as the standard storage location for normalized context.
-- [Phase 24]: Enforce schema validation on both store operations (put and get) to ensure data integrity.
 - [Phase 26]: Use web-tree-sitter for AST analysis with a robust regex fallback for synchronous contexts.
-- [Phase 26]: Include symbol names, kinds, and line numbers in the context artifact schema.
-- [Phase 26]: Scan Firecrawl markdown for fenced code blocks with JS/TS identifiers to extract symbols from external documentation.
-- [Phase 26]: Wrap internal code files in markdown code blocks during normalization for consistency with external artifacts while still parsing them for AST symbols.
-- [Phase 26]: Merge symbols and dependencies from multiple code blocks in a single external document into a unified analysis field.
+- [Phase 27]: Implement node:sqlite DatabaseSync as the local fallback for Knowledge Graph when Postgres is offline.
+- [Phase 28]: Centralize file operations in `core.cjs` via `safeWriteFile` to enforce sandbox checks on all write attempts.
+- [Phase 28]: Integrate Authority Envelope signing into `safeWriteFile` to ensure all writes are authenticated.
+- [Phase 29]: Treat Firecrawl as a centralized "Control Plane" for external context, mimicking StrongDM's visibility for internal resources.
 
 ### Blockers/Concerns
 
