@@ -434,6 +434,74 @@ class SecondBrain {
   }
 
   /**
+   * Get recent audit entries from both firecrawl_audit and integrity_log.jsonl.
+   * @param {string} cwd - Project root path
+   * @param {number} limit - Max entries to return (default 50)
+   * @param {number} sinceMinutes - Only entries newer than this many minutes (default 60)
+   * @returns {Array} Sorted by timestamp descending
+   */
+  async getRecentAudits(cwd, limit = 50, sinceMinutes = 60) {
+    const cutoff = sinceMinutes ? new Date(Date.now() - sinceMinutes * 60 * 1000).toISOString() : null;
+
+    // Get firecrawl_audit entries
+    const filters = {};
+    if (cutoff) filters.from = cutoff;
+    const firecrawlRows = await this.getFirecrawlAudit(limit, filters);
+
+    const firecrawlEntries = firecrawlRows.map(row => ({
+      source: 'firecrawl',
+      timestamp: row.timestamp,
+      action: row.action,
+      details: `url=${row.url || ''} status=${row.status || ''}`,
+      level: this._mapStatusToLevel(row.status),
+      raw: row
+    }));
+
+    // Get integrity_log entries
+    const integrityLogPath = path.join(cwd, '.planning', 'integrity_log.jsonl');
+    let integrityEntries = [];
+    try {
+      if (safeFs.existsSync(integrityLogPath)) {
+        const content = safeFs.readFileSync(integrityLogPath, 'utf-8');
+        const lines = content.trim().split('\n').filter(Boolean);
+        for (const line of lines) {
+          try {
+            const entry = JSON.parse(line);
+            if (cutoff && entry.timestamp && new Date(entry.timestamp) < new Date(cutoff)) continue;
+            integrityEntries.push({
+              source: 'integrity',
+              timestamp: entry.timestamp,
+              action: entry.action || 'log',
+              details: `files=${(entry.files || []).join(',')}`,
+              level: 'info',
+              raw: entry
+            });
+          } catch (e) {
+            // skip malformed lines
+          }
+        }
+      }
+    } catch (err) {
+      // ignore read errors
+    }
+
+    // Merge and sort
+    const merged = [...firecrawlEntries, ...integrityEntries].sort((a, b) =>
+      new Date(b.timestamp) - new Date(a.timestamp)
+    );
+
+    return merged.slice(0, limit);
+  }
+
+  _mapStatusToLevel(status) {
+    if (!status) return 'info';
+    const s = status.toLowerCase();
+    if (s === 'error' || s === 'denied' || s === 'blocked') return 'error';
+    if (s === 'note') return 'warn';
+    return 'info';
+  }
+
+  /**
    * Clean up old audit records based on retention policy.
    * @param {number} retentionDays - Number of days to retain (default 90)
    * @returns {number} Number of rows deleted
@@ -1058,6 +1126,64 @@ class SecondBrain {
     }
 
     return [];
+  }
+
+  _mapFirecrawlStatusToLevel(status) {
+    if (status === 'error' || status === 'denied') return 'error';
+    if (status === 'blocked' || status === 'note') return 'warn';
+    if (status === 'success') return 'info';
+    return 'debug';
+  }
+
+  async getRecentAudits(limit = 50, sinceMinutes = 60) {
+    const since = new Date(Date.now() - sinceMinutes * 60 * 1000).toISOString();
+
+    // Get firecrawl audit entries
+    const firecrawlRaw = await this.getFirecrawlAudit(limit * 2, { from: since });
+
+    // Transform to unified format
+    const firecrawl = firecrawlRaw.map(entry => ({
+      timestamp: entry.timestamp,
+      level: this._mapFirecrawlStatusToLevel(entry.status),
+      message: `${entry.action}${entry.url ? ' ' + entry.url : ''}`.trim(),
+      source: 'firecrawl',
+      details: { action: entry.action, url: entry.url, status: entry.status, latency_ms: entry.latency_ms }
+    }));
+
+    // Get integrity log entries
+    let integrity = [];
+    try {
+      const logPath = path.join(process.cwd(), '.planning', 'integrity_log.jsonl');
+      if (safeFs.existsSync(logPath)) {
+        const content = safeFs.readFileSync(logPath, 'utf-8');
+        const lines = content.trim().split('\n').filter(Boolean);
+        integrity = lines.map(l => JSON.parse(l))
+          .filter(e => e.timestamp >= since)
+          .map(e => {
+            let level = 'info';
+            if (e.type) {
+              const t = e.type.toLowerCase();
+              if (t.includes('error')) level = 'error';
+              else if (t.includes('warn')) level = 'warn';
+              else if (t.includes('info')) level = 'info';
+              else level = 'debug';
+            }
+            return {
+              timestamp: e.timestamp,
+              level,
+              message: e.message,
+              source: 'integrity',
+              details: e.details || null
+            };
+          });
+      }
+    } catch (err) {
+      // ignore
+    }
+
+    const merged = [...firecrawl, ...integrity];
+    merged.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    return merged.slice(0, limit);
   }
 
   async close() {

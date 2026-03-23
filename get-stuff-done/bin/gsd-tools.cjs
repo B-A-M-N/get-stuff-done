@@ -754,6 +754,27 @@ async function main() {
       break;
     }
 
+    case 'debug': {
+      const subcommand = args[1];
+      if (subcommand === 'log') {
+        const followIdx = args.indexOf('--follow');
+        const levelIdx = args.indexOf('--level');
+        const sinceIdx = args.indexOf('--since');
+        const limitIdx = args.indexOf('--limit');
+        const options = {
+          follow: followIdx !== -1,
+          level: levelIdx !== -1 ? args[levelIdx + 1] : undefined,
+          since: sinceIdx !== -1 ? args[sinceIdx + 1] : undefined,
+          limit: limitIdx !== -1 ? args[limitIdx + 1] : undefined,
+        };
+        const audit = require('./lib/audit.cjs');
+        audit.cmdDebugLog(cwd, options, raw);
+      } else {
+        error('Unknown debug subcommand: ' + subcommand);
+      }
+      break;
+    }
+
     case 'firecrawl': {
       const subcommand = args[1];
       if (subcommand === 'check') {
