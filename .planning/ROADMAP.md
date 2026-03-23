@@ -137,6 +137,82 @@ Plans:
 
 ---
 
+## v0.4.0 Critical Infrastructure & Security Hardening
+
+**Goal:** Resolve critical execution infrastructure bugs and restore core system guarantees identified by comprehensive brownfield audit.
+
+### Phase 39: Critical Execution Infrastructure Repair
+
+**Goal:** Fix P0 showstopper bugs to restore basic system functionality.
+**Requirements**: EXEC-REPAIR-01, EXEC-REPAIR-02, EXEC-REPAIR-03
+**Depends on:** None
+**Status**: [Planned]
+
+Plans:
+- [ ] 39-01-PLAN.md — Implement safeWriteFile, fix safeGit.exec return type, move secondBrain require to top-level
+
+---
+
+### Phase 40: Policy Enforcement Integrity
+
+**Goal:** Make policy grants functional in Postgres mode and eliminate shell injection risks.
+**Requirements**: POLICY-INTEGRITY-01, POLICY-INTEGRITY-02
+**Depends on:** Phase 39
+**Status**: [Planned]
+
+Plans:
+- [ ] 40-01-PLAN.md — Fix checkGrant() Postgres delegation, replace execSync with execFileSync in HTTP clients
+
+---
+
+### Phase 41: Authority System Completion
+
+**Goal:** Implement authority envelope signing and secure fallback handling to fulfill stated guarantees.
+**Requirements**: AUTH-COMPLETE-01, AUTH-COMPLETE-02, AUTH-COMPLETE-03
+**Depends on:** Phase 39
+**Status**: [Planned]
+
+Plans:
+- [ ] 41-01-PLAN.md — Wire authority.signFile(), secure fallback secret, fail-secure sandbox error handling, bypass audit logging
+
+---
+
+### Phase 42: Planning Server Security Hardening
+
+**Goal:** Restrict planning server access and activate AST parsing for proper code analysis.
+**Requirements**: PLANNING-SERVER-01, PLANNING-SERVER-02
+**Depends on:** Phase 39
+**Status**: [Planned]
+
+Plans:
+- [ ] 42-01-PLAN.md — Block .planning/ exposure, initialize Tree-Sitter, add degraded mode warnings
+
+---
+
+### Phase 43: Git API Unification & Cache Management
+
+**Goal:** Remove broken safeGit API and make policy cache TTL configurable.
+**Requirements**: GIT-UNIFY-01, CACHE-CONFIG-01
+**Depends on:** Phase 39
+**Status**: [Planned]
+
+Plans:
+- [ ] 43-01-PLAN.md — Replace safeGit.exec with execGit, remove safeGit, add POLICY_CACHE_TTL_MS config, wire clearAll() to revocations
+
+---
+
+### Phase 44: Observability & Error Handling Polish
+
+**Goal:** Fix remaining P2/P3 issues and improve diagnostics and code quality.
+**Requirements**: OBSERV-POLISH-01, OBSERV-POLISH-02
+**Depends on:** Phase 39, Phase 40
+**Status**: [Planned]
+
+Plans:
+- [ ] 44-01-PLAN.md — Fix audit.cjs sqlite require guard, remove dead code, add policy decision logging
+
+---
+
 ## v0.2.0 Orchestration Integrity
 
 ... (rest of the file)
