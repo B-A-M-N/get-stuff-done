@@ -9,6 +9,9 @@ const secondBrain = require('./second-brain.cjs');
 
 const PORT = process.env.GSD_PLANNING_PORT || 3011;
 const HOST = process.env.GSD_PLANNING_HOST || '127.0.0.1';
+const CORS_ORIGINS = process.env.GSD_PLANNING_CORS_ORIGINS
+  ? process.env.GSD_PLANNING_CORS_ORIGINS.split(',').map(s => s.trim())
+  : [];
 
 /**
  * Generates a SHA-256 hash of a string.
@@ -42,9 +45,37 @@ function normalizeContent(filePath, rawContent) {
   return { normalized, analysis };
 }
 
+/**
+ * Sets security headers on all responses.
+ */
+function setSecurityHeaders(res) {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Cache-Control', 'no-store');
+}
+
 const server = http.createServer(async (req, res) => {
   // Simple URL parsing for compatibility
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+
+  // Set security headers on all responses (must be before any early returns)
+  setSecurityHeaders(res);
+
+  // CORS handling (if configured)
+  if (CORS_ORIGINS.length > 0) {
+    const origin = req.headers.origin;
+    if (origin && CORS_ORIGINS.includes(origin)) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      // Handle preflight requests
+      if (req.method === 'OPTIONS') {
+        res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+        res.statusCode = 204;
+        res.end();
+        return;
+      }
+    }
+  }
 
   if (url.pathname === '/health') {
     res.statusCode = 200;
@@ -130,6 +161,13 @@ const server = http.createServer(async (req, res) => {
     res.setHeader('Content-Type', 'application/json');
     res.end(JSON.stringify({ error: 'Not found' }));
   }
+});
+
+// Server timeout and keep-alive settings
+server.timeout = 30000;
+server.on('timeout', () => {
+  // Node auto-closes connections; logging is optional
+  console.log('Planning Server: connection timeout');
 });
 
 async function startServer() {
