@@ -863,3 +863,294 @@ After Level 3 wiring verification passes, spot-check individual exports for actu
 - REQ-HARD-04: `complete-task` MUST reject task N when last log entry is not task N-1
 - REQ-HARD-05: `verify integrity` MUST run 10 checks before any execution; `coherent: false` MUST block
 - REQ-HARD-06: `context build` MUST produce Zod-validated snapshot at each workflow entry point
+
+---
+
+### 35. Superpowers Integration
+
+**Status:** Planned Future Feature (not yet implemented)
+
+**Commands:** N/A (skill-based enhancement)
+
+**Purpose:** Amplify GSD execution quality by integrating the Superpowers skill library — providing battle-tested patterns for test-driven development, systematic debugging, code review, and design refinement.
+
+**Motivation:**
+GSD excels at project management (phases, roadmap, state tracking) but delegates implementation craftsmanship to agents. Superpowers provides a comprehensive library of skills that enforce disciplined workflows:
+- **TDD**: RED-GREEN-REFACTOR cycle
+- **Debugging**: 4-phase root cause analysis
+- **Code Review**: Two-stage review (spec compliance, then code quality)
+- **Design**: Socratic brainstorming before implementation
+
+Rather than reinvent these patterns, integrate Superpowers as GSD's implementation quality layer.
+
+---
+
+#### Architecture
+
+```
+┌─────────────────────────────────────────┐
+│         GSD Command Layer               │
+│   (/gsd:new-project, /gsd:plan-phase)  │
+├─────────────────────────────────────────┤
+│   GSD Orchestration (workflows)        │
+│   + Superpowers Skill Invocation       │
+├─────────────────────────────────────────┤
+│   GSD Agents (gsd-executor, etc.)     │
+│   + Superpowers Skills (TDD, review)  │
+├─────────────────────────────────────────┤
+│   Implementation Layer                 │
+└─────────────────────────────────────────┘
+```
+
+**Integration Points:**
+
+| GSD Agent | Superpowers Skills | Trigger Conditions |
+|-----------|-------------------|-------------------|
+| `gsd-executor` | `superpowers:test-driven-development` | Plan has `tdd="true"` |
+| `gsd-executor` | `superpowers:requesting-code-review` | Before each checkpoint |
+| `gsd-debugger` | `superpowers:systematic-debugging` | Bug investigation workflow |
+| `gsd-planner` | `superpowers:writing-skills` (review mode) | Spec review loop |
+| `gsd-phase-researcher` | `superpowers:brainstorming` | Complex design questions |
+
+---
+
+#### Implementation Strategy
+
+**Phase 1: Skill Discovery Configuration**
+
+Ensure Superpowers skills are available to GSD agents:
+
+1. **Global installation**: Users install Superpowers separately:
+   ```bash
+   git clone https://github.com/pcvelz/superpowers.git ~/.claude/superpowers
+   ```
+
+2. **Skill path configuration**: GSD installer registers Superpowers in Claude's skill paths:
+   - Add to `~/.claude/settings.json`:
+     ```json
+     {
+       "skills": {
+         "paths": [
+           "~/.claude/skills",
+           "~/.claude/superpowers/skills"
+         ]
+       }
+     }
+     ```
+
+3. **Project-level opt-in**: Projects can enable/disable via `.planning/config.json`:
+   ```json
+   {
+     "integrations": {
+       "superpowers": {
+         "enabled": true,
+         "auto_trigger": true,
+         "skills": [
+         ]
+
+**Phase 2: Agent Template Updates**
+
+Modify GSD agent templates to leverage Superpowers:
+
+1. **gsd-executor.md** - Add Superpowers protocols:
+   ```markdown
+   <execution_flow>
+   For each task:
+
+   1. If `tdd="true"`:
+      - EXCLUSIVE: Use `superpowers:test-driven-development` workflow
+      - Do NOT proceed without skill invocation
+      - Follow RED-GREEN-REFACTOR as defined by skill
+
+   2. Before `checkpoint:human-verify`:
+      - Invoke `superpowers:requesting-code-review`
+      - Provide: PLAN.md reference, task context
+      - Incorporate review feedback before checkpoint
+
+   3. For bugs (deviation Rule 1):
+      - Use `superpowers:systematic-debugging` for complex issues
+      - For trivial fixes, apply directly without skill overhead
+   ```
+
+2. **gsd-planner.md** - Add spec review enhancement:
+   ```markdown
+   <plan_review_loop>
+   After plan draft:
+
+   1. Dispatch plan-document-reviewer (existing GSD agent)
+   2. If complex design patterns present:
+      - Invoke `superpowers:writing-skills` review process
+      - Provide plan and spec documents for critique
+   3. Fix issues, repeat until approved
+   ```
+
+3. **gsd-phase-researcher.md** - Add design refinement:
+   ```markdown
+   <research_synthesis>
+   If phase involves novel architecture:
+
+   1. Use `superpowers:brainstorming` to explore approaches
+   2. Document trade-offs in RESEARCH.md
+   3. Include recommendation with reasoning
+   ```
+
+**Phase 3: GSD-Specific Skill Adapters (Optional)**
+
+Create thin wrapper skills that adapt Superpowers patterns to GSD context:
+
+- `gsd-tdd`: Superpowers TDD + GSD task commit protocol
+- `gsd-debugging`: Systematic debugging + gsd-debugger artifact generation
+- `gsd-code-review`: Review against PLAN.md + STATE.md consistency
+
+These adapters ensure Superpowers workflows align with GSD's enforcement boundary (complete-task, verify-integrity).
+
+---
+
+#### Configuration Schema
+
+Add to `.planning/config.json`:
+
+```json
+{
+  "integrations": {
+    "superpowers": {
+      "enabled": true,
+      "auto_trigger": true,
+      "skills": [
+        "test-driven-development",
+        "requesting-code-review",
+        "systematic-debugging"
+      ],
+      "strict_mode": false
+    }
+  }
+}
+```
+
+**Settings:**
+
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| `integrations.superpowers.enabled` | boolean | `false` | Enable Superpowers integration |
+| `integrations.superpowers.auto_trigger` | boolean | `true` | Auto-invoke skills or manual only |
+| `integrations.superpowers.skills` | array | All core skills | Which skills to enable |
+| `integrations.superpowers.strict_mode` | boolean | `false` | Fail execution if skill unavailable |
+
+---
+
+#### Requirements
+
+**Functional Requirements:**
+
+- REQ-SUP-01: System MUST detect available Superpowers skills at workflow initialization
+- REQ-SUP-02: When `tdd="true"` in PLAN.md, gsd-executor MUST invoke `superpowers:test-driven-development`
+- REQ-SUP-03: Before checkpoints, gsd-executor MUST invoke `superpowers:requesting-code-review` if enabled
+- REQ-SUP-04: gsd-debugger MUST use `superpowers:systematic-debugging` for root cause analysis
+- REQ-SUP-05: If Superpowers is unavailable and `strict_mode=true`, execution MUST halt with clear error
+- REQ-SUP-06: Superpowers skill invocation MUST respect GSD's enforcement boundary (complete-task, verify-integrity)
+- REQ-SUP-07: Skill output artifacts MUST be committed to git as part of task commits
+- REQ-SUP-08: System MUST provide graceful degradation if Superpowers is disabled or missing
+
+**Non-Functional Requirements:**
+
+- Integration MUST NOT alter GSD core workflows (phases, milestones, STATE.md)
+- Integration MUST NOT conflict with existing quality gates (Nyquist, plan-checker)
+- Integration SHOULD reduce token usage by avoiding duplicated patterns
+- Integration SHOULD improve implementation quality metrics (test coverage, bug rates)
+
+---
+
+#### Benefits
+
+**Quality Amplification:**
+- TDD enforcement increases test coverage and correctness
+- Systematic debugging reduces time-to-root-cause
+- Structured code reviews catch spec deviations early
+
+**Consistency:**
+- Single source of truth for implementation patterns
+- Skills evolve independently of GSD releases
+- Projects can customize skill behavior via skill-local overrides
+
+**Efficiency:**
+- Agents don't need to re-learn TDD/debugging patterns per project
+- Token savings: skill documentation loaded once, referenced many times
+- Parallel development: multiple agents can use same skill simultaneously
+
+---
+
+#### Risks & Mitigations
+
+| Risk | Impact | Mitigation |
+|------|--------|------------|
+| Skill auto-trigger conflicts with GSD flow | Execution disruption | Default `auto_trigger=false`; manual invocation only |
+| Superpowers not installed | Feature unavailable | Detection + graceful error with install instructions |
+| Different TDD interpretations | Workflow variance | Document alignment; create gsd-tdd adapter if needed |
+| Circular dependency (skills calling GSD) | Infinite loops | Prohibit gsd-tools calls from within skills |
+| Performance overhead | Slower execution | Skill invocation is just read-only, minimal impact |
+
+---
+
+#### Roadmap
+
+**Phase 1 (Foundation):**
+- [ ] Document integration pattern in GSD docs
+- [ ] Add Superpowers to recommended toolchain
+- [ ] Create example project demonstrating integration
+- [ ] Write migration guide for existing GSD projects
+
+**Phase 2 (Automation):**
+- [ ] Implement skill auto-detection in gsd-executor
+- [ ] Add config flags for skill enable/disable
+- [ ] Create GSD-specific skill wrappers (if needed)
+
+**Phase 3 (Optimization):**
+- [ ] Token usage analysis: are skills saving context?
+- [ ] Quality metrics: Does integration improve outcomes?
+- [ ] Feedback loop: collect user experiences, refine integration
+
+---
+
+#### See Also
+
+- [Superpowers Repository](https://github.com/pcvelz/superpowers)
+- [Superpowers Skills Documentation](../.claude/skills/superpowers/)
+- [GSD Agent Architecture](../docs/AGENTS.md)
+- [GSD Configuration Reference](../docs/CONFIGURATION.md)
+
+
+## Planning Server Security Hardening
+
+The Planning Server (`get-stuff-done/bin/lib/planning-server.cjs`) has been hardened with the following security controls:
+
+- **Network Binding**: Binds to localhost (127.0.0.1) only by default; override via `GSD_PLANNING_HOST`.
+- **Mandatory Authentication**: Bearer token required by default via `PLANNING_SERVER_TOKEN`. Missing/invalid tokens get 401/403. Opt-out insecure mode via `PLANNING_SERVER_INSECURE_LOCAL=1`.
+- **Rate Limiting**: Per-identity (token/IP) limits: `/health` 300/min, `/v1/read` 120/min, `/v1/extract` 60/min, `/metrics` 120/min. Includes `Retry-After: 60` on 429.
+- **Concurrency Caps**: Max 16 total requests, max 4 concurrent extracts. Excess requests get 503. In-flight metrics exposed.
+- **AST Parser Activation**: Tree-Sitter initialized at startup; failure falls back to regex and sets `X-Planning-Server-Degraded` header.
+- **Security Headers**: All responses include `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Cache-Control: no-store`. Optional CORS via `GSD_PLANNING_CORS_ORIGINS`.
+- **Request Validation**: Enforces 4096 byte path limit, 5MB file size limit, rejects null bytes (400/413).
+- **.planning/ Protection**: `/v1/read` blocks `.planning/` access (403) with audit logging.
+- **Audit Logging**: Records security events (auth failures, rate limits, caps, validation denials).
+- **Metrics**: Comprehensive Prometheus metrics on `/metrics` (counters, gauges, histograms).
+
+### Configuration Environment Variables
+
+- `GSD_PLANNING_HOST` (default: 127.0.0.1)
+- `GSD_PLANNING_PORT` (default: 3011)
+- `GSD_PLANNING_CORS_ORIGINS` (comma-separated allowlist, optional)
+- `PLANNING_SERVER_TOKEN` (required unless insecure mode)
+- `PLANNING_SERVER_AUTH_MODE` (default: mandatory)
+- `PLANNING_SERVER_INSECURE_LOCAL` (set to 1 to disable auth for local use)
+- `PLANNING_SERVER_MAX_CONCURRENT_REQUESTS` (default: 16)
+- `PLANNING_SERVER_MAX_CONCURRENT_EXTRACTS` (default: 4)
+- `PLANNING_SERVER_MAX_PATH_BYTES` (default: 4096)
+- `PLANNING_SERVER_MAX_FILE_BYTES` (default: 5242880)
+- `GSD_PLANNING_RATE_LIMIT` (global override, 0 to disable)
+- `GSD_PLANNING_RATE_LIMIT_HEALTH`, `GSD_PLANNING_RATE_LIMIT_READ`, `GSD_PLANNING_RATE_LIMIT_EXTRACT`, `GSD_PLANNING_RATE_LIMIT_METRICS`
+
+### Known Limitations
+
+- AST parser depends on WebAssembly files; if unavailable, server operates in degraded mode (regex-based content extraction).
+- Rate limiting uses an approximate token bucket with probabilistic pruning; very high traffic may see slight drift.
+- Audit logging is best-effort and may drop entries under extreme load.
