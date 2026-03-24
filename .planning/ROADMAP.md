@@ -175,7 +175,7 @@ Plans:
 **Status**: [Planned]
 
 Plans:
-- [ ] 41-01-PLAN.md — Wire authority.signFile(), secure fallback secret, fail-secure sandbox error handling, bypass audit logging
+- [ ] 41-01-PLAN.md — Complete authority system: enforce signing on writes, verification on reads, secure fallback, audit logging, and tests
 
 ---
 
