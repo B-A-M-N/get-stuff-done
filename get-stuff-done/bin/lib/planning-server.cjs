@@ -60,6 +60,10 @@ function normalizeContent(filePath, rawContent) {
 const PLANNING_SERVER_MAX_CONCURRENT_REQUESTS = parseInt(process.env.PLANNING_SERVER_MAX_CONCURRENT_REQUESTS, 10) || 16;
 const PLANNING_SERVER_MAX_CONCURRENT_EXTRACTS = parseInt(process.env.PLANNING_SERVER_MAX_CONCURRENT_EXTRACTS, 10) || 4;
 
+// Request validation limits
+const PLANNING_SERVER_MAX_PATH_BYTES = parseInt(process.env.PLANNING_SERVER_MAX_PATH_BYTES, 10) || 4096;
+const PLANNING_SERVER_MAX_FILE_BYTES = parseInt(process.env.PLANNING_SERVER_MAX_FILE_BYTES, 10) || 5242880;
+
 function setSecurityHeaders(res) {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
@@ -356,6 +360,20 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    // Request validation: null byte and path length
+    if (relativePath.includes('\0')) {
+      res.statusCode = 400;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ error: 'Invalid request' }));
+      return;
+    }
+    if (Buffer.byteLength(relativePath, 'utf8') > PLANNING_SERVER_MAX_PATH_BYTES) {
+      res.statusCode = 400;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ error: 'Invalid request' }));
+      return;
+    }
+
     const projectRoot = process.cwd();
     const planningDir = path.resolve(projectRoot, '.planning');
     const targetPath = path.resolve(planningDir, relativePath);
@@ -386,10 +404,33 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    if (!fs.existsSync(targetPath) || !fs.statSync(targetPath).isFile()) {
+    let fileStats;
+    try {
+      fileStats = fs.statSync(targetPath);
+    } catch (e) {
       res.statusCode = 404;
       res.setHeader('Content-Type', 'application/json');
       res.end(JSON.stringify({ error: 'File not found' }));
+      return;
+    }
+    if (!fileStats.isFile()) {
+      res.statusCode = 404;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ error: 'File not found' }));
+      return;
+    }
+    if (fileStats.size > PLANNING_SERVER_MAX_FILE_BYTES) {
+      try {
+        audit.recordAuditEntry(process.cwd(), {
+          context: { phase: '42', plan: '02', task: '2-4', narrative_ref: 'none', justification: 'File size limit exceeded' },
+          impact: { client_identity: req.identity, file_path: targetPath, file_size: fileStats.size },
+          policy: { rules_evaluated: ['sizeLimit'], triggered_gates: [], approval_required: false, verdict: 'denied' },
+          integrity: { narrative_drift_score: 1.0, coherence_check_passed: true }
+        });
+      } catch (e) {}
+      res.statusCode = 413;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ error: 'Invalid request' }));
       return;
     }
 
@@ -447,6 +488,20 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    // Request validation: null byte and path length
+    if (filePath.includes('\0')) {
+      res.statusCode = 400;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ error: 'Invalid request' }));
+      return;
+    }
+    if (Buffer.byteLength(filePath, 'utf8') > PLANNING_SERVER_MAX_PATH_BYTES) {
+      res.statusCode = 400;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ error: 'Invalid request' }));
+      return;
+    }
+
     // Must be absolute path
     if (!path.isAbsolute(filePath)) {
       res.statusCode = 400;
@@ -497,10 +552,33 @@ const server = http.createServer(async (req, res) => {
       // .planning directory may not exist; skip this check
     }
 
-    if (!fs.existsSync(absolutePath) || !fs.statSync(absolutePath).isFile()) {
+    let fileStats;
+    try {
+      fileStats = fs.statSync(absolutePath);
+    } catch (e) {
       res.statusCode = 404;
       res.setHeader('Content-Type', 'application/json');
       res.end(JSON.stringify({ error: 'File not found' }));
+      return;
+    }
+    if (!fileStats.isFile()) {
+      res.statusCode = 404;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ error: 'File not found' }));
+      return;
+    }
+    if (fileStats.size > PLANNING_SERVER_MAX_FILE_BYTES) {
+      try {
+        audit.recordAuditEntry(process.cwd(), {
+          context: { phase: '42', plan: '02', task: '2-4', narrative_ref: 'none', justification: 'File size limit exceeded' },
+          impact: { client_identity: req.identity, file_path: absolutePath, file_size: fileStats.size },
+          policy: { rules_evaluated: ['sizeLimit'], triggered_gates: [], approval_required: false, verdict: 'denied' },
+          integrity: { narrative_drift_score: 1.0, coherence_check_passed: true }
+        });
+      } catch (e) {}
+      res.statusCode = 413;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ error: 'Invalid request' }));
       return;
     }
 
