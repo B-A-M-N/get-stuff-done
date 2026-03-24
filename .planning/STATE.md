@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v0.2
 milestone_name: milestone
-current_plan: Not started
-status: unknown
-stopped_at: Phase 42 context gathered
-last_updated: "2026-03-24T19:54:37.483Z"
+current_plan: 42-01
+status: completed
+stopped_at: Phase 42 plan 01 complete
+last_updated: "2026-03-24T21:31:00Z"
 progress:
   total_phases: 22
   completed_phases: 13
@@ -25,7 +25,7 @@ See: .planning/PROJECT.md (updated 2026-03-17)
 
 ## Current Position
 
-**Current Plan:** Not started
+**Current Plan:** 42-01 (Planning Server Security Hardening — Foundational Hardening)
 **Total Plans in Phase:** 2
 
 Milestone: `v0.3.0` — Trusted Context & Local Memory
@@ -61,6 +61,7 @@ Progress: [████████████] 100% (22/22 plans complete)
 | Phase 39 P01 | 15min | 3 tasks | 2 files |
 | Phase 39 P02 | ~20min | 3 tasks | 2 files |
 | Phase 40 P01 | ~45min | 3 tasks | 7 files |
+| Phase 42 P01 | ~25min | 4 tasks | 1 file |
 
 ## Accumulated Context
 
@@ -115,6 +116,13 @@ Progress: [████████████] 100% (22/22 plans complete)
 - [Phase 39]: safeWriteFile accepts both object and string options for test harness compatibility
 - [Phase 39]: safeGit.exec uses spawnSync for structured return values
 - [Phase 39]: Planning Server imports secondBrain at top-level to prevent future ReferenceError risks
+- [Phase 42]: Default network binding is 127.0.0.1; override via GSD_PLANNING_HOST
+- [Phase 42]: AST parser initialized at startup; on failure log warning and continue in degraded mode (regex fallback)
+- [Phase 42]: Security headers (X-Content-Type-Options, X-Frame-Options, Cache-Control) set on all responses
+- [Phase 42]: CORS disabled by default; opt-in via GSD_PLANNING_CORS_ORIGINS (exact-match allowlist) with OPTIONS preflight support
+- [Phase 42]: Server timeout set to 30 seconds
+- [Phase 42]: /v1/read endpoint serves general project files, enforces absolute path and project root containment, and explicitly blocks .planning/ access (403 directing to /v1/extract)
+- [Phase 42]: Audit logging integrated on /v1/read successes (best-effort)
 
 ### Blockers/Concerns
 

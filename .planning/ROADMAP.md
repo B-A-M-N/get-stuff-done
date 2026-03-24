@@ -188,7 +188,7 @@ Plans:
 **Status**: [Planned]
 
 Plans:
-- [ ] 42-01-PLAN.md — Block .planning/ exposure, initialize Tree-Sitter, add degraded mode warnings
+- [x] 42-01-PLAN.md — Block .planning/ exposure, initialize Tree-Sitter, add degraded mode warnings
 
 ---
 

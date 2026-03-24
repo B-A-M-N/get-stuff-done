@@ -248,6 +248,8 @@
 | FIRE-RETENTION-01 | Phase 29 | In Progress |
 | FIRE-REPORTING-01 | Phase 29 | In Progress |
 | FIRE-HEALTH-01 | Phase 29 | In Progress |
+| PLANNING-SERVER-01 | Phase 42 | Complete |
+| PLANNING-SERVER-02 | Phase 42 | Complete |
 
 **Coverage:**
 - v0.2 requirements: 39 total ✓
