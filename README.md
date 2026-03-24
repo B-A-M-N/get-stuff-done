@@ -653,6 +653,27 @@ This removes all GSD commands, agents, hooks, and settings while preserving your
 
 ---
 
+## Recent Updates
+
+**Phase 42: Planning Server Security Hardening — Complete**
+
+The planning-server has been upgraded with comprehensive security controls:
+
+- Localhost-only binding with environment override
+- Mandatory Bearer token authentication (optional insecure mode)
+- Fine-grained rate limiting (per-endpoint) and concurrency caps
+- Request validation (null bytes, path length, file size)
+- AST parser auto-initialization with degraded mode signaling
+- Security headers (HSTS, CSP, X-Content-Type-Options, X-Frame-Options) on all responses
+- Explicit blocking of `.planning/` directory via `/v1/read`
+- Enhanced `/health` with AST status; new `/metrics` endpoint (Prometheus format)
+- Comprehensive audit logging for all security events
+- Integration test suite (`.planning/tests/planning-server-integration.test.cjs`) with 13 passing tests
+
+Configuration reference and verification details are available in `.planning/phases/42-planning-server-security-hardening/SUMMARY.md`.
+
+---
+
 ## License
 
 MIT License. See [LICENSE](LICENSE) for details.
