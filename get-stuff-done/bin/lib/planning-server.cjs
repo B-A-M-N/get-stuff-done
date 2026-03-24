@@ -68,6 +68,10 @@ function setSecurityHeaders(res) {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Cache-Control', 'no-store');
+  // Degraded mode signaling: if AST parser is not initialized, mark response
+  if (!astParser.isInitialized()) {
+    res.setHeader('X-Planning-Server-Degraded', 'ast_unavailable');
+  }
 }
 
 /**
@@ -95,6 +99,8 @@ function requireAuth(req, res) {
         integrity: { narrative_drift_score: 1.0, coherence_check_passed: true }
       });
     } catch (e) { /* best-effort audit */ }
+    // Increment auth failures metric
+    metrics.authFailuresTotal++;
 
     res.statusCode = 401;
     res.setHeader('Content-Type', 'application/json');
@@ -116,6 +122,7 @@ function requireAuth(req, res) {
         integrity: { narrative_drift_score: 1.0, coherence_check_passed: true }
       });
     } catch (e) {}
+    metrics.authFailuresTotal++;
 
     res.statusCode = 401;
     res.setHeader('Content-Type', 'application/json');
@@ -141,6 +148,7 @@ function requireAuth(req, res) {
         integrity: { narrative_drift_score: 1.0, coherence_check_passed: true }
       });
     } catch (e) {}
+    metrics.authFailuresTotal++;
 
     res.statusCode = 401;
     res.setHeader('Content-Type', 'application/json');
@@ -226,27 +234,72 @@ function checkRateLimit(identity, endpoint) {
 
 // Metrics counters
 const metrics = {
-  rateLimited: 0,
-  activeRequests: 0,
-  activeExtracts: 0
+  // Counters: { value, labels: {method, path, status} } or { value, labels: {identity_type} } or { value, labels: {reason} } or { value, labels: {type} }
+  requestsTotal: new Map(), // key = `${method}|${path}|${status}`
+  requestDuration: new Map(), // key = `${path}`, value = array of durations (we'll bucket on export)
+  rateLimitedTotal: 0,
+  rateLimitedLabels: new Map(), // key = identity_type
+  authFailuresTotal: 0,
+  pathDenialTotal: 0,
+  pathDenialLabels: new Map(), // key = reason
+  astDegraded: 0, // gauge: 1 if degraded, 0 if active (set at request time based on state)
+  extractionFallbackTotal: 0,
+  errorsTotal: 0,
+  errorsLabels: new Map(), // key = type
+  // Gauges
+  inFlightRequests: 0,
+  inFlightExtracts: 0
 };
 
 const server = http.createServer(async (req, res) => {
+  // Record request start time for duration metrics
+  const startTime = Date.now();
+  const method = req.method;
+  let pathLabel = 'UNKNOWN';
+
   // Concurrency cap check for total requests
-  if (metrics.activeRequests >= PLANNING_SERVER_MAX_CONCURRENT_REQUESTS) {
+  if (metrics.inFlightRequests >= PLANNING_SERVER_MAX_CONCURRENT_REQUESTS) {
     setSecurityHeaders(res);
     res.statusCode = 503;
     res.setHeader('Content-Type', 'application/json');
     res.end(JSON.stringify({ error: 'Server capacity exceeded, try again later' }));
+    // Record metric: error response
+    const key = `${method}|/capacity|503`;
+    metrics.requestsTotal.set(key, (metrics.requestsTotal.get(key) || 0) + 1);
+    // Count as internal error
+    metrics.errorsTotal++;
+    metrics.errorsLabels.set('internal', (metrics.errorsLabels.get('internal') || 0) + 1);
     return;
   }
-  metrics.activeRequests++;
+  metrics.inFlightRequests++;
   res.on('finish', () => {
-    metrics.activeRequests--;
+    metrics.inFlightRequests--;
+    // Record request duration
+    const duration = (Date.now() - startTime) / 1000; // seconds
+    const durations = metrics.requestDuration.get(pathLabel) || [];
+    durations.push(duration);
+    if (durations.length > 1000) durations.shift();
+    metrics.requestDuration.set(pathLabel, durations);
+    // Record total requests with method, path, status
+    const status = res.statusCode;
+    const key = `${method}|${pathLabel}|${status}`;
+    metrics.requestsTotal.set(key, (metrics.requestsTotal.get(key) || 0) + 1);
+    // Record errors_total for error status codes (4xx, 5xx)
+    if (status >= 400) {
+      let errorType;
+      if (status === 400 || status === 413) errorType = 'validation';
+      else if (status === 404) errorType = 'file_not_found';
+      else if (status === 401 || status === 403) errorType = 'auth';
+      else if (status === 429) errorType = 'rate_limit';
+      else errorType = 'internal';
+      metrics.errorsTotal++;
+      metrics.errorsLabels.set(errorType, (metrics.errorsLabels.get(errorType) || 0) + 1);
+    }
   });
 
   // Simple URL parsing for compatibility
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+  pathLabel = url.pathname;
 
   // Set security headers on all responses (must be before any early returns)
   setSecurityHeaders(res);
@@ -280,16 +333,24 @@ const server = http.createServer(async (req, res) => {
           integrity: { narrative_drift_score: 1.0, coherence_check_passed: true }
         });
       } catch (e) {}
-      metrics.rateLimited++;
+      metrics.rateLimitedTotal++;
+      const identityType = isInsecureMode ? 'ip' : 'token';
+      metrics.rateLimitedLabels.set(identityType, (metrics.rateLimitedLabels.get(identityType) || 0) + 1);
       res.statusCode = 429;
       res.setHeader('Content-Type', 'application/json');
       res.setHeader('Retry-After', '60');
       res.end(JSON.stringify({ error: 'Too many requests' }));
       return;
     }
+    const health = {
+      status: 'ok',
+      ast_parser: astParser.isInitialized() ? 'active' : 'degraded-fallback',
+      timestamp: new Date().toISOString(),
+      version: '1.0'
+    };
     res.statusCode = 200;
-    res.setHeader('Content-Type', 'text/plain');
-    res.end('ok');
+    res.setHeader('Content-Type', 'application/json');
+    res.end(JSON.stringify(health));
     return;
   }
 
@@ -305,18 +366,83 @@ const server = http.createServer(async (req, res) => {
           integrity: { narrative_drift_score: 1.0, coherence_check_passed: true }
         });
       } catch (e) {}
-      metrics.rateLimited++;
+      metrics.rateLimitedTotal++;
+      const identityType = isInsecureMode ? 'ip' : 'token';
+      metrics.rateLimitedLabels.set(identityType, (metrics.rateLimitedLabels.get(identityType) || 0) + 1);
       res.statusCode = 429;
       res.setHeader('Content-Type', 'application/json');
       res.setHeader('Retry-After', '60');
       res.end(JSON.stringify({ error: 'Too many requests' }));
       return;
     }
-    res.setHeader('Content-Type', 'application/json');
-    res.end(JSON.stringify({
-      planning_server_in_flight_requests: metrics.activeRequests,
-      planning_server_in_flight_extracts: metrics.activeExtracts
-    }));
+    // Generate Prometheus text format
+    const lines = [];
+    // HELP and TYPE comments
+    lines.push('# HELP planning_server_requests_total Total number of requests processed');
+    lines.push('# TYPE planning_server_requests_total counter');
+    for (const [key, value] of metrics.requestsTotal.entries()) {
+      const [method, path, status] = key.split('|');
+      lines.push(`planning_server_requests_total{method="${method}",path="${path}",status="${status}"} ${value}`);
+    }
+
+    lines.push('# HELP planning_server_request_duration_seconds Request duration histogram');
+    lines.push('# TYPE planning_server_request_duration_seconds histogram');
+    const buckets = [0.01, 0.05, 0.1, 0.5, 1, 5, 15, 30];
+    for (const [path, durations] of metrics.requestDuration.entries()) {
+      let cumulative = 0;
+      for (const bucket of buckets) {
+        const count = durations.filter(d => d <= bucket).length;
+        cumulative += count;
+        lines.push(`planning_server_request_duration_seconds_bucket{path="${path}",le="${bucket}"} ${cumulative}`);
+      }
+      lines.push(`planning_server_request_duration_seconds_bucket{path="${path}",le="+Inf"} ${durations.length}`);
+      lines.push(`planning_server_request_duration_seconds_sum{path="${path}"} ${durations.reduce((a,b)=>a+b,0)}`);
+      lines.push(`planning_server_request_duration_seconds_count{path="${path}"} ${durations.length}`);
+    }
+
+    lines.push('# HELP planning_server_rate_limited_total Number of requests rate limited');
+    lines.push('# TYPE planning_server_rate_limited_total counter');
+    // Output per identity_type (ip or token)
+    for (const [identityType, count] of metrics.rateLimitedLabels.entries()) {
+      lines.push(`planning_server_rate_limited_total{identity_type="${identityType}"} ${count}`);
+    }
+
+    lines.push('# HELP planning_server_auth_failures_total Number of authentication failures');
+    lines.push('# TYPE planning_server_auth_failures_total counter');
+    lines.push(`planning_server_auth_failures_total ${metrics.authFailuresTotal}`);
+
+    lines.push('# HELP planning_server_path_denial_total Number of path access denials');
+    lines.push('# TYPE planning_server_path_denial_total counter');
+    lines.push(`planning_server_path_denial_total{reason="traversal"} ${metrics.pathDenialLabels.get('traversal') || 0}`);
+    lines.push(`planning_server_path_denial_total{reason="symlink"} ${metrics.pathDenialLabels.get('symlink') || 0}`);
+    lines.push(`planning_server_path_denial_total{reason="planning_dir_block"} ${metrics.pathDenialLabels.get('planning_dir_block') || 0}`);
+
+    lines.push('# HELP planning_server_ast_degraded Indicates if AST parser is degraded (1) or active (0)');
+    lines.push('# TYPE planning_server_ast_degraded gauge');
+    lines.push(`planning_server_ast_degraded ${astParser.isInitialized() ? 0 : 1}`);
+
+    lines.push('# HELP planning_server_extraction_fallback_total Number of times regex fallback was used for extraction');
+    lines.push('# TYPE planning_server_extraction_fallback_total counter');
+    lines.push(`planning_server_extraction_fallback_total ${metrics.extractionFallbackTotal}`);
+
+    lines.push('# HELP planning_server_in_flight_requests Current number of in-flight requests');
+    lines.push('# TYPE planning_server_in_flight_requests gauge');
+    lines.push(`planning_server_in_flight_requests ${metrics.inFlightRequests}`);
+
+    lines.push('# HELP planning_server_in_flight_extracts Current number of in-flight extract operations');
+    lines.push('# TYPE planning_server_in_flight_extracts gauge');
+    lines.push(`planning_server_in_flight_extracts ${metrics.inFlightExtracts}`);
+
+    lines.push('# HELP planning_server_errors_total Total number of errors encountered');
+    lines.push('# TYPE planning_server_errors_total counter');
+    lines.push(`planning_server_errors_total{type="file_not_found"} ${metrics.errorsLabels.get('file_not_found') || 0}`);
+    lines.push(`planning_server_errors_total{type="auth"} ${metrics.errorsLabels.get('auth') || 0}`);
+    lines.push(`planning_server_errors_total{type="rate_limit"} ${metrics.errorsLabels.get('rate_limit') || 0}`);
+    lines.push(`planning_server_errors_total{type="validation"} ${metrics.errorsLabels.get('validation') || 0}`);
+    lines.push(`planning_server_errors_total{type="internal"} ${metrics.errorsLabels.get('internal') || 0}`);
+
+    res.setHeader('Content-Type', 'text/plain; version=0.0.4');
+    res.end(lines.join('\n') + '\n');
     return;
   }
 
@@ -333,23 +459,51 @@ const server = http.createServer(async (req, res) => {
           integrity: { narrative_drift_score: 1.0, coherence_check_passed: true }
         });
       } catch (e) {}
-      metrics.rateLimited++;
+      metrics.rateLimitedTotal++;
+      const identityType = isInsecureMode ? 'ip' : 'token';
+      metrics.rateLimitedLabels.set(identityType, (metrics.rateLimitedLabels.get(identityType) || 0) + 1);
       res.statusCode = 429;
       res.setHeader('Content-Type', 'application/json');
       res.setHeader('Retry-After', '60');
       res.end(JSON.stringify({ error: 'Too many requests' }));
       return;
     }
+    // Check for requireAst flag: if set and AST not initialized, hard fail
+    const requireAst = url.searchParams.get('requireAst') === 'true';
+    if (requireAst && !astParser.isInitialized()) {
+      // Audit degraded mode hard failure
+      try {
+        audit.recordAuditEntry(process.cwd(), {
+          context: { phase: '42', plan: '03', task: '3-3', narrative_ref: 'none', justification: 'Extract request with requireAst=true in degraded mode' },
+          impact: { client_identity: req.identity, attempted_path: relativePath, require_ast: true },
+          policy: { rules_evaluated: ['astAvailability'], triggered_gates: [], approval_required: false, verdict: 'denied' },
+          integrity: { narrative_drift_score: 1.0, coherence_check_passed: true }
+        });
+      } catch (e) {}
+      res.statusCode = 503;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ error: 'AST parser unavailable; server in degraded mode' }));
+      return;
+    }
     // Concurrency cap for extracts
-    if (metrics.activeExtracts >= PLANNING_SERVER_MAX_CONCURRENT_EXTRACTS) {
+    if (metrics.inFlightExtracts >= PLANNING_SERVER_MAX_CONCURRENT_EXTRACTS) {
+      // Audit concurrency rejection
+      try {
+        audit.recordAuditEntry(process.cwd(), {
+          context: { phase: '42', plan: '03', task: '3-3', narrative_ref: 'none', justification: 'Concurrency limit exceeded for extraction' },
+          impact: { client_identity: req.identity, attempted_path: relativePath, active_extracts: metrics.inFlightExtracts },
+          policy: { rules_evaluated: ['concurrencyLimit'], triggered_gates: [], approval_required: false, verdict: 'denied' },
+          integrity: { narrative_drift_score: 1.0, coherence_check_passed: true }
+        });
+      } catch (e) {}
       res.statusCode = 503;
       res.setHeader('Content-Type', 'application/json');
       res.end(JSON.stringify({ error: 'Extraction capacity exceeded, try again later' }));
       return;
     }
-    metrics.activeExtracts++;
+    metrics.inFlightExtracts++;
     res.on('finish', () => {
-      metrics.activeExtracts--;
+      metrics.inFlightExtracts--;
     });
     const relativePath = url.searchParams.get('path');
 
@@ -362,12 +516,30 @@ const server = http.createServer(async (req, res) => {
 
     // Request validation: null byte and path length
     if (relativePath.includes('\0')) {
+      // Audit validation failure
+      try {
+        audit.recordAuditEntry(process.cwd(), {
+          context: { phase: '42', plan: '03', task: '3-3', narrative_ref: 'none', justification: 'Request validation failure: null byte in path' },
+          impact: { client_identity: req.identity, attempted_path: relativePath },
+          policy: { rules_evaluated: ['requestValidation'], triggered_gates: [], approval_required: false, verdict: 'denied' },
+          integrity: { narrative_drift_score: 1.0, coherence_check_passed: true }
+        });
+      } catch (e) {}
       res.statusCode = 400;
       res.setHeader('Content-Type', 'application/json');
       res.end(JSON.stringify({ error: 'Invalid request' }));
       return;
     }
     if (Buffer.byteLength(relativePath, 'utf8') > PLANNING_SERVER_MAX_PATH_BYTES) {
+      // Audit validation failure
+      try {
+        audit.recordAuditEntry(process.cwd(), {
+          context: { phase: '42', plan: '03', task: '3-3', narrative_ref: 'none', justification: 'Request validation failure: path too long' },
+          impact: { client_identity: req.identity, attempted_path: relativePath, path_bytes: Buffer.byteLength(relativePath, 'utf8') },
+          policy: { rules_evaluated: ['requestValidation'], triggered_gates: [], approval_required: false, verdict: 'denied' },
+          integrity: { narrative_drift_score: 1.0, coherence_check_passed: true }
+        });
+      } catch (e) {}
       res.statusCode = 400;
       res.setHeader('Content-Type', 'application/json');
       res.end(JSON.stringify({ error: 'Invalid request' }));
@@ -398,6 +570,18 @@ const server = http.createServer(async (req, res) => {
       : !targetPath.startsWith(planningDir);
 
     if (isOutside) {
+      // Audit path traversal denial
+      try {
+        audit.recordAuditEntry(process.cwd(), {
+          context: { phase: '42', plan: '03', task: '3-3', narrative_ref: 'none', justification: 'Path traversal attempt blocked' },
+          impact: { client_identity: req.identity, attempted_path: relativePath, resolution: realTarget || targetPath },
+          policy: { rules_evaluated: ['pathTraversal'], triggered_gates: [], approval_required: false, verdict: 'denied' },
+          integrity: { narrative_drift_score: 1.0, coherence_check_passed: true }
+        });
+      } catch (e) {}
+      // Metrics: path denial
+      metrics.pathDenialTotal++;
+      metrics.pathDenialLabels.set('traversal', (metrics.pathDenialLabels.get('traversal') || 0) + 1);
       res.statusCode = 403;
       res.setHeader('Content-Type', 'application/json');
       res.end(JSON.stringify({ error: 'Access denied: Path outside .planning directory' }));
@@ -437,6 +621,13 @@ const server = http.createServer(async (req, res) => {
     try {
       const rawContent = fs.readFileSync(targetPath, 'utf-8');
       const { normalized, analysis } = normalizeContent(targetPath, rawContent);
+      // Track extraction fallback usage for code files when AST degraded
+      const ext = path.extname(targetPath).toLowerCase();
+      if (ext === '.js' || ext === '.ts' || ext === '.tsx') {
+        if (!astParser.isInitialized()) {
+          metrics.extractionFallbackTotal++;
+        }
+      }
       const hash = sha256(normalized);
 
       const response = {
@@ -472,7 +663,9 @@ const server = http.createServer(async (req, res) => {
           integrity: { narrative_drift_score: 1.0, coherence_check_passed: true }
         });
       } catch (e) {}
-      metrics.rateLimited++;
+      metrics.rateLimitedTotal++;
+      const identityType = isInsecureMode ? 'ip' : 'token';
+      metrics.rateLimitedLabels.set(identityType, (metrics.rateLimitedLabels.get(identityType) || 0) + 1);
       res.statusCode = 429;
       res.setHeader('Content-Type', 'application/json');
       res.setHeader('Retry-After', '60');
@@ -482,6 +675,15 @@ const server = http.createServer(async (req, res) => {
     const filePath = url.searchParams.get('path');
 
     if (!filePath) {
+      // Audit validation failure
+      try {
+        audit.recordAuditEntry(process.cwd(), {
+          context: { phase: '42', plan: '03', task: '3-3', narrative_ref: 'none', justification: 'Request validation failure: missing path parameter' },
+          impact: { client_identity: req.identity },
+          policy: { rules_evaluated: ['requestValidation'], triggered_gates: [], approval_required: false, verdict: 'denied' },
+          integrity: { narrative_drift_score: 1.0, coherence_check_passed: true }
+        });
+      } catch (e) {}
       res.statusCode = 400;
       res.setHeader('Content-Type', 'application/json');
       res.end(JSON.stringify({ error: 'Missing path parameter' }));
@@ -490,12 +692,30 @@ const server = http.createServer(async (req, res) => {
 
     // Request validation: null byte and path length
     if (filePath.includes('\0')) {
+      // Audit validation failure
+      try {
+        audit.recordAuditEntry(process.cwd(), {
+          context: { phase: '42', plan: '03', task: '3-3', narrative_ref: 'none', justification: 'Request validation failure: null byte in path' },
+          impact: { client_identity: req.identity, attempted_path: filePath },
+          policy: { rules_evaluated: ['requestValidation'], triggered_gates: [], approval_required: false, verdict: 'denied' },
+          integrity: { narrative_drift_score: 1.0, coherence_check_passed: true }
+        });
+      } catch (e) {}
       res.statusCode = 400;
       res.setHeader('Content-Type', 'application/json');
       res.end(JSON.stringify({ error: 'Invalid request' }));
       return;
     }
     if (Buffer.byteLength(filePath, 'utf8') > PLANNING_SERVER_MAX_PATH_BYTES) {
+      // Audit validation failure
+      try {
+        audit.recordAuditEntry(process.cwd(), {
+          context: { phase: '42', plan: '03', task: '3-3', narrative_ref: 'none', justification: 'Request validation failure: path too long' },
+          impact: { client_identity: req.identity, attempted_path: filePath, path_bytes: Buffer.byteLength(filePath, 'utf8') },
+          policy: { rules_evaluated: ['requestValidation'], triggered_gates: [], approval_required: false, verdict: 'denied' },
+          integrity: { narrative_drift_score: 1.0, coherence_check_passed: true }
+        });
+      } catch (e) {}
       res.statusCode = 400;
       res.setHeader('Content-Type', 'application/json');
       res.end(JSON.stringify({ error: 'Invalid request' }));
@@ -504,6 +724,15 @@ const server = http.createServer(async (req, res) => {
 
     // Must be absolute path
     if (!path.isAbsolute(filePath)) {
+      // Audit validation failure
+      try {
+        audit.recordAuditEntry(process.cwd(), {
+          context: { phase: '42', plan: '03', task: '3-3', narrative_ref: 'none', justification: 'Request validation failure: path not absolute' },
+          impact: { client_identity: req.identity, attempted_path: filePath },
+          policy: { rules_evaluated: ['requestValidation'], triggered_gates: [], approval_required: false, verdict: 'denied' },
+          integrity: { narrative_drift_score: 1.0, coherence_check_passed: true }
+        });
+      } catch (e) {}
       res.statusCode = 400;
       res.setHeader('Content-Type', 'application/json');
       res.end(JSON.stringify({ error: 'Path must be absolute' }));
@@ -533,6 +762,18 @@ const server = http.createServer(async (req, res) => {
       : !absolutePath.startsWith(projectRoot + path.sep);
 
     if (isOutside) {
+      // Audit path traversal denial
+      try {
+        audit.recordAuditEntry(process.cwd(), {
+          context: { phase: '42', plan: '03', task: '3-3', narrative_ref: 'none', justification: 'Path traversal attempt blocked' },
+          impact: { client_identity: req.identity, attempted_path: filePath, resolution: realTarget || absolutePath },
+          policy: { rules_evaluated: ['pathTraversal'], triggered_gates: [], approval_required: false, verdict: 'denied' },
+          integrity: { narrative_drift_score: 1.0, coherence_check_passed: true }
+        });
+      } catch (e) {}
+      // Metrics: path denial
+      metrics.pathDenialTotal++;
+      metrics.pathDenialLabels.set('traversal', (metrics.pathDenialLabels.get('traversal') || 0) + 1);
       res.statusCode = 403;
       res.setHeader('Content-Type', 'application/json');
       res.end(JSON.stringify({ error: 'Access denied: Path outside project root' }));
@@ -543,6 +784,18 @@ const server = http.createServer(async (req, res) => {
     try {
       const realPlanningDir = fs.realpathSync(path.resolve(projectRoot, '.planning'));
       if (realTarget && (realTarget === realPlanningDir || realTarget.startsWith(realPlanningDir + path.sep))) {
+        // Audit .planning/ blocking
+        try {
+          audit.recordAuditEntry(process.cwd(), {
+            context: { phase: '42', plan: '03', task: '3-3', narrative_ref: 'none', justification: 'Access to .planning/ via /v1/read blocked' },
+            impact: { client_identity: req.identity, attempted_path: filePath, resolution: realTarget },
+            policy: { rules_evaluated: ['planningDirBlock'], triggered_gates: [], approval_required: false, verdict: 'denied' },
+            integrity: { narrative_drift_score: 1.0, coherence_check_passed: true }
+          });
+        } catch (e) {}
+        // Metrics: path denial (planning_dir_block)
+        metrics.pathDenialTotal++;
+        metrics.pathDenialLabels.set('planning_dir_block', (metrics.pathDenialLabels.get('planning_dir_block') || 0) + 1);
         res.statusCode = 403;
         res.setHeader('Content-Type', 'application/json');
         res.end(JSON.stringify({ error: 'Access to .planning/ files via /v1/read is restricted; use /v1/extract' }));
