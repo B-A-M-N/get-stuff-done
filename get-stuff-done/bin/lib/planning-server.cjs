@@ -20,11 +20,6 @@ const PLANNING_SERVER_AUTH_MODE = process.env.PLANNING_SERVER_AUTH_MODE || 'mand
 const PLANNING_SERVER_INSECURE_LOCAL = process.env.PLANNING_SERVER_INSECURE_LOCAL === '1';
 const isInsecureMode = PLANNING_SERVER_INSECURE_LOCAL || PLANNING_SERVER_AUTH_MODE === 'disabled';
 
-// Fail fast if authentication is mandatory but token is not set
-if (!isInsecureMode && !PLANNING_SERVER_TOKEN) {
-  console.error('[PlanningServer] ERROR: PLANNING_SERVER_TOKEN environment variable is required when auth mode is mandatory');
-  process.exit(1);
-}
 
 /**
  * Generates a SHA-256 hash of a string.
@@ -475,6 +470,11 @@ server.on('timeout', () => {
 });
 
 async function startServer() {
+  // Fail fast if authentication is mandatory but token is not set
+  if (!isInsecureMode && !PLANNING_SERVER_TOKEN) {
+    console.error('[PlanningServer] ERROR: PLANNING_SERVER_TOKEN environment variable is required when auth mode is mandatory');
+    process.exit(1);
+  }
   await broker.connect();
 
   // Initialize AST parser (Tree-Sitter)
