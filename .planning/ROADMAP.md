@@ -185,12 +185,12 @@ Plans:
 **Goal:** Restrict planning server access and activate AST parsing for proper code analysis.
 **Requirements**: PLANNING-SERVER-01, PLANNING-SERVER-02
 **Depends on:** Phase 39
-**Status**: [In Progress] (2/4 complete)
+**Status**: [In Progress] (3/4 complete)
 
 Plans:
 - [x] 42-01-PLAN.md — Block .planning/ exposure, initialize Tree-Sitter, add degraded mode warnings
 - [x] 42-02-PLAN.md — Implement mandatory authentication, rate limiting, concurrency caps, and request validation
-- [ ] 42-03-PLAN.md — Enhanced health endpoint, comprehensive metrics, and audit logging
+- [x] 42-03-PLAN.md — Enhanced health endpoint, comprehensive metrics, and audit logging
 - [ ] 42-04-PLAN.md — Integration test suite and phase completion summary
 
 ---
