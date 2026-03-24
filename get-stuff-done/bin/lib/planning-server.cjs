@@ -8,6 +8,7 @@ const { parseCode } = require('./ast-parser.cjs');
 const secondBrain = require('./second-brain.cjs');
 
 const PORT = process.env.GSD_PLANNING_PORT || 3011;
+const HOST = process.env.GSD_PLANNING_HOST || '127.0.0.1';
 
 /**
  * Generates a SHA-256 hash of a string.
@@ -135,8 +136,8 @@ async function startServer() {
   await broker.connect();
   
   return new Promise((resolve) => {
-    server.listen(PORT, () => {
-      console.log(`GSD Planning Server listening on port ${PORT}`);
+    server.listen(PORT, HOST, () => {
+      console.log(`GSD Planning Server listening on http://${HOST}:${PORT}`);
       
       broker.publish('server.started', {
         port: PORT,
