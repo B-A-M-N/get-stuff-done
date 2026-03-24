@@ -158,6 +158,75 @@ function requireAuth(req, res) {
   return true;
 }
 
+// Rate Limiting Configuration
+const RATE_LIMIT_DEFAULTS = {
+  health: 300,
+  read: 120,
+  extract: 60,
+  metrics: 120
+};
+
+function getRateLimit(endpoint) {
+  const globalOverride = process.env.GSD_PLANNING_RATE_LIMIT;
+  if (globalOverride === '0') return 0; // disabled
+  const envVar = `GSD_PLANNING_RATE_LIMIT_${endpoint.toUpperCase()}`;
+  const perEndpoint = process.env[envVar];
+  if (perEndpoint !== undefined) return Number(perEndpoint);
+  return RATE_LIMIT_DEFAULTS[endpoint] || 60;
+}
+
+// Rate limiter state: identity -> { tokens, lastRefill }
+const rateLimitMap = new Map();
+
+function maybePruneRateLimits() {
+  if (Math.random() < 0.01) {
+    const now = Date.now();
+    const tenMin = 10 * 60 * 1000;
+    for (const [key, state] of rateLimitMap.entries()) {
+      if (now - state.lastRefill > tenMin) {
+        rateLimitMap.delete(key);
+      }
+    }
+  }
+}
+
+function checkRateLimit(identity, endpoint) {
+  const limit = getRateLimit(endpoint);
+  if (limit === 0) return true;
+
+  maybePruneRateLimits();
+
+  const now = Date.now();
+  let state = rateLimitMap.get(identity);
+
+  if (!state) {
+    state = { tokens: limit, lastRefill: now };
+    rateLimitMap.set(identity, state);
+  }
+
+  // Refill tokens based on elapsed time
+  const timeDiff = now - state.lastRefill;
+  const tokensToAdd = Math.floor(timeDiff * (limit / 60000));
+  if (tokensToAdd > 0) {
+    state.tokens = Math.min(limit, state.tokens + tokensToAdd);
+    state.lastRefill = now;
+  }
+
+  if (state.tokens <= 0) {
+    return false;
+  }
+
+  state.tokens--;
+  return true;
+}
+
+// Metrics counters
+const metrics = {
+  rateLimited: 0,
+  activeRequests: 0,
+  activeExtracts: 0
+};
+
 const server = http.createServer(async (req, res) => {
   // Concurrency cap check for total requests
   if (metrics.activeRequests >= PLANNING_SERVER_MAX_CONCURRENT_REQUESTS) {
