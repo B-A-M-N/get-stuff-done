@@ -4,7 +4,7 @@ const fs = require('fs');
 const crypto = require('crypto');
 const broker = require('./broker.cjs');
 const { normalizeMd } = require('./core.cjs');
-const { parseCode } = require('./ast-parser.cjs');
+const astParser = require('./ast-parser.cjs');
 const secondBrain = require('./second-brain.cjs');
 
 const PORT = process.env.GSD_PLANNING_PORT || 3011;
@@ -31,7 +31,7 @@ function normalizeContent(filePath, rawContent) {
     const lang = ext === '.js' ? 'javascript' : 'typescript';
     normalized = `\`\`\`${lang}\n${rawContent}\n\`\`\``;
     try {
-      analysis = parseCode(rawContent, lang);
+      analysis = astParser.parseCode(rawContent, lang);
     } catch (e) {
       // Ignore parsing errors
     }
@@ -134,7 +134,15 @@ const server = http.createServer(async (req, res) => {
 
 async function startServer() {
   await broker.connect();
-  
+
+  // Initialize AST parser (Tree-Sitter)
+  try {
+    await astParser.init();
+    console.log('[PlanningServer] AST parser initialized: Tree-Sitter active');
+  } catch (err) {
+    console.warn('[PlanningServer] AST parser initialization failed; code analysis will use regex fallback:', err.message);
+  }
+
   return new Promise((resolve) => {
     server.listen(PORT, HOST, () => {
       console.log(`GSD Planning Server listening on http://${HOST}:${PORT}`);
