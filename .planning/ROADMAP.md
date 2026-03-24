@@ -114,6 +114,7 @@ Plans:
 
 Plans:
 - [x] 30-01-PLAN.md — Authority enforcement on reads, executor protocol fix, Planning Server exclusivity, grant caching, traceability fix
+- [x] PLAN.md — Harden enforcement to mandatory and achieve full context determinism
 
 ### Phase 31: Project Isolation & Multi-Project Safety
 
@@ -147,7 +148,7 @@ Plans:
 **Requirements**: EXEC-REPAIR-01, EXEC-REPAIR-02, EXEC-REPAIR-03
 **Depends on:** None
 **Status**: [Complete]
-**Plans:** 2/2 plans complete
+**Plans:** 3/2 plans complete
 
 Plans:
 - [x] 39-01-PLAN.md — Implement safeWriteFile, fix safeGit.exec return type, move secondBrain require to top-level
@@ -212,11 +213,79 @@ Plans:
 
 Plans:
 - [ ] 44-01-PLAN.md — Fix audit.cjs sqlite require guard, remove dead code, add policy decision logging
+### Phase 45: Plane-Augmented Context Control
+
+**Goal:** Mirror GSD state to Plane for visibility and test control while keeping .planning/ as source of truth; integrate Firecrawl as unified context layer.
+**Requirements**: PLANE-SYNC-01, PLANE-VISIBILITY-01, FIRECRAWL-CONTROL-01
+**Depends on:** Phase 44
+**Status**: [Planned]
+
+Plans:
+- [ ] 45-01-PLAN.md — Implement plane-client, STATE.md mirroring, and configuration
 
 ---
 
-## v0.2.0 Orchestration Integrity
+### Phase 46: Firecrawl Context Integration
 
+**Goal:** Update GSD agents to use Firecrawl's crawl API for all context retrieval instead of direct file reads and WebSearch.
+**Requirements**: FIRECRAWL-CONTROL-02, CONTEXT-UNIFY-01
+**Depends on:** Phase 45
+**Status**: [Planned]
+
+Plans:
+- [ ] 46-01-PLAN.md — Implement unified context spec, migrate agents to Firecrawl crawl
+
+---
+
+### Phase 47: Plane Roadmap & Issue Hierarchy Sync
+
+**Goal:** Extend Plane sync to include ROADMAP.md → Plane milestones + issues, creating full project visibility.
+**Requirements**: PLANE-VISIBILITY-02, PLANE-SYNC-02
+**Depends on:** Phase 46
+**Status**: [Planned]
+
+Plans:
+- [ ] 47-01-PLAN.md — Implement roadmap-plane-sync, milestone/issue creation, status mapping
+
+---
+
+### Phase 48: Plane Checkpoint & Comment Sync
+
+**Goal:** Mirror GSD checkpoints and summaries to Plane as issue comments, providing full traceability.
+**Requirements**: PLANE-VISIBILITY-03, PLANE-SYNC-03
+**Depends on:** Phase 47
+**Status**: [Planned]
+
+Plans:
+- [ ] 48-01-PLAN.md — Sync CHECKPOINT.md and SUMMARY.md to Plane issue comments
+
+---
+
+### Phase 49: Plane Webhooks & Incremental Sync
+
+**Goal:** Implement real-time Plane → GSD sync via webhooks, enable external triggers and CI integration.
+**Requirements**: PLANE-WEBHOOK-01, PLANE-TRIGGER-01
+**Depends on:** Phase 48
+**Status**: [Planned]
+
+Plans:
+- [ ] 49-01-PLAN.md — Webhook listener, event handlers, CI integration
+
+---
+
+### Phase 50: Plane Integration Observability
+
+**Goal:** Add monitoring, diagnostics, and multi-mode support for Plane-augmented deployments.
+**Requirements**: OBSERV-PLANE-01, OBSERV-PLANE-02
+**Depends on:** Phase 49
+**Status**: [Planned]
+
+Plans:
+- [ ] 50-01-PLAN.md — gsd:plane-status, structured logs, circuit breaker, metrics
+
+---
+
+$1
 ... (rest of the file)
 
 <!-- GSD-AUTHORITY: 28-02-3:55f9931d8818c5453cd0c6cab0cfe3a4ad85d0e2435a859b3a4087f2ce91feae -->
