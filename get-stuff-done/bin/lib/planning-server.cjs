@@ -61,6 +61,10 @@ function normalizeContent(filePath, rawContent) {
 /**
  * Sets security headers on all responses.
  */
+// Concurrency caps
+const PLANNING_SERVER_MAX_CONCURRENT_REQUESTS = parseInt(process.env.PLANNING_SERVER_MAX_CONCURRENT_REQUESTS, 10) || 16;
+const PLANNING_SERVER_MAX_CONCURRENT_EXTRACTS = parseInt(process.env.PLANNING_SERVER_MAX_CONCURRENT_EXTRACTS, 10) || 4;
+
 function setSecurityHeaders(res) {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
@@ -160,6 +164,19 @@ function requireAuth(req, res) {
 }
 
 const server = http.createServer(async (req, res) => {
+  // Concurrency cap check for total requests
+  if (metrics.activeRequests >= PLANNING_SERVER_MAX_CONCURRENT_REQUESTS) {
+    setSecurityHeaders(res);
+    res.statusCode = 503;
+    res.setHeader('Content-Type', 'application/json');
+    res.end(JSON.stringify({ error: 'Server capacity exceeded, try again later' }));
+    return;
+  }
+  metrics.activeRequests++;
+  res.on('finish', () => {
+    metrics.activeRequests--;
+  });
+
   // Simple URL parsing for compatibility
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
 
@@ -208,6 +225,33 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (url.pathname === '/metrics' && req.method === 'GET') {
+    // Rate limiting for metrics
+    maybePruneRateLimits();
+    if (!checkRateLimit(req.identity, 'metrics')) {
+      try {
+        audit.recordAuditEntry(process.cwd(), {
+          context: { phase: '42', plan: '02', task: '2-2', narrative_ref: 'none', justification: 'Rate limit exceeded' },
+          impact: { client_identity: req.identity, rate_limited_endpoint: '/metrics' },
+          policy: { rules_evaluated: ['rateLimit'], triggered_gates: [], approval_required: false, verdict: 'denied' },
+          integrity: { narrative_drift_score: 1.0, coherence_check_passed: true }
+        });
+      } catch (e) {}
+      metrics.rateLimited++;
+      res.statusCode = 429;
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Retry-After', '60');
+      res.end(JSON.stringify({ error: 'Too many requests' }));
+      return;
+    }
+    res.setHeader('Content-Type', 'application/json');
+    res.end(JSON.stringify({
+      planning_server_in_flight_requests: metrics.activeRequests,
+      planning_server_in_flight_extracts: metrics.activeExtracts
+    }));
+    return;
+  }
+
   if (url.pathname === '/v1/extract' && req.method === 'GET') {
     if (!requireAuth(req, res)) return;
     // Rate limiting check
@@ -228,6 +272,17 @@ const server = http.createServer(async (req, res) => {
       res.end(JSON.stringify({ error: 'Too many requests' }));
       return;
     }
+    // Concurrency cap for extracts
+    if (metrics.activeExtracts >= PLANNING_SERVER_MAX_CONCURRENT_EXTRACTS) {
+      res.statusCode = 503;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ error: 'Extraction capacity exceeded, try again later' }));
+      return;
+    }
+    metrics.activeExtracts++;
+    res.on('finish', () => {
+      metrics.activeExtracts--;
+    });
     const relativePath = url.searchParams.get('path');
 
     if (!relativePath) {
