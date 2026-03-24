@@ -6,6 +6,7 @@ const broker = require('./broker.cjs');
 const { normalizeMd } = require('./core.cjs');
 const astParser = require('./ast-parser.cjs');
 const secondBrain = require('./second-brain.cjs');
+const audit = require('./audit.cjs');
 
 const PORT = process.env.GSD_PLANNING_PORT || 3011;
 const HOST = process.env.GSD_PLANNING_HOST || '127.0.0.1';
@@ -151,6 +152,93 @@ const server = http.createServer(async (req, res) => {
 
       res.setHeader('Content-Type', 'application/json');
       res.end(JSON.stringify(response));
+    } catch (err) {
+      res.statusCode = 500;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ error: err.message }));
+    }
+  } else if (url.pathname === '/v1/read' && req.method === 'GET') {
+    const filePath = url.searchParams.get('path');
+
+    if (!filePath) {
+      res.statusCode = 400;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ error: 'Missing path parameter' }));
+      return;
+    }
+
+    // Must be absolute path
+    if (!path.isAbsolute(filePath)) {
+      res.statusCode = 400;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ error: 'Path must be absolute' }));
+      return;
+    }
+
+    const projectRoot = process.cwd();
+    const absolutePath = path.resolve(filePath);
+
+    // Security: Prevent access outside project root, including symlink attacks
+    let realTarget;
+    try {
+      realTarget = fs.realpathSync(absolutePath);
+    } catch (e) {
+      realTarget = null; // File may not exist; fall back to simple check
+    }
+
+    let realProjectRoot;
+    try {
+      realProjectRoot = fs.realpathSync(projectRoot);
+    } catch (e) {
+      realProjectRoot = projectRoot;
+    }
+
+    const isOutside = realTarget
+      ? !realTarget.startsWith(realProjectRoot + path.sep)
+      : !absolutePath.startsWith(projectRoot + path.sep);
+
+    if (isOutside) {
+      res.statusCode = 403;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ error: 'Access denied: Path outside project root' }));
+      return;
+    }
+
+    // BLOCK .planning/ ACCESS
+    try {
+      const realPlanningDir = fs.realpathSync(path.resolve(projectRoot, '.planning'));
+      if (realTarget && (realTarget === realPlanningDir || realTarget.startsWith(realPlanningDir + path.sep))) {
+        res.statusCode = 403;
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({ error: 'Access to .planning/ files via /v1/read is restricted; use /v1/extract' }));
+        return;
+      }
+    } catch (e) {
+      // .planning directory may not exist; skip this check
+    }
+
+    if (!fs.existsSync(absolutePath) || !fs.statSync(absolutePath).isFile()) {
+      res.statusCode = 404;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ error: 'File not found' }));
+      return;
+    }
+
+    try {
+      const content = fs.readFileSync(absolutePath, 'utf-8');
+      // Traceability: Log planning-server-read event
+      try {
+        const contentHash = sha256(content);
+        audit.recordAuditEntry(process.cwd(), {
+          context: { action: 'planning-server-read', path: absolutePath },
+          impact: { file_read: absolutePath, size: content.length, contentHash: contentHash },
+          policy: { rules_evaluated: [], triggered_gates: [], approval_required: false, verdict: 'allowed' },
+          integrity: { narrative_drift_score: 1.0, coherence_check_passed: true }
+        });
+      } catch (e) {}
+
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ content }));
     } catch (err) {
       res.statusCode = 500;
       res.setHeader('Content-Type', 'application/json');
