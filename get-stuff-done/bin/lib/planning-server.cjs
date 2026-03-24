@@ -184,6 +184,24 @@ const server = http.createServer(async (req, res) => {
 
   if (url.pathname === '/health') {
     if (!requireAuth(req, res)) return;
+    // Rate limiting check
+    maybePruneRateLimits();
+    if (!checkRateLimit(req.identity, 'health')) {
+      try {
+        audit.recordAuditEntry(process.cwd(), {
+          context: { phase: '42', plan: '02', task: '2-2', narrative_ref: 'none', justification: 'Rate limit exceeded' },
+          impact: { client_identity: req.identity, rate_limited_endpoint: '/health' },
+          policy: { rules_evaluated: ['rateLimit'], triggered_gates: [], approval_required: false, verdict: 'denied' },
+          integrity: { narrative_drift_score: 1.0, coherence_check_passed: true }
+        });
+      } catch (e) {}
+      metrics.rateLimited++;
+      res.statusCode = 429;
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Retry-After', '60');
+      res.end(JSON.stringify({ error: 'Too many requests' }));
+      return;
+    }
     res.statusCode = 200;
     res.setHeader('Content-Type', 'text/plain');
     res.end('ok');
@@ -192,6 +210,24 @@ const server = http.createServer(async (req, res) => {
 
   if (url.pathname === '/v1/extract' && req.method === 'GET') {
     if (!requireAuth(req, res)) return;
+    // Rate limiting check
+    maybePruneRateLimits();
+    if (!checkRateLimit(req.identity, 'extract')) {
+      try {
+        audit.recordAuditEntry(process.cwd(), {
+          context: { phase: '42', plan: '02', task: '2-2', narrative_ref: 'none', justification: 'Rate limit exceeded' },
+          impact: { client_identity: req.identity, rate_limited_endpoint: '/v1/extract' },
+          policy: { rules_evaluated: ['rateLimit'], triggered_gates: [], approval_required: false, verdict: 'denied' },
+          integrity: { narrative_drift_score: 1.0, coherence_check_passed: true }
+        });
+      } catch (e) {}
+      metrics.rateLimited++;
+      res.statusCode = 429;
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Retry-After', '60');
+      res.end(JSON.stringify({ error: 'Too many requests' }));
+      return;
+    }
     const relativePath = url.searchParams.get('path');
 
     if (!relativePath) {
@@ -265,6 +301,24 @@ const server = http.createServer(async (req, res) => {
     }
   } else if (url.pathname === '/v1/read' && req.method === 'GET') {
     if (!requireAuth(req, res)) return;
+    // Rate limiting check
+    maybePruneRateLimits();
+    if (!checkRateLimit(req.identity, 'read')) {
+      try {
+        audit.recordAuditEntry(process.cwd(), {
+          context: { phase: '42', plan: '02', task: '2-2', narrative_ref: 'none', justification: 'Rate limit exceeded' },
+          impact: { client_identity: req.identity, rate_limited_endpoint: '/v1/read' },
+          policy: { rules_evaluated: ['rateLimit'], triggered_gates: [], approval_required: false, verdict: 'denied' },
+          integrity: { narrative_drift_score: 1.0, coherence_check_passed: true }
+        });
+      } catch (e) {}
+      metrics.rateLimited++;
+      res.statusCode = 429;
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Retry-After', '60');
+      res.end(JSON.stringify({ error: 'Too many requests' }));
+      return;
+    }
     const filePath = url.searchParams.get('path');
 
     if (!filePath) {
