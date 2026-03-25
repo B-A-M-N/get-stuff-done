@@ -251,8 +251,8 @@ Plans:
 **Status**: [Planned]
 
 Plans:
-- [ ] 47-01-PLAN.md — Extend PlaneClient and create sync orchestration module
-- [ ] 47-02-PLAN.md — Add unit tests and integrate command with ROADMAP write hook
+- [ ] 47-01-PLAN.md — PlaneClient methods + sync orchestration with idempotent upsert, drift detection, force
+- [ ] 47-02-PLAN.md — Test coverage + command integration + ROADMAP write hook
 
 ---
 
