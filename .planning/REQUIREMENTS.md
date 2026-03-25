@@ -259,6 +259,8 @@
 | PLANE-VISIBILITY-01 | Phase 45 | Complete |
 | FIRECRAWL-CONTROL-02 | Phase 46 | Complete |
 | CONTEXT-UNIFY-01 | Phase 46 | Complete |
+| PLANE-VISIBILITY-02 | Phase 47 | Complete |
+| PLANE-SYNC-02 | Phase 47 | Complete |
 
 **Coverage:**
 - v0.2 requirements: 39 total ✓
