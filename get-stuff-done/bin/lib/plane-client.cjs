@@ -69,7 +69,7 @@ class PlaneClient {
   /**
    * Internal helper to perform API requests with rate limiting, retry, and audit logging.
    */
-  async _request(action, endpoint, body = null) {
+  async _request(action, endpoint, body = null, method = 'POST') {
     const start = Date.now();
     let lastError = null;
     let result = null;
@@ -127,7 +127,7 @@ class PlaneClient {
             headers['Content-Length'] = Buffer.byteLength(postData);
           }
 
-          const response = await this._makeRequest(url, 'POST', headers, postData, 30000);
+          const response = await this._makeRequest(url, method, headers, postData, 30000);
           result = response.data;
           break; // Success, exit retry loop
         } catch (err) {

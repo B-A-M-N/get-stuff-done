@@ -20,21 +20,51 @@ function mapGSDStatusToPlane(gsdStatus) {
 
 /**
  * Search Plane for issues with a given custom field value.
- * Returns array of matching issues.
- * Uses Plane's filter/search capability if available; otherwise returns empty (optimistic create-on-missing).
- * For idempotency, we rely on custom fields as stable identifiers.
+ * Returns the first matching issue or null.
+ * Uses cached registry for this sync run plus a GET query to Plane.
+ * For idempotency, custom fields serve as stable identifiers.
+ *
+ * @param {string} customFieldKey - The custom field key to search for
+ * @param {string} customFieldValue - The custom field value to match
+ * @param {Object} opts - Options (dryRun to skip network calls)
  */
-async function findIssueByCustomField(customFieldKey, customFieldValue) {
-  // In a full implementation, this would query Plane's API with a filter
-  // For now, we implement a simple local cache registry to track created items within this sync run
-  // In production, you would use: GET /issues?filter[<customField>]=value
-  // Since Plane's exact search API may vary, we'll use an in-memory registry first pass
-  // This registry tracks what we've created/updated in this sync session
+async function findIssueByCustomField(customFieldKey, customFieldValue, opts = {}) {
+  // Initialize registry for caching within this sync run
   if (!findIssueByCustomField.registry) {
     findIssueByCustomField.registry = new Map();
   }
   const key = `${customFieldKey}:${customFieldValue}`;
-  return findIssueByCustomField.registry.get(key) || null;
+  // Return cached if available
+  if (findIssueByCustomField.registry.has(key)) {
+    return findIssueByCustomField.registry.get(key);
+  }
+
+  // If Plane not configured, return null
+  if (!planeClient.apiKey || !planeClient.projectId) {
+    return null;
+  }
+
+  // In dry-run mode, skip network calls and return null (treat as non-existent)
+  if (opts.dryRun) {
+    return null;
+  }
+
+  try {
+    // Build query endpoint: GET /v1/projects/{id}/issues?filter[<key>]=<value>
+    const endpoint = `projects/${planeClient.projectId}/issues?filter[${customFieldKey}]=${encodeURIComponent(customFieldValue)}`;
+    // Use planeClient._request with GET method
+    const response = await planeClient._request('find-issue', endpoint, null, 'GET');
+    // Expect response as array; adapt to Plane's actual response shape
+    const issues = Array.isArray(response) ? response : (response?.issues || response?.data || []);
+    const found = issues.length > 0 ? issues[0] : null;
+    if (found) {
+      findIssueByCustomField.registry.set(key, found);
+    }
+    return found;
+  } catch (err) {
+    logWarn('findIssueByCustomField query failed', { key, value: customFieldValue, error: err.message });
+    return null;
+  }
 }
 
 function registerIssue(customFieldKey, customFieldValue, issue) {
@@ -87,7 +117,7 @@ async function syncFullRoadmap(cwd, options = {}) {
       const name = milestone.heading.trim();
 
       // Check for existing milestone via custom field
-      const existing = await findIssueByCustomField('gsd_milestone_version', version);
+      const existing = await findIssueByCustomField('gsd_milestone_version', version, { dryRun: options.dryRun });
 
       const payload = {
         name,
@@ -189,7 +219,8 @@ async function syncFullRoadmap(cwd, options = {}) {
       };
 
       // Check for existing phase issue
-      const existingPhase = await findIssueByCustomField('gsd_phase_number', phase.number);
+      const existingPhase = await findIssueByCustomField('gsd_phase_number', phase.number, { dryRun: options.dryRun });
+      let phaseIssue = null; // will be set if we create new
 
       if (existingPhase) {
         // Drift detection for phase
@@ -223,7 +254,7 @@ async function syncFullRoadmap(cwd, options = {}) {
       } else {
         // Create new phase issue
         if (!results.dry_run) {
-          const phaseIssue = await planeClient.createIssue(phaseIssuePayload);
+          phaseIssue = await planeClient.createIssue(phaseIssuePayload);
           registerIssue('gsd_phase_number', phase.number, phaseIssue);
           results.phases.created++;
         } else {
@@ -268,7 +299,7 @@ async function syncFullRoadmap(cwd, options = {}) {
           }
 
           // Check for existing plan issue
-          const existingPlan = await findIssueByCustomField('gsd_plan_id', planId);
+          const existingPlan = await findIssueByCustomField('gsd_plan_id', planId, { dryRun: options.dryRun });
 
           if (existingPlan) {
             // Drift detection for plan (description is not protected; only state and title matter)
@@ -349,4 +380,4 @@ async function notifyRoadmapChange(cwd, roadmapPath) {
   }
 }
 
-module.exports = { syncFullRoadmap, notifyRoadmapChange };
+module.exports = { syncFullRoadmap, notifyRoadmapChange, findIssueByCustomField, mapGSDStatusToPlane };
