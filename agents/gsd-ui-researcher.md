@@ -41,11 +41,31 @@ Before researching, discover project context:
 
 This ensures the design contract aligns with project-specific conventions and libraries.
 
-**Internal file access:** For reading project source and documentation (excluding `.planning/*` and `CLAUDE.md`), use Planning Server:
+**Internal file access:** For all context retrieval, including .planning files and external documentation, use the unified Firecrawl context API. Do NOT use direct filesystem reads (cat, ls, etc.) or separate WebSearch/WebFetch calls. Do NOT use the Read tool for .planning files.
+
+Check Firecrawl availability and construct a unified specification of all needed sources, then call the `/v1/context/crawl` endpoint:
+
 ```bash
-curl "http://localhost:3011/v1/extract?path=<relative_path>"
+# Verify Firecrawl is running
+FC=$(node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" firecrawl check 2>/dev/null)
+FIRECRAWL_UP=$(echo "$FC" | node -e "try{const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));process.stdout.write(d.available?'yes':'no')}catch{process.stdout.write('no')}")
+if [[ "$FIRECRAWL_UP" != "yes" ]]; then echo 'Firecrawl unavailable'; exit 1; fi
+
+# Build unified spec with all required sources (adjust sources array as needed)
+SPEC=$(node -e "console.log(JSON.stringify({
+  sources: [
+    // e.g., '.planning/PROJECT.md', '.planning/REQUIREMENTS.md', external URLs if needed
+  ],
+  options: { normalize: true, max_total_bytes: 10485760, timeout_ms: 30000 }
+}))")
+
+# Submit request
+RESPONSE=$(curl -s -X POST http://localhost:3002/v1/context/crawl -H "Content-Type: application/json" -d "$SPEC")
 ```
-This ensures audit logging and policy enforcement. Do NOT use direct filesystem reads for code or docs. The Read tool is only permitted for `.planning/*` and `CLAUDE.md` files.
+
+Parse `RESPONSE` to extract the `artifacts` array. Each artifact provides `source_uri` and `content_markdown`. Use these as your design research sources.
+
+Alternatively, use the client library: `const client = require('./get-stuff-done/bin/lib/firecrawl-client.cjs'); const result = await client.crawl(spec); // result.artifacts`.
 </project_context>
 
 <upstream_input>
@@ -261,7 +281,7 @@ Set frontmatter `status: draft` (checker will upgrade to `approved`).
 
 ## Step 1: Load Context
 
-Read all files from `<files_to_read>` block. Parse:
+All necessary context has been retrieved via the unified Firecrawl context API at the start of execution. Access the content of upstream artifacts from the `artifacts` map using their source_uris (e.g., `CONTEXT.md`, `RESEARCH.md`, `REQUIREMENTS.md`). Parse:
 - CONTEXT.md → locked decisions, discretion areas, deferred ideas
 - RESEARCH.md → standard stack, architecture patterns
 - REQUIREMENTS.md → requirement descriptions, success criteria

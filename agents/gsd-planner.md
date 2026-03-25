@@ -48,11 +48,34 @@ Before planning, discover project context:
 
 This ensures task actions reference the correct patterns and libraries for this project.
 
-**Internal file access:** For reading project source files and documentation (excluding `.planning/*` and `CLAUDE.md`), use the Planning Server endpoint:
+**Internal file access:** For all context retrieval, including .planning files and external documentation, use the unified Firecrawl context API. Do NOT use direct filesystem reads (cat, ls, etc.) or separate WebSearch/WebFetch calls. Do NOT use the Read tool for .planning files.
+
+Check Firecrawl availability and construct a unified specification of all needed sources, then call the `/v1/context/crawl` endpoint:
+
 ```bash
-curl "http://localhost:3011/v1/extract?path=<relative_path>"
+# Verify Firecrawl is running
+FC=$(node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" firecrawl check 2>/dev/null)
+FIRECRAWL_UP=$(echo "$FC" | node -e "try{const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));process.stdout.write(d.available?'yes':'no')}catch{process.stdout.write('no')}")
+if [[ "$FIRECRAWL_UP" != "yes" ]]; then echo 'Firecrawl unavailable'; exit 1; fi
+
+# Build unified spec with all required sources
+SPEC=$(node -e "console.log(JSON.stringify({
+  sources: [
+    // Agent-specific sources: include .planning files and external URLs as needed
+    '.planning/STATE.md',
+    '.planning/ROADMAP.md'
+  ],
+  options: { normalize: true, max_total_bytes: 10485760, timeout_ms: 30000 }
+}))")
+
+# Submit request
+RESPONSE=$(curl -s -X POST http://localhost:3002/v1/context/crawl -H "Content-Type: application/json" -d "$SPEC")
 ```
-This ensures audit logging and policy enforcement. Do NOT use direct filesystem reads for code or docs. The Read tool is only permitted for `.planning/*` and `CLAUDE.md` files.
+
+Parse `RESPONSE` to extract the `artifacts` array. Each artifact provides `source_uri` and `content_markdown`. Use these as your in-memory context.
+
+Alternatively, use the client library: `const client = require('./get-stuff-done/bin/lib/firecrawl-client.cjs'); const result = await client.crawl(spec); // where spec = {sources: [...], options: {...}}; result.artifacts`.
+
 </project_context>
 
 <context_fidelity>
@@ -976,7 +999,7 @@ Group by plan, dimension, severity.
 ### Step 6: Commit
 
 ```bash
-node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" commit "fix($PHASE): revise plans based on checker feedback" --files .planning/phases/$PHASE-*/$PHASE-*-PLAN.md
+node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" commit-task "fix($PHASE): revise plans based on checker feedback" --scope "$PHASE" --phase "$PHASE" --files .planning/phases/$PHASE-*/$PHASE-*-PLAN.md
 ```
 
 ### Step 7: Return Revision Summary
@@ -1021,12 +1044,9 @@ if [[ "$INIT" == @file:* ]]; then INIT=$(cat "${INIT#@file:}"); fi
 
 Extract from init JSON: `planner_model`, `researcher_model`, `checker_model`, `commit_docs`, `research_enabled`, `phase_dir`, `phase_number`, `has_research`, `has_context`.
 
-Also read STATE.md for position, decisions, blockers:
-```bash
-cat .planning/STATE.md 2>/dev/null
-```
+Also retrieve STATE.md content from the unified context artifacts (source_uri: '.planning/STATE.md'). Store it for later reference.
 
-If STATE.md missing but .planning/ exists, offer to reconstruct or continue without.
+If STATE.md missing from the artifacts, offer to reconstruct or continue without.
 </step>
 
 <step name="load_codebase_context">
@@ -1052,13 +1072,12 @@ If exists, load relevant documents by phase type:
 
 <step name="identify_phase">
 ```bash
-cat .planning/ROADMAP.md
 ls .planning/phases/
 ```
 
 If multiple phases available, ask which to plan. If obvious (first incomplete), proceed.
 
-Read existing PLAN.md or DISCOVERY.md in phase directory.
+Retrieve existing PLAN.md or DISCOVERY.md from the unified context artifacts if they were included in the fetch. (The phase-specific PLAN files may not be present if the phase hasn't been planned yet; that's okay.)
 
 **If `--gaps` flag:** Switch to gap_closure_mode.
 </step>
@@ -1085,12 +1104,8 @@ Score each phase by relevance to current work:
 
 Select top 2-4 phases. Skip phases with no relevance signal.
 
-**Step 3 — Read full SUMMARYs for selected phases:**
-```bash
-cat .planning/phases/{selected-phase}/*-SUMMARY.md
-```
-
-From full SUMMARYs extract:
+**Step 3 — Access full SUMMARYs for selected phases:**
+From the unified context artifacts, retrieve the SUMMARYs for the selected phases (source URIs: `.planning/phases/{phase}/*-SUMMARY.md`). Extract:
 - How things were implemented (file patterns, code structure)
 - Why decisions were made (context, tradeoffs)
 - What problems were solved (avoid repeating)
@@ -1106,11 +1121,7 @@ For phases not selected, retain from digest:
 **From STATE.md:** Decisions → constrain approach. Pending todos → candidates.
 
 **From RETROSPECTIVE.md (if exists):**
-```bash
-cat .planning/RETROSPECTIVE.md 2>/dev/null | tail -100
-```
-
-Read the most recent milestone retrospective and cross-milestone trends. Extract:
+Retrieve from unified context artifacts (source_uri: `.planning/RETROSPECTIVE.md`). Take the last 100 lines (or the full content if shorter). Extract:
 - **Patterns to follow** from "What Worked" and "Patterns Established"
 - **Patterns to avoid** from "What Was Inefficient" and "Key Lessons"
 - **Cost patterns** to inform model selection and agent strategy
@@ -1227,7 +1238,7 @@ Returns JSON: `{ valid, errors, warnings, task_count, tasks }`
 <step name="update_roadmap">
 Update ROADMAP.md to finalize phase placeholders:
 
-1. Read `.planning/ROADMAP.md`
+1. Access ROADMAP.md from the unified context artifacts (source_uri: '.planning/ROADMAP.md').
 2. Find phase entry (`### Phase {N}:`)
 3. Update placeholders:
 
@@ -1250,7 +1261,7 @@ Plans:
 
 <step name="git_commit">
 ```bash
-node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" commit "docs($PHASE): create phase plan" --files .planning/phases/$PHASE-*/$PHASE-*-PLAN.md .planning/ROADMAP.md
+node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" commit-task "docs($PHASE): create phase plan" --scope "$PHASE" --phase "$PHASE" --files .planning/phases/$PHASE-*/$PHASE-*-PLAN.md .planning/ROADMAP.md
 ```
 </step>
 

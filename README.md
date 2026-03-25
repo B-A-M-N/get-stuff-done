@@ -65,6 +65,39 @@ People who want to describe what they want and have it built correctly — witho
 
 ---
 
+## Integrated Services
+
+This fork integrates external services to enhance reliability, auditability, and traceability.
+
+### Firecrawl
+
+[Firecrawl](https://github.com/mendableai/firecrawl) is a web scraping and content extraction service. In this fork, it serves as the **unified context layer** for all external documentation and internal project files.
+
+**What it does:**
+- Fetches external URLs (documentation, changelogs, API references) and converts to clean markdown
+- Provides a single `POST /v1/context/crawl` endpoint that aggregates multiple sources (local files via `file://`, external URLs via `https://`) into normalized ContextArtifacts
+- Enforces policy grants and audit logging via SecondBrain for every fetch
+- Caches results and respects rate limits
+
+**Why we use it:** Agents no longer make ad-hoc WebFetch or WebSearch calls. Instead, they construct a unified spec of all needed sources and call Firecrawl once. This ensures consistent normalization, centralized policy enforcement, and a complete audit trail. If Firecrawl is unavailable, agents fail fast rather than silently falling back to un-audited reads.
+
+**Usage:** Agents invoke `firecrawl-tools check` before using it. The `/v1/context/crawl` endpoint is called via `firecrawl-client.cjs:crawl(spec)`.
+
+### Plane
+
+[Plane](https://plane.so) is an issue and project tracking platform. This fork integrates Plane to synchronize roadmap milestones, phases, and tasks with an external Plane workspace.
+
+**What it does:**
+- Syncs `.planning/ROADMAP.md` phases to Plane issues (milestone tracking)
+- Pulls in external context from Plane (e.g., linked issues, definitions) via `plane-client.cjs`
+- Enables bidirectional traceability between GSD phases and Plane issues
+
+**Why we use it:** Keeps development planning aligned with broader project tracking, and allows fetching Plane-hosted context (future `plane://` URIs) through Firecrawl's unified context layer (Phase 47).
+
+**Usage:** Configure Plane API key via `PLANE_API_KEY` and workspace slug. See `docs/PLANE-INTEGRATION.md` for details.
+
+---
+
 ## Getting Started
 
 ```bash
