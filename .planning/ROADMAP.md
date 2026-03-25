@@ -238,7 +238,7 @@ Plans:
 
 Plans:
 - [x] 46-01-PLAN.md — Unified context spec schema and Firecrawl client extensions
-- [ ] 46-02-PLAN.md — Firecrawl service adapters and /v1/context/crawl endpoint
+- [x] 46-02-PLAN.md — Firecrawl service adapters and /v1/context/crawl endpoint
 - [ ] 46-03-PLAN.md — Agent migration to unified context and smoke tests
 
 ---
@@ -251,7 +251,8 @@ Plans:
 **Status**: [Planned]
 
 Plans:
-- [ ] 47-01-PLAN.md — Implement roadmap-plane-sync, milestone/issue creation, status mapping
+- [ ] 47-01-PLAN.md — Extend PlaneClient and create sync orchestration module
+- [ ] 47-02-PLAN.md — Add unit tests and integrate command with ROADMAP write hook
 
 ---
 
