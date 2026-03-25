@@ -9,6 +9,7 @@ const https = require('https');
 const secondBrain = require('./second-brain.cjs');
 const policy = require('./policy.cjs');
 const grantCache = require('./policy-grant-cache.cjs');
+const { crawlSpecSchema } = require('./context-schema.cjs');
 
 class FirecrawlClient {
   constructor() {
@@ -183,6 +184,24 @@ class FirecrawlClient {
    */
   async map(url) {
     return this._request('map', 'map', { url });
+  }
+
+  /**
+   * Submit a crawl specification to retrieve unified context.
+   */
+  async crawl(spec) {
+    const validatedSpec = crawlSpecSchema.parse(spec);
+    return this._request('crawl', 'context/crawl', validatedSpec);
+  }
+
+  /**
+   * Fetch a single artifact by its ID.
+   */
+  async getArtifact(id) {
+    if (typeof id !== 'string' || id.trim() === '') {
+      throw new Error('Invalid artifact ID');
+    }
+    return this._request('getArtifact', 'artifacts/get', { id });
   }
 
   /**
