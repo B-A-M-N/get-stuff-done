@@ -237,7 +237,7 @@ Plans:
 **Status**: [Planned]
 
 Plans:
-- [ ] 46-01-PLAN.md — Unified context spec schema and Firecrawl client extensions
+- [x] 46-01-PLAN.md — Unified context spec schema and Firecrawl client extensions
 - [ ] 46-02-PLAN.md — Firecrawl service adapters and /v1/context/crawl endpoint
 - [ ] 46-03-PLAN.md — Agent migration to unified context and smoke tests
 

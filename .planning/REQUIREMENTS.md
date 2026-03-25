@@ -151,6 +151,11 @@
 - [x] **OBSERV-02**: Debug log command — `gsd-tools debug log --follow` streams recent activity with filtering
 - [x] **OBSERV-03**: Error context capture — on failure, write structured JSON with command, args, cwd, stack for post-mortem
 
+### PLANE — Plane-Augmented Context Control
+
+- [x] **PLANE-SYNC-01**: STATE.md changes mirrored to Plane project metadata via updateProjectMetadata API
+- [x] **PLANE-VISIBILITY-01**: Plane sync is async best-effort, non-blocking, continues working when Plane unavailable
+
 ### FIRE — Firecrawl Control Plane & StrongDM Parity
 
 - [ ] **FIRE-CONTROL-01**: Centralized access to Firecrawl via `gsd-tools` (all operations funnel through `firecrawl-client.cjs`)
@@ -250,6 +255,10 @@
 | FIRE-HEALTH-01 | Phase 29 | In Progress |
 | PLANNING-SERVER-01 | Phase 42 | Complete |
 | PLANNING-SERVER-02 | Phase 42 | Complete |
+| PLANE-SYNC-01 | Phase 45 | Complete |
+| PLANE-VISIBILITY-01 | Phase 45 | Complete |
+| FIRECRAWL-CONTROL-02 | Phase 46 | Complete |
+| CONTEXT-UNIFY-01 | Phase 46 | Complete |
 
 **Coverage:**
 - v0.2 requirements: 39 total ✓
