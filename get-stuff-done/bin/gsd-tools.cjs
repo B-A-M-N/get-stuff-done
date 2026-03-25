@@ -319,8 +319,15 @@ async function main() {
         }
         state.cmdStatePatch(cwd, patches, raw);
       } else if (subcommand === 'advance-plan') {
-        state.cmdStateAdvancePlan(cwd, raw);
-      } else if (subcommand === 'record-metric') {
+        const phaseIdx = args.indexOf('--phase');
+        const planIdx = args.indexOf('--plan');
+        const taskIdx = args.indexOf('--task');
+        state.cmdStateAdvancePlan(cwd, {
+          phase: phaseIdx !== -1 ? args[phaseIdx + 1] : null,
+          plan: planIdx !== -1 ? args[planIdx + 1] : null,
+          wave: taskIdx !== -1 ? args[taskIdx + 1] : '1',
+        }, raw);
+} else if (subcommand === 'record-metric') {
         const phaseIdx = args.indexOf('--phase');
         const planIdx = args.indexOf('--plan');
         const durationIdx = args.indexOf('--duration');
@@ -334,8 +341,15 @@ async function main() {
           files: filesIdx !== -1 ? args[filesIdx + 1] : null,
         }, raw);
       } else if (subcommand === 'update-progress') {
-        state.cmdStateUpdateProgress(cwd, raw);
-      } else if (subcommand === 'add-decision') {
+        const phaseIdx = args.indexOf('--phase');
+        const planIdx = args.indexOf('--plan');
+        const taskIdx = args.indexOf('--task');
+        state.cmdStateUpdateProgress(cwd, {
+          phase: phaseIdx !== -1 ? args[phaseIdx + 1] : null,
+          plan: planIdx !== -1 ? args[planIdx + 1] : null,
+          wave: taskIdx !== -1 ? args[taskIdx + 1] : '1',
+        }, raw);
+} else if (subcommand === 'add-decision') {
         const phaseIdx = args.indexOf('--phase');
         const summaryIdx = args.indexOf('--summary');
         const summaryFileIdx = args.indexOf('--summary-file');
@@ -376,11 +390,17 @@ async function main() {
       } else if (subcommand === 'checkpoint') {
         const statusIdx = args.indexOf('--status');
         const pathIdx = args.indexOf('--checkpoint-path');
+        const phaseIdx = args.indexOf('--phase');
+        const planIdx = args.indexOf('--plan');
+        const taskIdx = args.indexOf('--task');
         state.cmdStateCheckpoint(cwd, {
           status: statusIdx !== -1 ? args[statusIdx + 1] : null,
           checkpointPath: pathIdx !== -1 ? args[pathIdx + 1] : null,
+          phase: phaseIdx !== -1 ? args[phaseIdx + 1] : null,
+          plan: planIdx !== -1 ? args[planIdx + 1] : null,
+          task: taskIdx !== -1 ? args[taskIdx + 1] : null,
         }, raw);
-      } else if (subcommand === 'begin-phase') {
+} else if (subcommand === 'begin-phase') {
         const phaseIdx = args.indexOf('--phase');
         const nameIdx = args.indexOf('--name');
         const plansIdx = args.indexOf('--plans');
@@ -675,11 +695,19 @@ async function main() {
       const keyArg = keyIdx !== -1 ? args[keyIdx + 1] : null;
       const pathIdx = args.indexOf('--path');
       const pathArg = pathIdx !== -1 ? args[pathIdx + 1] : (args[2] && !args[2].startsWith('--') ? args[2] : null);
+      const phaseIdx = args.indexOf('--phase');
+      const planIdx = args.indexOf('--plan');
+      const waveIdx = args.indexOf('--wave');
+      const gateOptions = {
+        phase: phaseIdx !== -1 ? args[phaseIdx + 1] : null,
+        plan: planIdx !== -1 ? args[planIdx + 1] : null,
+        wave: waveIdx !== -1 ? args[waveIdx + 1] : null,
+      };
 
       if (subcommand === 'enforce') {
-        gate.cmdGateEnforce(cwd, keyArg, raw);
+        gate.cmdGateEnforce(cwd, keyArg, gateOptions, raw);
       } else if (subcommand === 'release') {
-        gate.cmdGateRelease(cwd, keyArg, raw);
+        gate.cmdGateRelease(cwd, keyArg, gateOptions, raw);
       } else if (subcommand === 'check') {
         gate.cmdGateCheck(cwd, keyArg, raw);
       } else if (subcommand === 'check-path') {
@@ -695,6 +723,8 @@ async function main() {
       if (subcommand === 'write') {
         const cpPhaseIdx = args.indexOf('--phase');
         const cpPhase = cpPhaseIdx !== -1 ? args[cpPhaseIdx + 1] : null;
+        const cpPlanIdx = args.indexOf('--plan');
+        const cpPlan = cpPlanIdx !== -1 ? args[cpPlanIdx + 1] : null;
         const cpTypeIdx = args.indexOf('--type');
         const cpWhyIdx = args.indexOf('--why-blocked');
         const cpUncertainIdx = args.indexOf('--what-is-uncertain');
@@ -703,6 +733,7 @@ async function main() {
         const cpChoicesIdx = args.indexOf('--choices');
         const cpResumeIdx = args.indexOf('--resume-condition');
         commands.cmdCheckpointWrite(cwd, cpPhase, {
+          plan: cpPlan,
           type: cpTypeIdx !== -1 ? args[cpTypeIdx + 1] : null,
           why_blocked: cpWhyIdx !== -1 ? args[cpWhyIdx + 1] : null,
           what_is_uncertain: cpUncertainIdx !== -1 ? args[cpUncertainIdx + 1] : null,
@@ -769,6 +800,9 @@ async function main() {
         };
         const audit = require('./lib/audit.cjs');
         audit.cmdDebugLog(cwd, options, raw);
+      } else if (subcommand === 'recent') {
+        const audit = require('./lib/audit.cjs');
+        audit.cmdErrorsRecent(cwd, raw);
       } else {
         error('Unknown debug subcommand: ' + subcommand);
       }
@@ -1021,9 +1055,21 @@ async function main() {
       } else if (subcommand === 'analyze') {
         roadmap.cmdRoadmapAnalyze(cwd, raw);
       } else if (subcommand === 'update-plan-progress') {
-        roadmap.cmdRoadmapUpdatePlanProgress(cwd, args[2], raw);
+        const planIdx = args.indexOf('--plan');
+        const waveIdx = args.indexOf('--wave');
+        const options = {
+          plan: planIdx !== -1 ? args[planIdx + 1] : null,
+          wave: waveIdx !== -1 ? args[waveIdx + 1] : '1'
+        };
+        roadmap.cmdRoadmapUpdatePlanProgress(cwd, args[2], options, raw);
+      } else if (subcommand === 'sync') {
+        const options = {
+          dryRun: args.includes('--dry-run'),
+          force: args.includes('--force')
+        };
+        roadmap.cmdRoadmapSync(cwd, options, raw);
       } else {
-        error('Unknown roadmap subcommand. Available: get-phase, analyze, update-plan-progress');
+        error('Unknown roadmap subcommand. Available: get-phase, analyze, update-plan-progress, sync');
       }
       break;
     }
@@ -1043,14 +1089,32 @@ async function main() {
       if (subcommand === 'next-decimal') {
         phase.cmdPhaseNextDecimal(cwd, args[2], raw);
       } else if (subcommand === 'add') {
-        phase.cmdPhaseAdd(cwd, args.slice(2).join(' '), raw);
+        const planIdx = args.indexOf('--plan');
+        const waveIdx = args.indexOf('--wave');
+        const phaseOptions = {
+          plan: planIdx !== -1 ? args[planIdx + 1] : null,
+          wave: waveIdx !== -1 ? args[waveIdx + 1] : null,
+        };
+        phase.cmdPhaseAdd(cwd, args.slice(2).join(' '), phaseOptions, raw);
       } else if (subcommand === 'insert') {
-        phase.cmdPhaseInsert(cwd, args[2], args.slice(3).join(' '), raw);
+        const planIdx = args.indexOf('--plan');
+        const waveIdx = args.indexOf('--wave');
+        const phaseOptions = {
+          plan: planIdx !== -1 ? args[planIdx + 1] : null,
+          wave: waveIdx !== -1 ? args[waveIdx + 1] : null,
+        };
+        phase.cmdPhaseInsert(cwd, args[2], args.slice(3).join(' '), phaseOptions, raw);
       } else if (subcommand === 'remove') {
         const forceFlag = args.includes('--force');
         phase.cmdPhaseRemove(cwd, args[2], { force: forceFlag }, raw);
       } else if (subcommand === 'complete') {
-        phase.cmdPhaseComplete(cwd, args[2], raw);
+        const planIdx = args.indexOf('--plan');
+        const waveIdx = args.indexOf('--wave');
+        const phaseOptions = {
+          plan: planIdx !== -1 ? args[planIdx + 1] : null,
+          wave: waveIdx !== -1 ? args[waveIdx + 1] : null,
+        };
+        phase.cmdPhaseComplete(cwd, args[2], phaseOptions, raw);
       } else {
         error('Unknown phase subcommand. Available: next-decimal, add, insert, remove, complete');
       }
@@ -1107,7 +1171,15 @@ async function main() {
     case 'todo': {
       const subcommand = args[1];
       if (subcommand === 'complete') {
-        commands.cmdTodoComplete(cwd, args[2], raw);
+        const phaseIdx = args.indexOf('--phase');
+        const planIdx = args.indexOf('--plan');
+        const waveIdx = args.indexOf('--wave');
+        const todoOptions = {
+          phase: phaseIdx !== -1 ? args[phaseIdx + 1] : null,
+          plan: planIdx !== -1 ? args[planIdx + 1] : null,
+          wave: waveIdx !== -1 ? args[waveIdx + 1] : null,
+        };
+        commands.cmdTodoComplete(cwd, args[2], todoOptions, raw);
       } else {
         error('Unknown todo subcommand. Available: complete');
       }
@@ -1118,9 +1190,13 @@ async function main() {
       const scaffoldType = args[1];
       const phaseIndex = args.indexOf('--phase');
       const nameIndex = args.indexOf('--name');
+      const planIdx = args.indexOf('--plan');
+      const waveIdx = args.indexOf('--wave');
       const scaffoldOptions = {
         phase: phaseIndex !== -1 ? args[phaseIndex + 1] : null,
         name: nameIndex !== -1 ? args.slice(nameIndex + 1).join(' ') : null,
+        plan: planIdx !== -1 ? args[planIdx + 1] : null,
+        wave: waveIdx !== -1 ? args[waveIdx + 1] : null,
       };
       commands.cmdScaffold(cwd, scaffoldType, scaffoldOptions, raw);
       break;

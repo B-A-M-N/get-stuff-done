@@ -248,6 +248,19 @@ function cmdRoadmapAnalyze(cwd, raw) {
   output(result, raw);
 }
 
+async function cmdRoadmapSync(cwd, options, raw) {
+  const roadmapPlaneSync = require('./roadmap-plane-sync.cjs');
+  try {
+    const result = await roadmapPlaneSync.syncFullRoadmap(cwd, {
+      dryRun: options && options['dry-run'],
+      force: options && options.force
+    });
+    output(result, raw);
+  } catch (err) {
+    output({ synced: false, reason: err.message, error: true }, raw);
+  }
+}
+
 function cmdRoadmapUpdatePlanProgress(cwd, phaseNum, options, raw) {
   if (!phaseNum) {
     error('phase number required for roadmap update-plan-progress');
@@ -315,6 +328,11 @@ function cmdRoadmapUpdatePlanProgress(cwd, phaseNum, options, raw) {
 
   safeWriteFile(roadmapPath, roadmapContent, { phase: phaseNum, plan: options.plan, wave: options.wave || '1' });
 
+  if (process.env.PLANE_SYNC_ENABLED !== 'false') {
+    const roadmapPlaneSync = require('./roadmap-plane-sync.cjs');
+    roadmapPlaneSync.notifyRoadmapChange(cwd, roadmapPath).catch(() => {});
+  }
+
   output({
     updated: true,
     phase: phaseNum,
@@ -330,4 +348,5 @@ module.exports = {
   cmdRoadmapGetPhase,
   cmdRoadmapAnalyze,
   cmdRoadmapUpdatePlanProgress,
+  cmdRoadmapSync,
 };
