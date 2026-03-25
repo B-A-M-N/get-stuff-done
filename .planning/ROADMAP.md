@@ -216,6 +216,7 @@ Plans:
 
 Plans:
 - [ ] 44-01-PLAN.md — Fix audit.cjs sqlite require guard, remove dead code, add policy decision logging
+
 ### Phase 45: Plane-Augmented Context Control
 
 **Goal:** Mirror GSD state to Plane for visibility and test control while keeping .planning/ as source of truth; integrate Firecrawl as unified context layer.
@@ -224,7 +225,7 @@ Plans:
 **Status**: [Planned]
 
 Plans:
-- [ ] 45-01-PLAN.md — Implement plane-client, STATE.md mirroring, and configuration
+- [x] 45-01-PLAN.md — Implement plane-client, STATE.md mirroring, and configuration
 
 ---
 
@@ -236,7 +237,9 @@ Plans:
 **Status**: [Planned]
 
 Plans:
-- [ ] 46-01-PLAN.md — Implement unified context spec, migrate agents to Firecrawl crawl
+- [ ] 46-01-PLAN.md — Unified context spec schema and Firecrawl client extensions
+- [ ] 46-02-PLAN.md — Firecrawl service adapters and /v1/context/crawl endpoint
+- [ ] 46-03-PLAN.md — Agent migration to unified context and smoke tests
 
 ---
 
