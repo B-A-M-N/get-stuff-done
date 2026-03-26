@@ -735,9 +735,16 @@ function cmdStateAssert(cwd, raw) {
   const statePath = path.join(planningDir, 'STATE.md');
   const configPath = path.join(planningDir, 'config.json');
   const roadmapPath = path.join(planningDir, 'ROADMAP.md');
+  const projectPath = path.join(cwd, 'PROJECT.md');
 
   const errors = [];
   const warnings = [];
+
+  // Check PROJECT.md exists at project root
+  const projectExists = fs.existsSync(projectPath);
+  if (!projectExists) {
+    errors.push('PROJECT.md not found at project root — run init to create');
+  }
 
   // Check STATE.md exists and is parseable
   let stateExists = false;
@@ -756,6 +763,12 @@ function cmdStateAssert(cwd, raw) {
         if (status.includes('paused') || state === 'paused') {
           errors.push('Project is PAUSED — resume or unpause before proceeding');
           statePaused = true;
+        }
+
+        // Check for blocked clarification status
+        const clarificationStatus = (fm.clarification_status || '').toLowerCase();
+        if (clarificationStatus === 'blocked') {
+          errors.push('Project has clarification_status: blocked — resolve with /gsd:resume-project');
         }
       }
     } else {
@@ -784,6 +797,28 @@ function cmdStateAssert(cwd, raw) {
     warnings.push('Orphaned checkpoint found — previous run stopped at a gate; review CHECKPOINT.md');
   }
 
+  // Check for phase checkpoints awaiting response
+  const phasesDir = path.join(planningDir, 'phases');
+  if (fs.existsSync(phasesDir)) {
+    try {
+      const phaseDirs = fs.readdirSync(phasesDir).filter(d => d.startsWith('phase-'));
+      for (const phaseDir of phaseDirs) {
+        const phaseCheckpointPath = path.join(phasesDir, phaseDir, 'CHECKPOINT.md');
+        if (fs.existsSync(phaseCheckpointPath)) {
+          const checkpointContent = safeReadFile(phaseCheckpointPath);
+          if (checkpointContent) {
+            const fm = extractFrontmatter(checkpointContent);
+            if (fm && (fm.status || '').toLowerCase() === 'awaiting-response') {
+              errors.push(`Checkpoint in ${phaseDir} requires user response — resolve with /gsd:resume-project`);
+            }
+          }
+        }
+      }
+    } catch (err) {
+      warnings.push(`Could not scan phase directories: ${err.message}`);
+    }
+  }
+
   const passed = errors.length === 0;
   const result = {
     passed,
@@ -795,6 +830,7 @@ function cmdStateAssert(cwd, raw) {
       config_exists: configExists,
       roadmap_exists: roadmapExists,
       orphaned_checkpoint: orphanedCheckpoint,
+      project_exists: projectExists,
     },
   };
 
