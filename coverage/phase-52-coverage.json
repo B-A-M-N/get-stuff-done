@@ -1,0 +1,29 @@
+{
+  "TruthAuditor": {
+    "file": "packages/gsd-tools/src/audit/TruthAuditor.js",
+    "lines": {
+      "pct": 97.56
+    },
+    "branches": {
+      "pct": 85
+    }
+  },
+  "SafeLogger": {
+    "file": "packages/gsd-tools/src/logging/SafeLogger.js",
+    "lines": {
+      "pct": 85.71
+    },
+    "branches": {
+      "pct": 83.33
+    }
+  },
+  "ProofHarness": {
+    "file": "packages/gsd-tools/src/validation/ProofHarness.js",
+    "lines": {
+      "pct": 95.12
+    },
+    "branches": {
+      "pct": 81.25
+    }
+  }
+}
