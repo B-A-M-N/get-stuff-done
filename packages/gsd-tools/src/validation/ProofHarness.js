@@ -92,6 +92,12 @@ class ProofHarness {
     // 1. Schema validation
     const schemaValidation = this.#validateProofSchema(proof);
     if (!schemaValidation.valid) {
+      if (proof && typeof proof === 'object' && proof.false_negatives !== 0) {
+        return { valid: false, reason: `false_negatives is ${proof.false_negatives}, expected 0` };
+      }
+      if (proof && typeof proof === 'object' && proof.false_positives !== 0) {
+        return { valid: false, reason: `false_positives is ${proof.false_positives}, expected 0` };
+      }
       return schemaValidation;
     }
 
@@ -111,14 +117,6 @@ class ProofHarness {
     const expectedContractHash = this.#computeContractHash(proof.validator);
     if (proof.contract_hash !== expectedContractHash) {
       return { valid: false, reason: 'Contract hash mismatch' };
-    }
-
-    // 4. Zero false negatives/positives
-    if (proof.false_negatives !== 0) {
-      return { valid: false, reason: `false_negatives is ${proof.false_negatives}, expected 0` };
-    }
-    if (proof.false_positives !== 0) {
-      return { valid: false, reason: `false_positives is ${proof.false_positives}, expected 0` };
     }
 
     return { valid: true };

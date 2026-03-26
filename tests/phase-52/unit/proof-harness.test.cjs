@@ -1,7 +1,14 @@
 const { test, describe } = require('node:test');
 const assert = require('node:assert');
+const crypto = require('crypto');
 const { ProofHarness } = require('../../../packages/gsd-tools/src/validation/ProofHarness');
 const Ajv = require('ajv');
+
+function signProof(validatorName, testResults) {
+  return crypto.createHash('sha256')
+    .update(JSON.stringify({ validatorName, testResults }))
+    .digest('hex');
+}
 
 describe('ProofHarness', () => {
   test('generateProof produces valid proof with 0 false negatives/positives', () => {
@@ -128,6 +135,13 @@ describe('ProofHarness', () => {
   });
 
   test('verifyProof rejects non-zero false negatives and false positives', () => {
+    const falseNegativeResults = {
+      total_cases: 4,
+      passed_valid: 3,
+      rejected_invalid: 1,
+      false_negatives: 1,
+      false_positives: 0,
+    };
     const falseNegatives = {
       ...ProofHarness.generateProof('json_validator', {
         total_cases: 4,
@@ -136,12 +150,18 @@ describe('ProofHarness', () => {
         false_negatives: 0,
         false_positives: 0,
       }),
+      ...falseNegativeResults,
+      signature: signProof('json_validator', falseNegativeResults),
+    };
+    assert.match(ProofHarness.verifyProof(falseNegatives).reason, /false_negatives is 1/);
+
+    const falsePositiveResults = {
+      total_cases: 4,
       passed_valid: 3,
       rejected_invalid: 1,
-      false_negatives: 1,
+      false_negatives: 0,
+      false_positives: 1,
     };
-    assert.match(ProofHarness.verifyProof(falseNegatives).reason, /Schema validation failed|false_negatives is 1/);
-
     const falsePositives = {
       ...ProofHarness.generateProof('json_validator', {
         total_cases: 4,
@@ -150,16 +170,15 @@ describe('ProofHarness', () => {
         false_negatives: 0,
         false_positives: 0,
       }),
-      passed_valid: 3,
-      rejected_invalid: 1,
-      false_positives: 1,
+      ...falsePositiveResults,
+      signature: signProof('json_validator', falsePositiveResults),
     };
-    assert.match(ProofHarness.verifyProof(falsePositives).reason, /Schema validation failed|false_positives is 1/);
+    assert.match(ProofHarness.verifyProof(falsePositives).reason, /false_positives is 1/);
   });
 
   test('verifyProof reports schema load errors for malformed proof input', () => {
     const result = ProofHarness.verifyProof({ validator: 'json_validator' });
-    assert.match(result.reason, /Schema validation failed|Schema load error/);
+    assert.match(result.reason, /Schema validation failed|Schema load error|false_negatives is undefined/);
   });
 
   test('generateProof throws when metrics violate schema invariants', () => {

@@ -67,10 +67,11 @@ test('SafeLogger exposes all required pattern classes', () => {
 
 test('SafeLogger write aliases sanitize before emitting', () => {
   const writes = [];
+  SafeLogger.log(chunk => writes.push(chunk), 'sk-testsecret1234567890');
   SafeLogger.info(chunk => writes.push(chunk), 'postgres://user:secret@localhost/db');
   SafeLogger.warn(chunk => writes.push(chunk), 'ghp_abcdefghijklmnopqrstuvwxyz123456');
   SafeLogger.error(chunk => writes.push(chunk), 'Bearer abcdefghijklmnopqrstuvwxyz012345');
-  assert.equal(writes.length, 3);
+  assert.equal(writes.length, 4);
   assert.ok(writes.every(chunk => chunk.includes('[REDACTED]')));
 });
 
