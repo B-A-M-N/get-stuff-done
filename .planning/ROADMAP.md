@@ -268,6 +268,49 @@ Plans:
 
 ---
 
+### **Phase 51 — [URGENT INSERT] Enforcement Boundary Restoration**
+
+**Goal:** Restore enforcement boundary integrity by making critical gates mandatory, persisting cross-session context, and eliminating bypass vectors. Inserted after Phase 48/49 due to P0 architectural drift identified in 2026-03-25 audit. Does not follow numeric order; ordering is intentional to address critical system guarantees without disrupting planned Plane sync sequence.
+**Requirements**: ENFORCE-09, ENFORCE-10, ENFORCE-11, ENFORCE-12, ENFORCE-13, STATE-01, STATE-02, CONFIG-01, METRICS-01
+**Depends on:** None (can be inserted immediately)
+**Status**: [Planned]
+
+Plans:
+- [ ] 51-01-PLAN.md — Pre-condition checking and phase completeness gate
+- [ ] 51-02-PLAN.md — Research contract mandatory, ITL persistence, auto-chain restriction
+- [ ] 51-03-PLAN.md — State deduplication, explicit pause/resume, config cleanup, metrics parser
+
+---
+
+### Phase 51 — [URGENT INSERT] Enforcement Boundary Restoration
+
+**Goal:** Restore enforcement boundary integrity by making critical gates mandatory, persisting cross-session context, and eliminating bypass vectors. Inserted after Phase 48/49 due to P0 architectural drift identified in 2026-03-25 audit. Does not follow numeric order; ordering is intentional to address critical system guarantees without disrupting planned Plane sync sequence.
+**Requirements**: ENFORCE-09, ENFORCE-10, ENFORCE-11, ENFORCE-12, ENFORCE-13, STATE-01, STATE-02, CONFIG-01, METRICS-01
+**Depends on:** None (can be inserted immediately)
+**Status**: [Planned]
+
+Plans:
+- [ ] 51-01-PLAN.md — Pre-condition checking and phase completeness gate
+- [ ] 51-02-PLAN.md — Research contract mandatory, ITL persistence, auto-chain restriction
+- [ ] 51-03-PLAN.md — State deduplication, explicit pause/resume, config cleanup, metrics parser
+
+---
+
+### Phase 52 — [QUALRAINT] Truth Enforcement & Hardening
+
+**Goal:** Eliminate divergence between claimed and provable system behavior. Implement secret leakage prevention, validation proof harness, and automated truth audit to close quality gaps identified in 2026-03-25 audit.
+**Requirements**: QUALITY-01, QUALITY-02, QUALITY-03, QUALITY-04
+**Depends on:** Phase 51 (enforcement gates must be functional)
+**Status**: [Planned]
+
+Plans:
+- [ ] 52-01-PLAN.md — Test coverage closure (≥85% across critical modules)
+- [ ] 52-02-PLAN.md — SafeLogger + kill tests for secret leakage prevention
+- [ ] 52-03-PLAN.md — Validation proof system with adversarial test harness
+- [ ] 52-04-PLAN.md — Truth audit engine (requirement → evidence mapping)
+
+---
+
 ### Phase 49: Plane Webhooks & Incremental Sync
 
 **Goal:** Implement real-time Plane → GSD sync via webhooks, enable external triggers and CI integration.
@@ -298,3 +341,4 @@ $1
 <!-- GSD-AUTHORITY: 28-02-3:55f9931d8818c5453cd0c6cab0cfe3a4ad85d0e2435a859b3a4087f2ce91feae -->
 <!-- GSD-AUTHORITY: 42-42-04-1:8041f8bf3f51284502fbc7c376f1b954e2c70ec20bae8f12a78fafd89504b6f5 -->
 <!-- GSD-AUTHORITY: 47-47-02-1:3784f5e2a75880fd689bb11a77bd059a2573319d43760bf89c2fd82983304f9a -->
+<!-- GSD-AUTHORITY: 51-01-1:5e58f732c148a9957695314cba5d79158b71e94281c49af5afe7bcc1cd9cd2a5 -->

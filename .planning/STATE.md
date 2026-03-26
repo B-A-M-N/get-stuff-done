@@ -3,13 +3,15 @@ gsd_state_version: 1.0
 milestone: v0.2
 milestone_name: milestone
 status: unknown
-stopped_at: Completed 47-02-PLAN.md
-last_updated: "2026-03-25T23:21:00.991Z"
+stopped_at: Completed 51-01-PLAN.md
+checkpoint_status: None
+checkpoint_path: None
+last_updated: "2026-03-26T04:14:51.567Z"
 progress:
   total_phases: 22
-  completed_phases: 16
-  total_plans: 36
-  completed_plans: 36
+  completed_phases: 7
+  total_plans: 24
+  completed_plans: 31
 ---
 
 # Project State
@@ -127,6 +129,8 @@ Plan: 2 of 2
 - [Phase 47]: Added comprehensive unit tests (28 passing) for plane-client and roadmap-plane-sync modules.
 - [Phase 47]: Integrated roadmap sync command with async/await and fire-and-forget ROADMAP write hook.
 - [Phase 47]: Fixed cmdRoadmapSync to properly await async operation; fixed gsd-tools argument parsing for update-plan-progress.
+- [Phase 51]: Fixed state assert exit behavior: manual output and proper exit codes (0/1) instead of core.output which always exits 0
+- [Phase 51]: Enhanced phase checkpoint scanning to include all subdirectories (removed 'phase-' prefix filter) to detect awaiting-response checkpoints correctly
 
 ### Blockers/Concerns
 
@@ -134,9 +138,9 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-25T23:16:52Z
-Stopped at: Completed 47-02-PLAN.md
-Resume file: .planning/phases/47-plane-roadmap-sync/47-CONTEXT.md
+Last session: 2026-03-26T04:10:54.453Z
+Stopped at: Completed 51-01-PLAN.md
+Resume file: None
 Checkpoint Status: None
 Checkpoint Path: None
 

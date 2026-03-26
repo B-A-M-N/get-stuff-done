@@ -129,6 +129,8 @@
 - [x] **ENFORCE-06**: Zero-approval theater — WebSearch/WebFetch removed from CLI and agent prompts; all external context via Firecrawl only
 - [x] **ENFORCE-07**: Authority envelope signing enforced for writes to restricted paths (sandbox + signature verification)
 - [x] **ENFORCE-08**: Authority envelope verification for reads of restricted files (blocking exit(13) on invalid)
+- [x] **ENFORCE-09**: Pre-condition checking and phase completeness gate
+- [x] **ENFORCE-10**: Workflow pre-condition gate standardization
 
 ---
 
@@ -238,6 +240,8 @@
 | ENFORCE-06 | Phase 28 | Complete |
 | ENFORCE-07 | Phase 30 | Complete |
 | ENFORCE-08 | Phase 30 | Complete |
+| ENFORCE-09 | Phase 51 | Complete |
+| ENFORCE-10 | Phase 51 | Complete |
 | CONTEXT-DETERMINISM-01 | Phase 30 | Complete |
 | PERFORMANCE-01 | Phase 30 | Complete |
 | ISOLATION-01 | Phase 31 | Complete |
