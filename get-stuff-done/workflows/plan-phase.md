@@ -42,6 +42,18 @@ ADVERSARIAL_TEST_HARNESS_ENABLED=$(printf '%s\n' "$INIT" | jq -r '.adversarial_t
 ITL_JSON="${PHASE_DIR}/${PADDED_PHASE}-ITL.json"
 if [ -f "$ITL_JSON" ]; then
   echo "Using persistent ITL interpretation from: $ITL_JSON"
+  # Load ambiguity severity and warn if high
+  AMBIGUITY_SEVERITY=$(node -e "console.log(require('./$ITL_JSON').ambiguity.severity)")
+  if [ "$AMBIGUITY_SEVERITY" = "high" ]; then
+    echo "WARNING: ITL indicates high ambiguity — review required"
+  fi
+  itl_path="$ITL_JSON"
+else
+  itl_path=""
+  # If discuss-phase already ran (presence of CONTEXT.md), warn
+  if [ -f "${PHASE_DIR}/${PADDED_PHASE}-CONTEXT.md" ]; then
+    echo "WARNING: ITL data not found — run discuss-phase first"
+  fi
 fi
 ```
 
