@@ -161,7 +161,7 @@ Plans:
 **Goal:** Make policy grants functional in Postgres mode and eliminate shell injection risks.
 **Requirements**: POLICY-INTEGRITY-01, POLICY-INTEGRITY-02
 **Depends on:** Phase 39
-**Status**: [Planned]
+**Status**: [In Progress]
 
 Plans:
 - [ ] 40-01-PLAN.md — Fix checkGrant() Postgres delegation, replace execSync with execFileSync in HTTP clients
@@ -173,7 +173,7 @@ Plans:
 **Goal:** Implement authority envelope signing and secure fallback handling to fulfill stated guarantees.
 **Requirements**: AUTH-COMPLETE-01, AUTH-COMPLETE-02, AUTH-COMPLETE-03
 **Depends on:** Phase 39
-**Status**: [Planned]
+**Status**: [In Progress]
 
 Plans:
 - [ ] 41-01-PLAN.md — Complete authority system: enforce signing on writes, verification on reads, secure fallback, audit logging, and tests
@@ -304,7 +304,7 @@ Plans:
 **Status**: [Planned]
 
 Plans:
-- [ ] 52-01-PLAN.md — Test coverage closure (≥85% across critical modules)
+- [x] 52-01-PLAN.md — Test coverage closure (≥85% across critical modules)
 - [ ] 52-02-PLAN.md — SafeLogger + kill tests for secret leakage prevention
 - [ ] 52-03-PLAN.md — Validation proof system with adversarial test harness
 - [ ] 52-04-PLAN.md — Truth audit engine (requirement → evidence mapping)
