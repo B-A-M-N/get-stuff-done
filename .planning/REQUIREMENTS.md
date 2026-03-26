@@ -131,6 +131,31 @@
 - [x] **ENFORCE-08**: Authority envelope verification for reads of restricted files (blocking exit(13) on invalid)
 - [x] **ENFORCE-09**: Pre-condition checking and phase completeness gate
 - [x] **ENFORCE-10**: Workflow pre-condition gate standardization
+- [x] **ENFORCE-11**: Research contract validation mandatory — cannot be gated by adversarial_test_harness flag
+- [x] **ENFORCE-12**: ITL persistence across sessions — discuss-phase writes `<phase>-ITL.json` for cross-session availability
+- [x] **ENFORCE-13**: Auto-chain scope restriction — `_auto_chain_active` cannot bypass `checkpoint:human-action`
+
+---
+
+### STATE — State Management & Pause/Resume
+
+- [x] **STATE-01**: Decision deduplication — `cmdStateAddDecision` prevents duplicate entries via case-insensitive hash
+- [x] **STATE-02**: Explicit pause/resume with continuation context — `state pause` creates `.continue-here` and updates frontmatter; `state resume` restores context
+
+---
+
+### CONFIG — Configuration Management
+
+- [x] **CONFIG-01**: Configuration cleanup — remove deprecated `mode` and `granularity` keys; ensure `workflow.auto_advance` loads correctly; document all keys
+
+---
+
+### OBSERV — Enhanced Observability
+
+- [x] **OBSERV-01**: Structured logging — configurable log levels (debug/info/warn/error) with timestamps and colors
+- [x] **OBSERV-02**: Debug log command — `gsd-tools debug log --follow` streams recent activity with filtering
+- [x] **OBSERV-03**: Error context capture — on failure, write structured JSON with command, args, cwd, stack for post-mortem
+- [x] **METRICS-01**: Queryable performance metrics — `state get-metrics` command and metrics display in `/gsd:progress`
 
 ---
 
@@ -242,6 +267,13 @@
 | ENFORCE-08 | Phase 30 | Complete |
 | ENFORCE-09 | Phase 51 | Complete |
 | ENFORCE-10 | Phase 51 | Complete |
+| ENFORCE-11 | Phase 51 | Complete |
+| ENFORCE-12 | Phase 51 | Complete |
+| ENFORCE-13 | Phase 51 | Complete |
+| STATE-01 | Phase 51 | Complete |
+| STATE-02 | Phase 51 | Complete |
+| CONFIG-01 | Phase 51 | Complete |
+| METRICS-01 | Phase 51 | Complete |
 | CONTEXT-DETERMINISM-01 | Phase 30 | Complete |
 | PERFORMANCE-01 | Phase 30 | Complete |
 | ISOLATION-01 | Phase 31 | Complete |
