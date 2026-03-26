@@ -116,7 +116,7 @@ const DEFAULT_MAPPING = {
       },
       {
         file: 'tests/phase-52/integration/audit-kill.test.cjs',
-        allOf: ['audit.unproven', "status, 'UNPROVEN'"],
+        allOf: ['regressed.unproven', "status, 'UNPROVEN'"],
       },
     ],
   },
