@@ -705,6 +705,91 @@ function harvestAmbientContext(cwd, phaseNumber) {
   return context;
 }
 
+// ─── State Assert — Pre-condition Validation ───────────────────────────────────
+
+/**
+ * cmdStateAssert — Verify project state meets workflow pre-conditions
+ *
+ * Used at workflow start to ensure required files exist and project is in a
+ * valid state before proceeding. Exits 1 on failure (hard stop).
+ *
+ * Output: JSON with {passed, errors[], warnings[], checks{}}
+ */
+function cmdStateAssert(cwd, raw) {
+  const planningDir = path.join(cwd, '.planning');
+  const statePath = path.join(planningDir, 'STATE.md');
+  const configPath = path.join(planningDir, 'config.json');
+  const roadmapPath = path.join(planningDir, 'ROADMAP.md');
+
+  const errors = [];
+  const warnings = [];
+
+  // Check STATE.md exists and is parseable
+  let stateExists = false;
+  let statePaused = false;
+  try {
+    const stateContent = safeReadFile(statePath);
+    if (stateContent) {
+      stateExists = true;
+      const fm = extractFrontmatter(stateContent);
+      if (!fm) {
+        errors.push('STATE.md exists but has invalid or missing frontmatter');
+      } else {
+        // Check for paused state
+        const status = (fm.status || '').toLowerCase();
+        const state = (fm.state || '').toLowerCase();
+        if (status.includes('paused') || state === 'paused') {
+          errors.push('Project is PAUSED — resume or unpause before proceeding');
+          statePaused = true;
+        }
+      }
+    } else {
+      errors.push('STATE.md not found or empty — run plan-phase to initialize');
+    }
+  } catch (err) {
+    errors.push(`Failed to read STATE.md: ${err.message}`);
+  }
+
+  // Check config.json exists
+  const configExists = fs.existsSync(configPath);
+  if (!configExists) {
+    errors.push('Config file .planning/config.json not found — run init or config setup');
+  }
+
+  // Check roadmap exists (some workflows need it)
+  const roadmapExists = fs.existsSync(roadmapPath);
+  if (!roadmapExists) {
+    warnings.push('ROADMAP.md not found — phase-based workflows require it');
+  }
+
+  // Check for orphaned checkpoints from previous interrupted runs
+  const checkpointPath = path.join(planningDir, 'CHECKPOINT.md');
+  const orphanedCheckpoint = fs.existsSync(checkpointPath);
+  if (orphanedCheckpoint) {
+    warnings.push('Orphaned checkpoint found — previous run stopped at a gate; review CHECKPOINT.md');
+  }
+
+  const passed = errors.length === 0;
+  const result = {
+    passed,
+    errors,
+    warnings,
+    checks: {
+      state_exists: stateExists,
+      state_paused: statePaused,
+      config_exists: configExists,
+      roadmap_exists: roadmapExists,
+      orphaned_checkpoint: orphanedCheckpoint,
+    },
+  };
+
+  output(result, raw, passed ? 'passed' : 'failed');
+
+  if (!passed) {
+    process.exit(1); // Hard stop — workflow cannot proceed
+  }
+}
+
 function cmdStateHarvestContext(cwd, phaseNumber, raw) {
   const result = harvestAmbientContext(cwd, phaseNumber);
   output(result, raw, JSON.stringify(result, null, 2));
@@ -1010,6 +1095,7 @@ module.exports = {
   cmdStateJson,
   cmdStateBeginPhase,
   cmdStateCheckpoint,
+  cmdStateAssert, // ← new pre-condition validation command
   cmdStateHarvestContext,
   parseStateSnapshot,
   buildStateFrontmatter,

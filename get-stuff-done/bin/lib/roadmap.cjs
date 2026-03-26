@@ -330,7 +330,10 @@ function cmdRoadmapUpdatePlanProgress(cwd, phaseNum, options, raw) {
 
   if (process.env.PLANE_SYNC_ENABLED !== 'false') {
     const roadmapPlaneSync = require('./roadmap-plane-sync.cjs');
-    roadmapPlaneSync.notifyRoadmapChange(cwd, roadmapPath).catch(() => {});
+    roadmapPlaneSync.notifyRoadmapChange(cwd, roadmapPath).catch((err) => {
+      console.warn('[roadmap] Plane sync failed (roadmap may be out of sync with Plane):', err.message);
+      // Fire-and-forget: don't block the main workflow, but log for visibility
+    });
   }
 
   output({

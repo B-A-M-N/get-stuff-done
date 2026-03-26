@@ -14,6 +14,7 @@
  *   state update <field> <value>       Update a STATE.md field
  *   state get [section]                Get STATE.md content or section
  *   state patch --field val ...        Batch update STATE.md fields
+ *   state assert                       Verify pre-conditions (state, config, roadmap). Exit 1 on failure.
  *   state begin-phase --phase N --name S --plans C  Update STATE.md for new phase start
  *   resolve-model <agent-type>         Get model for agent based on profile
  *   find-phase <phase>                 Find phase directory by number
@@ -414,6 +415,9 @@ async function main() {
       } else if (subcommand === 'harvest-context') {
         const phaseIdx = args.indexOf('--phase');
         state.cmdStateHarvestContext(cwd, phaseIdx !== -1 ? args[phaseIdx + 1] : null, raw);
+      } else if (subcommand === 'assert') {
+        // Pre-condition validation for workflow entry points
+        state.cmdStateAssert(cwd, raw);
       } else if (subcommand === 'baseline-characterize') {
         state.cmdStateSnapshotManifest(cwd, raw);
       } else {

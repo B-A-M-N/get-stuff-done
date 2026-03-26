@@ -59,7 +59,10 @@ class SecondBrain {
 
     // Ensure Postgres indexes exist for firecrawl_audit
     if (!process.env.GSD_MEMORY_MODE || process.env.GSD_MEMORY_MODE !== 'sqlite') {
-      this._ensureAuditIndexes().catch(() => {});
+      this._ensureAuditIndexes().catch((err) => {
+        console.warn('[SecondBrain] Failed to ensure audit indexes:', err.message);
+        // Continue anyway - audit may still work, just without indexes
+      });
     }
 
     if (process.env.GSD_MEMORY_MODE === 'sqlite') {
@@ -73,7 +76,11 @@ class SecondBrain {
         this.fallbackToSqlite();
       }
     });
-    this._initializeProjectIsolation().catch(() => {});
+    this._initializeProjectIsolation().catch((err) => {
+      console.warn('[SecondBrain] Failed to initialize project isolation:', err.message);
+      // Continue in degraded mode - project isolation may not work properly
+      this.projectIsolationInitialized = false;
+    });
   }
 
   async _initializeProjectIsolation() {

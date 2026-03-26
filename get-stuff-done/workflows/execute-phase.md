@@ -82,6 +82,23 @@ fi
 ```
 </step>
 
+<step name="assert_preconditions">
+**ENFORCED: Verify project state before any operations.**
+
+```bash
+node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" state assert
+```
+
+This checks:
+- STATE.md exists and has valid frontmatter (not paused)
+- config.json exists
+- ROADMAP.md exists (warning if missing)
+- No orphaned CHECKPOINT.md from prior interrupted runs
+
+**Exit 1 on failure** — workflow stops immediately if pre-conditions not met. This prevents agents from operating on invalid or inconsistent project state.
+
+</step>
+
 <step name="verify_execution_context">
 Load a Zod-validated execution snapshot before any branching or state writes. This gives the orchestrator a verified invariant (integrity audit + git state + pointer) rather than inferring state from individual files.
 
@@ -485,6 +502,30 @@ mv .planning/debug/{slug}.md .planning/debug/resolved/
 ```bash
 node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" commit "docs(phase-${PARENT_PHASE}): resolve UAT gaps and debug sessions after ${PHASE_NUMBER} gap closure" --files .planning/phases/*${PARENT_PHASE}*/*-UAT.md .planning/debug/resolved/*.md
 ```
+</step>
+
+<step name="verify_phase_completeness">
+**ENFORCED: Verify ALL plans have summaries before claiming phase complete.**
+
+```bash
+PHASE_COMPLETENESS=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" verify phase-completeness "${PHASE_NUMBER}" --raw)
+PHASE_COMPLETE=$(printf '%s\n' "$PHASE_COMPLETENESS" | jq -r '.complete // "false"')
+if [ "$PHASE_COMPLETE" != "true" ]; then
+  echo "╔══════════════════════════════════════════════════════════════╗"
+  echo "║  BLOCK-08: Phase Incomplete — Missing Summaries             ║"
+  echo "╚══════════════════════════════════════════════════════════════╝"
+  echo ""
+  echo "Cannot verify phase goal because some plans lack SUMMARY.md files:"
+  printf '%s\n' "$PHASE_COMPLETENESS" | jq -r '.incomplete_plans[]?'
+  echo ""
+  echo "All plans must have summaries before proceeding to phase goal verification."
+  echo "Run the incomplete plans or create summaries manually."
+  exit 1
+fi
+```
+
+This check ensures we don't falsely claim "Phase Complete" when plans are missing summaries. **This is a hard stop** — phase goal verification is not attempted until all summaries exist.
+
 </step>
 
 <step name="verify_phase_goal">
