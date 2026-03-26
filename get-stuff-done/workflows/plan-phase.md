@@ -339,30 +339,28 @@ Task(
 ```bash
 # ENFORCED: Verify research contract after researcher returns (Block 04)
 # This ensures ambiguities and assumptions are properly carried forward.
-if [ -n "$CONTEXT_PATH" ]; then
-  VERIFY_RESEARCH=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" verify research-contract "$CONTEXT_PATH" --research "$RESEARCH_PATH" --raw)
-  RESEARCH_PASSED=$(printf '%s\n' "$VERIFY_RESEARCH" | jq -r '.passed // false')
-  if [ "$RESEARCH_PASSED" != "true" ]; then
-    echo "╔══════════════════════════════════════════════════════════════╗"
-    echo "║  BLOCK-04: Failed Research Contract                          ║"
-    echo "╚══════════════════════════════════════════════════════════════╝"
-    echo ""
-    echo "⚠ Research Contract Violation Detected!"
-    node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" verify research-contract "$CONTEXT_PATH" --research "$RESEARCH_PATH"
-    echo ""
-    echo "Options:"
-    echo "1. Revise research — Re-spawn researcher with identified issues"
-    echo "2. Abort — Exit workflow"
-    read -p "Choose (1-2): " choice
-    if [ "$choice" = "1" ]; then
-      # Loop back to researcher step (handled by orchestrator restart)
-      echo "Rerouting to researcher..."
-      # TODO: Implement loop back or restart plan-phase with --research
-      exit 1
-    else
-      echo "Aborting."
-      exit 1
-    fi
+VERIFY_RESEARCH=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" verify research-contract "$CONTEXT_PATH" --research "$RESEARCH_PATH" --raw)
+RESEARCH_PASSED=$(printf '%s\n' "$VERIFY_RESEARCH" | jq -r '.passed // false')
+if [ "$RESEARCH_PASSED" != "true" ]; then
+  echo "╔══════════════════════════════════════════════════════════════╗"
+  echo "║  BLOCK-04: Failed Research Contract                          ║"
+  echo "╚══════════════════════════════════════════════════════════════╝"
+  echo ""
+  echo "⚠ Research Contract Violation Detected!"
+  node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" verify research-contract "$CONTEXT_PATH" --research "$RESEARCH_PATH"
+  echo ""
+  echo "Options:"
+  echo "1. Revise research — Re-spawn researcher with identified issues"
+  echo "2. Abort — Exit workflow"
+  read -p "Choose (1-2): " choice
+  if [ "$choice" = "1" ]; then
+    # Loop back to researcher step (handled by orchestrator restart)
+    echo "Rerouting to researcher..."
+    # TODO: Implement loop back or restart plan-phase with --research
+    exit 1
+  else
+    echo "Aborting."
+    exit 1
   fi
 fi
 ```
