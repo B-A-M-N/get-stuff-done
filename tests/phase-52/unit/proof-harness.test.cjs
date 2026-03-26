@@ -78,6 +78,7 @@ describe('ProofHarness', () => {
     const valid = validate(proof);
 
     assert.ok(valid, `Proof validates: ${validate.errors?.map(e => JSON.stringify(e)).join(', ') || 'ok'}`);
+    assert.deepStrictEqual(ProofHarness.verifyProof(proof), { valid: true });
   });
 
   test('contract_hash is computed from validator contract file', () => {
@@ -127,27 +128,47 @@ describe('ProofHarness', () => {
   });
 
   test('verifyProof rejects non-zero false negatives and false positives', () => {
-    const falseNegatives = ProofHarness.generateProof('json_validator', {
-      total_cases: 4,
+    const falseNegatives = {
+      ...ProofHarness.generateProof('json_validator', {
+        total_cases: 4,
+        passed_valid: 4,
+        rejected_invalid: 0,
+        false_negatives: 0,
+        false_positives: 0,
+      }),
       passed_valid: 3,
       rejected_invalid: 1,
       false_negatives: 1,
-      false_positives: 0,
-    });
+    };
     assert.match(ProofHarness.verifyProof(falseNegatives).reason, /Schema validation failed|false_negatives is 1/);
 
-    const falsePositives = ProofHarness.generateProof('json_validator', {
-      total_cases: 4,
+    const falsePositives = {
+      ...ProofHarness.generateProof('json_validator', {
+        total_cases: 4,
+        passed_valid: 4,
+        rejected_invalid: 0,
+        false_negatives: 0,
+        false_positives: 0,
+      }),
       passed_valid: 3,
       rejected_invalid: 1,
-      false_negatives: 0,
       false_positives: 1,
-    });
+    };
     assert.match(ProofHarness.verifyProof(falsePositives).reason, /Schema validation failed|false_positives is 1/);
   });
 
   test('verifyProof reports schema load errors for malformed proof input', () => {
     const result = ProofHarness.verifyProof({ validator: 'json_validator' });
     assert.match(result.reason, /Schema validation failed|Schema load error/);
+  });
+
+  test('generateProof throws when metrics violate schema invariants', () => {
+    assert.throws(() => ProofHarness.generateProof('json_validator', {
+      total_cases: 10,
+      passed_valid: 9,
+      rejected_invalid: 1,
+      false_negatives: 1,
+      false_positives: 0,
+    }), /Generated proof failed schema validation/);
   });
 });
