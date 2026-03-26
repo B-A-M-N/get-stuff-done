@@ -176,9 +176,12 @@ class TruthAuditor {
       const source = (sourcePart || path.relative(this.rootDir, this.requirementsPath)).trim();
       const nextLine = lines[index + 1] || '';
       const prevLine = lines[index - 1] || '';
-      const noteWindow = `${prevLine}\n${line}\n${nextLine}`;
-      const deprecated = /@deprecated/i.test(noteWindow);
-      const needsClarification = /needs-clarification/i.test(noteWindow) || !/(MUST|SHALL)/.test(claim);
+      const relevantNotes = [prevLine, line, nextLine].filter((candidate) => (
+        candidate === line || new RegExp(`^#\\s*${id}\\b`).test(candidate.trim())
+      ));
+      const deprecated = relevantNotes.some((candidate) => /@deprecated/i.test(candidate));
+      const needsClarification = relevantNotes.some((candidate) => /needs-clarification/i.test(candidate))
+        || !/(MUST|SHALL)/.test(claim);
 
       if (deprecated) {
         continue;
