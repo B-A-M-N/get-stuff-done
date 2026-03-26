@@ -59,6 +59,8 @@ created: 2026-03-26
 - [ ] `scripts/generate-truth-audit.js` — Truth audit generator with Phase 51 verification
 - [ ] `package.json` scripts for `test:coverage:phase52` and `test:proofs:phase52`
 
+**Wave 0 Note:** All Wave 0 items are created during Phase 52 execution by the corresponding plans. They are not prerequisites; they are deliverables. The checker should verify that the plans commit to creating these items, not that they exist beforehand.
+
 *If none: "Existing infrastructure covers all phase requirements."*
 
 **In this case:** Wave 0 will create all test infrastructure as part of Plans 52-01 through 52-04. Tests are created alongside implementation.
