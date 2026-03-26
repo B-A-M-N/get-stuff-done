@@ -569,6 +569,7 @@ function cmdTaskLogReconstruct(cwd, phase, plan, raw) {
   if (!phaseInfo) {
     if (raw) {
       process.stdout.write('');
+      process.exit(0);
     } else {
       output({ found: false, lines: [] }, raw);
     }
@@ -581,6 +582,7 @@ function cmdTaskLogReconstruct(cwd, phase, plan, raw) {
   if (!fs.existsSync(logPath)) {
     if (raw) {
       process.stdout.write('');
+      process.exit(0);
     } else {
       output({ found: false, lines: [] }, raw);
     }
@@ -600,6 +602,7 @@ function cmdTaskLogReconstruct(cwd, phase, plan, raw) {
   } catch (err) {
     if (raw) {
       process.stdout.write('');
+      process.exit(0);
     } else {
       output({ found: false, lines: [] }, raw);
     }
@@ -609,6 +612,7 @@ function cmdTaskLogReconstruct(cwd, phase, plan, raw) {
   if (tasks.length === 0) {
     if (raw) {
       process.stdout.write('');
+      process.exit(0);
     } else {
       output({ found: false, lines: [] }, raw);
     }
@@ -619,6 +623,7 @@ function cmdTaskLogReconstruct(cwd, phase, plan, raw) {
 
   if (raw) {
     process.stdout.write(lines.join('\n') + '\n');
+    process.exit(0);
   } else {
     output({ found: true, lines, count: lines.length }, raw);
   }
