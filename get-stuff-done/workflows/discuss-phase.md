@@ -297,6 +297,11 @@ Then run:
 ```bash
 AMBIENT_CONTEXT=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" state harvest-context --phase "${PHASE}" --raw)
 SEED=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" itl discuss-seed --text "$NARRATIVE" --ambient-context "$AMBIENT_CONTEXT" --phase "${PHASE}")
+
+# Persist ITL output for cross-session availability
+ITL_OUTPUT_FILE=".planning/phases/${PADDED_PHASE}-${SLUG}/${PADDED_PHASE}-ITL.json"
+mkdir -p "$(dirname "$ITL_OUTPUT_FILE")"
+printf "%s" "$SEED" > "$ITL_OUTPUT_FILE"
 ```
 
 Use the returned JSON to capture:
