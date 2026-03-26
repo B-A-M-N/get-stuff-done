@@ -4,6 +4,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { execSync } = require('child_process');
 const { escapeRegex, loadConfig, getMilestoneInfo, getMilestonePhaseFilter, normalizeMd, output, error, safeReadFile } = require('./core.cjs');
 const { extractFrontmatter, reconstructFrontmatter } = require('./frontmatter.cjs');
 
@@ -336,6 +337,17 @@ function cmdStateAddDecision(cwd, options, raw) {
     // Remove placeholders
     sectionBody = sectionBody.replace(/None yet\.?\s*\n?/gi, '').replace(/No decisions yet\.?\s*\n?/gi, '');
     sectionBody = sectionBody.trimEnd() + '\n' + entry + '\n';
+
+    // Decision Deduplication: Check if this exact decision already exists
+    const normalizedEntry = entry.trim().toLowerCase();
+    const existingEntries = sectionBody.split('\n').filter(line => line.trim().startsWith('- '));
+    const isDuplicate = existingEntries.some(existing => existing.trim().toLowerCase() === normalizedEntry);
+
+    if (isDuplicate) {
+      output({ added: false, reason: 'duplicate decision — already recorded' }, raw, 'false');
+      return;
+    }
+
     content = content.replace(sectionPattern, (_match, header) => `${header}${sectionBody}`);
     writeStateMd(statePath, content, cwd);
     output({ added: true, decision: entry }, raw, 'true');
@@ -790,6 +802,115 @@ function cmdStateAssert(cwd, raw) {
   }
 }
 
+// ─── Live Verification ─────────────────────────────────────────────────────
+/**
+ * cmdStateVerify — Comprehensive project state verification
+ *
+ * Performs live integrity checks: state validity, file existence, git status,
+ * decision/blocker section health, and phase consistency.
+ * Output: JSON with {passed, errors[], warnings[], details{}}.
+ */
+function cmdStateVerify(cwd, raw) {
+  const errors = [];
+  const warnings = [];
+  const details = {};
+
+  const planningDir = path.join(cwd, '.planning');
+  const statePath = path.join(planningDir, 'STATE.md');
+  const configPath = path.join(planningDir, 'config.json');
+  const roadmapPath = path.join(planningDir, 'ROADMAP.md');
+  const checkpointPath = path.join(planningDir, 'CHECKPOINT.md');
+
+  // Check STATE.md exists and parseable
+  let stateContent = '';
+  try {
+    stateContent = fs.readFileSync(statePath, 'utf-8');
+    details.state_exists = true;
+  } catch (e) {
+    errors.push('STATE.md not found');
+    details.state_exists = false;
+  }
+
+  // If state exists, validate frontmatter
+  if (stateContent) {
+    const fm = extractFrontmatter(stateContent);
+    if (!fm) {
+      errors.push('STATE.md has invalid frontmatter');
+    } else {
+      const status = (fm.status || '').toLowerCase();
+      if (status.includes('paused')) {
+        warnings.push('Project is PAUSED');
+      }
+    }
+  }
+
+  // Config exists
+  details.config_exists = fs.existsSync(configPath);
+  if (!details.config_exists) errors.push('config.json missing');
+
+  // Roadmap exists (warning if missing)
+  details.roadmap_exists = fs.existsSync(roadmapPath);
+  if (!details.roadmap_exists) warnings.push('ROADMAP.md missing');
+
+  // Orphaned checkpoint
+  details.orphaned_checkpoint = fs.existsSync(checkpointPath);
+  if (details.orphaned_checkpoint) warnings.push('Orphaned CHECKPOINT.md found');
+
+  // Parse STATE to extract phase info and verify plan directories
+  if (stateContent) {
+    // Extract phase entries from STATE (e.g., "Active Phases:" or "## Active Phases")
+    const phaseSectionMatch = stateContent.match(/##\s*Active Phases\s*\n([\s\S]*?)(?=\n##|\n#|$)/);
+    if (phaseSectionMatch) {
+      const phaseLines = phaseSectionMatch[1].split('\n').filter(l => l.trim().startsWith('- '));
+      details.phase_checks = [];
+      phaseLines.forEach(line => {
+        const phaseMatch = line.match(/Phase\s*(\d+)/i);
+        if (phaseMatch) {
+          const phaseNum = phaseMatch[1];
+          const phaseDir = path.join(planningDir, `phase-${phaseNum}`);
+          const exists = fs.existsSync(phaseDir);
+          details.phase_checks.push({ phase: phaseNum, dir_exists: exists });
+          if (!exists) errors.push(`Phase ${phaseNum} directory missing`);
+        }
+      });
+    }
+
+    // Check Decisions section for placeholder text
+    const decisionsMatch = stateContent.match(/###?\s*(?:Decisions|Decisions Made|Accumulated.*Decisions)\s*\n([\s\S]*?)(?=\n###?|\n##[^#]|$)/i);
+    if (decisionsMatch) {
+      const decisionsBody = decisionsMatch[1].trim();
+      if (!decisionsBody || decisionsBody === 'None yet.' || decisionsBody === 'No decisions yet.' || decisionsBody.toLowerCase().includes('none yet') || decisionsBody.toLowerCase().includes('no decisions yet')) {
+        warnings.push('Decisions section contains placeholder text');
+      }
+      details.decisions_line_count = decisionsBody.split('\n').filter(l => l.trim()).length;
+    }
+
+    // Check Blockers section for count
+    const blockersMatch = stateContent.match(/###?\s*(?:Blockers|Open Blockers|Blocked)\s*\n([\s\S]*?)(?=\n###?|\n##[^#]|$)/i);
+    if (blockersMatch) {
+      const blockersBody = blockersMatch[1];
+      const blockerLines = blockersBody.split('\n').filter(l => l.trim().startsWith('- '));
+      details.blockers_count = blockerLines.length;
+    }
+  }
+
+  // Git status check (warn if uncommitted changes to planning files)
+  try {
+    const gitStatus = execSync('git status --porcelain .planning', { cwd, encoding: 'utf-8' });
+    if (gitStatus.trim()) {
+      warnings.push('Uncommitted changes in .planning/ directory');
+    }
+    details.git_status_clean = !gitStatus.trim();
+  } catch (e) {
+    warnings.push('Could not check git status: ' + e.message);
+    details.git_status_clean = null;
+  }
+
+  const passed = errors.length === 0;
+  const result = { passed, errors, warnings, details };
+  output(result, raw, passed ? 'passed' : 'failed');
+}
+
 function cmdStateHarvestContext(cwd, phaseNumber, raw) {
   const result = harvestAmbientContext(cwd, phaseNumber);
   output(result, raw, JSON.stringify(result, null, 2));
@@ -1075,6 +1196,97 @@ function cmdStateBeginPhase(cwd, phaseNumber, phaseName, planCount, raw) {
   output({ updated, phase: phaseNumber, phase_name: phaseName || null, plan_count: planCount || null }, raw, updated.length > 0 ? 'true' : 'false');
 }
 
+// ─── State Pause / Resume ─────────────────────────────────────────────────────
+
+/**
+ * cmdStatePause — Pause project execution
+ *
+ * Sets STATE.md status to "paused" with optional reason. Workflows check this
+ * status and will halt before starting new work.
+ */
+function cmdStatePause(cwd, reason, raw) {
+  const statePath = path.join(cwd, '.planning', 'STATE.md');
+  const content = safeReadFile(statePath);
+
+  if (!content) {
+    error('STATE.md not found — cannot pause');
+  }
+
+  // Update Status to Paused
+  let updated = false;
+  const statusPattern = /^Status:\s*(.+)$/m;
+  if (statusPattern.test(content)) {
+    const result = stateReplaceField(content, 'Status', 'Paused');
+    if (result) {
+      content = result;
+      updated = true;
+    }
+  }
+
+  // Append pause reason to body if provided
+  if (reason) {
+    const pauseSection = `\n## Paused\n\n${reason}\n`;
+    // Insert after frontmatter and before first heading
+    const insertionPoint = content.indexOf('\n## ');
+    if (insertionPoint !== -1) {
+      content = content.slice(0, insertionPoint) + pauseSection + content.slice(insertionPoint);
+    } else {
+      content = content + pauseSection;
+    }
+    updated = true;
+  }
+
+  if (updated) {
+    writeStateMd(statePath, content, cwd);
+    output({ paused: true, reason }, raw, 'paused');
+  } else {
+    output({ paused: false, reason: null }, raw, 'already paused or no changes');
+  }
+}
+
+/**
+ * cmdStateResume — Resume execution after pause
+ *
+ * Clears "paused" status from STATE.md and removes Paused section.
+ */
+function cmdStateResume(cwd, raw) {
+  const statePath = path.join(cwd, '.planning', 'STATE.md');
+  const content = safeReadFile(statePath);
+
+  if (!content) {
+    error('STATE.md not found — cannot resume');
+  }
+
+  let updated = false;
+
+  // Check if currently paused
+  const statusMatch = content.match(/^Status:\s*(.+)$/m);
+  const isPaused = statusMatch && statusMatch[1].toLowerCase() === 'paused';
+
+  if (isPaused) {
+    // Set status back to "In Progress" (or could be configurable)
+    const result = stateReplaceField(content, 'Status', 'In Progress');
+    if (result) {
+      content = result;
+      updated = true;
+    }
+  }
+
+  // Remove Paused section from body
+  const pauseSectionPattern = /\n## Paused\n[\s\S]*?(?=\n##|\n#|\Z)/;
+  if (pauseSectionPattern.test(content)) {
+    content = content.replace(pauseSectionPattern, '');
+    updated = true;
+  }
+
+  if (updated) {
+    writeStateMd(statePath, content, cwd);
+    output({ resumed: true }, raw, 'resumed');
+  } else {
+    output({ resumed: false, reason: 'not paused' }, raw, 'already active');
+  }
+}
+
 module.exports = {
   stateExtractField,
   stateReplaceField,
@@ -1095,7 +1307,10 @@ module.exports = {
   cmdStateJson,
   cmdStateBeginPhase,
   cmdStateCheckpoint,
-  cmdStateAssert, // ← new pre-condition validation command
+  cmdStateAssert,
+  cmdStateVerify,   // new: live verification
+  cmdStatePause,    // new
+  cmdStateResume,   // new
   cmdStateHarvestContext,
   parseStateSnapshot,
   buildStateFrontmatter,

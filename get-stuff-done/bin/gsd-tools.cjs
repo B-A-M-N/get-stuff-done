@@ -15,6 +15,9 @@
  *   state get [section]                Get STATE.md content or section
  *   state patch --field val ...        Batch update STATE.md fields
  *   state assert                       Verify pre-conditions (state, config, roadmap). Exit 1 on failure.
+ *   state verify                       Comprehensive live verification (state, git, phases). Non-fatal.
+ *   state pause [--reason <reason>]    Pause project execution (sets status=paused)
+ *   state resume                       Resume execution after pause (clears paused status)
  *   state begin-phase --phase N --name S --plans C  Update STATE.md for new phase start
  *   resolve-model <agent-type>         Get model for agent based on profile
  *   find-phase <phase>                 Find phase directory by number
@@ -415,9 +418,18 @@ async function main() {
       } else if (subcommand === 'harvest-context') {
         const phaseIdx = args.indexOf('--phase');
         state.cmdStateHarvestContext(cwd, phaseIdx !== -1 ? args[phaseIdx + 1] : null, raw);
+      } else if (subcommand === 'pause') {
+        const reasonIdx = args.indexOf('--reason');
+        const reason = reasonIdx !== -1 ? args[reasonIdx + 1] : (args[2] || null);
+        state.cmdStatePause(cwd, reason, raw);
+      } else if (subcommand === 'resume') {
+        state.cmdStateResume(cwd, raw);
       } else if (subcommand === 'assert') {
         // Pre-condition validation for workflow entry points
         state.cmdStateAssert(cwd, raw);
+      } else if (subcommand === 'verify') {
+        // Comprehensive live verification of project state
+        state.cmdStateVerify(cwd, raw);
       } else if (subcommand === 'baseline-characterize') {
         state.cmdStateSnapshotManifest(cwd, raw);
       } else {
