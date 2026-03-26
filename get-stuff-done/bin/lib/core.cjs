@@ -842,6 +842,29 @@ process.on('unhandledRejection', (reason) => {
   process.exit(1);
 });
 
+/**
+ * Determine whether auto-advance should bypass a checkpoint.
+ * @param {string} checkpointType - 'human-verify' | 'decision' | 'human-action'
+ * @param {boolean} autoChainActive - workflow._auto_chain_active flag
+ * @param {boolean} autoAdvance - workflow.auto_advance flag
+ * @returns {boolean} true if checkpoint can be auto-advanced, false otherwise
+ */
+function shouldAutoAdvanceCheckpoint(checkpointType, autoChainActive, autoAdvance) {
+  const autoMode = autoChainActive || autoAdvance;
+  if (!autoMode) return false;
+  if (checkpointType === 'human-action') {
+    // Audit log: attempt to bypass human-action checkpoint blocked
+    console.error(`[AUDIT] auto_chain_bypass_blocked: checkpoint_type=${checkpointType}, phase=unknown (cwd not provided)`);
+    return false;
+  }
+  // Only known types can be auto-advanced: 'human-verify' and 'decision'
+  if (checkpointType === 'human-verify' || checkpointType === 'decision') {
+    return true;
+  }
+  // Unknown or other types: conservative default to false
+  return false;
+}
+
 module.exports = {
   output,
   error,
@@ -860,6 +883,7 @@ module.exports = {
   getArchivedPhaseDirs,
   getRoadmapPhaseInternal,
   resolveModelInternal,
+  shouldAutoAdvanceCheckpoint,
   pathExistsInternal,
   generateSlugInternal,
   getMilestoneInfo,

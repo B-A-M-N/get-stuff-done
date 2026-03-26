@@ -1122,18 +1122,23 @@ function extractHeadingBullets(content, heading) {
     .filter(line => !/^none\b/i.test(line));
 }
 
-function findUncheckedCarryForward(items, planContent, label) {
+function findUncheckedCarryForward(items, researchContent, label) {
   const issues = [];
+  const lowerResearch = researchContent.toLowerCase();
 
   for (const item of items) {
-    const index = planContent.toLowerCase().indexOf(item.toLowerCase());
-    if (index === -1) continue;
+    const index = lowerResearch.indexOf(item.toLowerCase());
+    if (index === -1) {
+      // Item not carried forward at all
+      issues.push(`${label} not carried forward into research: ${item}`);
+      continue;
+    }
     const windowStart = Math.max(0, index - 120);
-    const windowEnd = Math.min(planContent.length, index + item.length + 120);
-    const window = planContent.slice(windowStart, windowEnd).toLowerCase();
+    const windowEnd = Math.min(researchContent.length, index + item.length + 120);
+    const window = researchContent.slice(windowStart, windowEnd).toLowerCase();
     const markedSafe = /(assumption|defer|deferred|follow-up|open question|clarif|pause|unknown|unresolved)/.test(window);
     if (!markedSafe) {
-      issues.push(`${label} appears in the plan without an assumption/defer/clarification marker: ${item}`);
+      issues.push(`${label} appears in the research without an assumption/defer/clarification marker: ${item}`);
     }
   }
 
@@ -1223,7 +1228,7 @@ function cmdVerifyResearchContract(cwd, contextFilePath, researchFilePath, raw) 
     warnings.push('RESEARCH.md carries context ambiguity forward, but does not materialize any domain contract sections such as Invariants, Policy Rules, Test Oracles, or Executable Checks.');
   }
 
-  output({
+  const result = {
     valid: errors.length === 0,
     context: {
       path: contextFilePath,
@@ -1237,7 +1242,21 @@ function cmdVerifyResearchContract(cwd, contextFilePath, researchFilePath, raw) 
     domain_contract: domainContract,
     errors,
     warnings,
-  }, raw, errors.length === 0 ? 'valid' : 'invalid');
+  };
+
+  if (raw) {
+    process.stdout.write(JSON.stringify(result));
+  } else {
+    process.stdout.write(JSON.stringify(result, null, 2));
+  }
+
+  // If there are errors, log a clear message to stderr and exit with failure
+  if (errors.length > 0) {
+    console.error('Research Contract Violation');
+    process.exit(1);
+  } else {
+    process.exit(0);
+  }
 }
 
 function cmdValidateConsistency(cwd, raw) {
