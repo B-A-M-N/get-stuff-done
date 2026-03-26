@@ -301,7 +301,7 @@ Plans:
 **Goal:** Eliminate divergence between claimed and provable system behavior. Implement secret leakage prevention, validation proof harness, and automated truth audit to close quality gaps identified in 2026-03-25 audit.
 **Requirements**: QUALITY-01, QUALITY-02, QUALITY-03, QUALITY-04
 **Depends on:** Phase 51 (enforcement gates must be functional)
-**Status**: [Planned]
+**Status**: [In Progress]
 
 Plans:
 - [x] 52-01-PLAN.md — Test coverage closure (≥85% across critical modules)
