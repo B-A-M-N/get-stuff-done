@@ -307,6 +307,14 @@ function cmdStateUpdateProgress(cwd, raw) {
   }
 }
 
+function computeHash(str) {
+  let hash = 5381;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) + hash) + str.charCodeAt(i); // hash * 33 + c
+  }
+  return hash >>> 0; // ensure unsigned 32-bit integer
+}
+
 function cmdStateAddDecision(cwd, options, raw) {
   const statePath = path.join(cwd, '.planning', 'STATE.md');
   if (!fs.existsSync(statePath)) { output({ error: 'STATE.md not found' }, raw); return; }
@@ -338,10 +346,16 @@ function cmdStateAddDecision(cwd, options, raw) {
     sectionBody = sectionBody.replace(/None yet\.?\s*\n?/gi, '').replace(/No decisions yet\.?\s*\n?/gi, '');
     sectionBody = sectionBody.trimEnd();
 
-    // Decision Deduplication: Check if this exact decision already exists in the ORIGINAL set
+    // Decision Deduplication: Use hash-based comparison (case-insensitive)
     const normalizedEntry = entry.trim().toLowerCase();
+    const newHash = computeHash(normalizedEntry);
     const existingEntries = sectionBody.split('\n').filter(line => line.trim().startsWith('- '));
-    const isDuplicate = existingEntries.some(existing => existing.trim().toLowerCase() === normalizedEntry);
+    const existingHashes = new Set();
+    for (const existing of existingEntries) {
+      const norm = existing.trim().toLowerCase();
+      existingHashes.add(computeHash(norm));
+    }
+    const isDuplicate = existingHashes.has(newHash);
 
     if (isDuplicate) {
       output({ added: false, reason: 'duplicate decision — already recorded' }, raw, 'false');
@@ -1241,6 +1255,38 @@ function cmdStateBeginPhase(cwd, phaseNumber, phaseName, planCount, raw) {
 // ─── State Pause / Resume ─────────────────────────────────────────────────────
 
 /**
+ * getCurrentPhase — Determine the current phase number from STATE.md or ROADMAP.md
+ *
+ * Returns phase number as string (e.g., "51") or null if not found.
+ */
+function getCurrentPhase(cwd) {
+  const statePath = path.join(cwd, '.planning', 'STATE.md');
+  const content = safeReadFile(statePath);
+  if (!content) return null;
+
+  // Try frontmatter current_phase
+  const fm = extractFrontmatter(content);
+  if (fm.current_phase) {
+    return String(fm.current_phase);
+  }
+
+  // Try extracting "Phase: N" from body (e.g., "Phase: 51 (name) — EXECUTING")
+  const phaseMatch = content.match(/^Phase:\s*(\d+)/m);
+  if (phaseMatch) {
+    return phaseMatch[1];
+  }
+
+  // Try "Current Phase:" field (bold or plain)
+  const currentPhase = stateExtractField(content, 'Current Phase');
+  if (currentPhase) {
+    const numMatch = currentPhase.match(/\d+/);
+    if (numMatch) return numMatch[0];
+  }
+
+  return null;
+}
+
+/**
  * cmdStatePause — Pause project execution
  *
  * Sets STATE.md status to "paused" with optional reason. Workflows check this
@@ -1248,63 +1294,49 @@ function cmdStateBeginPhase(cwd, phaseNumber, phaseName, planCount, raw) {
  */
 function cmdStatePause(cwd, reason, raw) {
   const statePath = path.join(cwd, '.planning', 'STATE.md');
-  let content = safeReadFile(statePath);
+  const content = safeReadFile(statePath);
+  if (!content) error('STATE.md not found — cannot pause');
 
-  if (!content) {
-    error('STATE.md not found — cannot pause');
-  }
-
-  let updated = false;
   const now = new Date().toISOString();
+  const phase = getCurrentPhase(cwd) || null;
 
-  // Add Paused At: timestamp if not already present
-  const pausedAtPattern = /^Paused At:/im;
-  if (!pausedAtPattern.test(content)) {
-    // Find the closing frontmatter delimiter (second "---" line)
-    const lines = content.split('\n');
-    let fmEndLineIdx = -1;
-    let dashCount = 0;
-    for (let i = 0; i < lines.length; i++) {
-      if (lines[i].trim() === '---') {
-        dashCount++;
-        if (dashCount === 2) {
-          fmEndLineIdx = i;
-          break;
-        }
-      }
-    }
+  // Create state snippet: first 500 chars of body (after frontmatter)
+  const fmMatch = content.match(/^---\r?\n[\s\S]+?\r?\n---/);
+  const body = fmMatch ? content.slice(fmMatch[0].length) : content;
+  const state_snippet = body.substring(0, 500);
 
-    if (fmEndLineIdx !== -1) {
-      // Insert Paused At after the closing delimiter
-      lines.splice(fmEndLineIdx + 1, 0, `Paused At: ${now}`, '');
-      content = lines.join('\n');
-      updated = true;
-    } else {
-      // Fallback: prepend to file (unlikely)
-      content = `Paused At: ${now}\n\n` + content;
-      updated = true;
+  // Write .continue-here
+  const continuePath = path.join(cwd, '.continue-here');
+  const continueData = { phase, reason: reason || '', timestamp: now, state_snippet };
+  try {
+    fs.writeFileSync(continuePath, JSON.stringify(continueData, null, 2), 'utf-8');
+  } catch (err) {
+    error('Failed to write .continue-here: ' + err.message);
+  }
+
+  // Update frontmatter: set status='paused', paused_at=now
+  let fm = extractFrontmatter(content);
+  fm.status = 'paused';
+  fm.paused_at = now;
+  let newContent = spliceFrontmatter(content, fm);
+
+  // Write updated STATE.md
+  writeStateMd(statePath, newContent, cwd);
+
+  // Clear auto-chain flag in config
+  const configPath = path.join(cwd, '.planning', 'config.json');
+  if (fs.existsSync(configPath)) {
+    try {
+      let cfg = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+      if (!cfg.workflow) cfg.workflow = {};
+      cfg.workflow._auto_chain_active = false;
+      fs.writeFileSync(configPath, JSON.stringify(cfg, null, 2), 'utf-8');
+    } catch (e) {
+      // Ignore config errors, but proceed
     }
   }
 
-  // Append pause reason to body if provided
-  if (reason) {
-    const pauseSection = `\n## Paused\n\n${reason}\n`;
-    // Insert after frontmatter and before first heading, or at end
-    const insertionPoint = content.indexOf('\n## ');
-    if (insertionPoint !== -1) {
-      content = content.slice(0, insertionPoint) + pauseSection + content.slice(insertionPoint);
-    } else {
-      content = content + pauseSection;
-    }
-    updated = true;
-  }
-
-  if (updated) {
-    writeStateMd(statePath, content, cwd);
-    output({ paused: true, reason, paused_at: now }, raw, 'paused');
-  } else {
-    output({ paused: false, reason: null, message: 'already paused or no changes' }, raw, 'already paused');
-  }
+  output({ paused: true, reason, paused_at: now, phase, continue_file: continuePath }, raw, 'paused');
 }
 
 /**
@@ -1312,36 +1344,164 @@ function cmdStatePause(cwd, reason, raw) {
  *
  * Clears "paused" status from STATE.md and removes Paused section.
  */
-function cmdStateResume(cwd, raw) {
+function cmdStateResume(cwd, options = {}, raw) {
   const statePath = path.join(cwd, '.planning', 'STATE.md');
-  let content = safeReadFile(statePath);
+  const content = safeReadFile(statePath);
+  if (!content) error('STATE.md not found — cannot resume');
 
-  if (!content) {
-    error('STATE.md not found — cannot resume');
+  const continuePath = path.join(cwd, '.continue-here');
+  let context = null;
+  if (fs.existsSync(continuePath)) {
+    try {
+      context = JSON.parse(fs.readFileSync(continuePath, 'utf-8'));
+    } catch (e) {
+      // ignore parse errors
+    }
   }
 
-  let updated = false;
+  const result = { resumed: true };
+  if (context) {
+    result.context = context;
+  }
 
-  // Remove Paused At: line if present
+  // Remove paused status from frontmatter
+  const fm = extractFrontmatter(content);
+  let hadStatus = 'status' in fm;
+  let hadPausedAt = 'paused_at' in fm;
+  delete fm.status;
+  delete fm.paused_at;
+  let newContent = spliceFrontmatter(content, fm);
+
+  // Remove any Paused At: lines and ## Paused section from body (cleanup)
   const pausedAtPattern = /^Paused At:.*$/im;
-  if (pausedAtPattern.test(content)) {
-    content = content.replace(pausedAtPattern, '');
-    updated = true;
+  if (pausedAtPattern.test(newContent)) {
+    newContent = newContent.replace(pausedAtPattern, '');
+    hadPausedAt = true;
   }
-
-  // Remove ## Paused section if present
   const pauseSectionPattern = /\n## Paused\n[\s\S]*?(?=\n##|\n#|\Z)/;
-  if (pauseSectionPattern.test(content)) {
-    content = content.replace(pauseSectionPattern, '');
-    updated = true;
+  if (pauseSectionPattern.test(newContent)) {
+    newContent = newContent.replace(pauseSectionPattern, '');
   }
 
-  if (updated) {
-    writeStateMd(statePath, content, cwd);
-    output({ resumed: true }, raw, 'resumed');
-  } else {
-    output({ resumed: false, reason: 'not paused' }, raw, 'already active');
+  if (hadStatus || hadPausedAt) {
+    writeStateMd(statePath, newContent, cwd);
   }
+
+  // Clear .continue-here if --clear flag and file existed
+  if (options.clear && fs.existsSync(continuePath)) {
+    try {
+      fs.unlinkSync(continuePath);
+      result.cleared_continue = true;
+    } catch (e) {}
+  }
+
+  if (!hadStatus && !hadPausedAt) {
+    result.resumed = false;
+    result.reason = 'not paused';
+  }
+
+  output(result, raw, JSON.stringify(result));
+}
+
+/**
+ * parsePerformanceMetrics — Extract performance metrics from STATE.md content
+ */
+function parsePerformanceMetrics(content) {
+  const result = { by_phase: [], plan_entries: [] };
+
+  // Find the Performance Metrics section
+  const sectionMatch = content.match(/##\s*Performance Metrics\s*\n([\s\S]*?)(?=\n##|\n#|$)/);
+  if (!sectionMatch) return result;
+  const section = sectionMatch[1];
+
+  // Parse By Phase table
+  const lines = section.split('\n');
+  let inTable = false;
+  for (let line of lines) {
+    // Detect table header
+    if (line.includes('| Phase') && line.includes('| Plans') && line.includes('| Total') && line.includes('Avg/Plan')) {
+      inTable = true;
+      continue;
+    }
+    if (inTable) {
+      const trimmed = line.trim();
+      // End of table when line is empty or starts with non-table content
+      if (trimmed === '' || !trimmed.startsWith('|')) {
+        inTable = false;
+        continue;
+      }
+      const cells = trimmed.split('|').map(c => c.trim()).filter(c => c);
+      if (cells.length >= 4) {
+        const phase = parseInt(cells[0], 10);
+        const plans = parseInt(cells[1], 10);
+        const total = cells[2];
+        const avg = cells[3];
+        if (!isNaN(phase) && !isNaN(plans)) {
+          result.by_phase.push({ phase, plans, total, avg });
+        }
+      }
+    }
+  }
+
+  // Parse individual plan metric lines: | Phase 39 P01 | 15min | 3 tasks | 2 files |
+  for (let line of lines) {
+    const trimmed = line.trim();
+    if (trimmed.startsWith('|') && /Phase\s+\d+\s+P\d+/i.test(trimmed)) {
+      const cells = trimmed.split('|').map(c => c.trim()).filter(c => c);
+      if (cells.length >= 4) {
+        const phase_plan = cells[0];
+        const duration = cells[1];
+        const tasksStr = cells[2];
+        const filesStr = cells[3];
+        const tasksMatch = tasksStr.match(/(\d+)/);
+        const filesMatch = filesStr.match(/(\d+)/);
+        const tasks = tasksMatch ? parseInt(tasksMatch[1], 10) : null;
+        const files = filesMatch ? parseInt(filesMatch[1], 10) : null;
+        result.plan_entries.push({ phase_plan, duration, tasks, files });
+      }
+    }
+  }
+
+  return result;
+}
+
+/**
+ * cmdStateGetMetrics — Get parsed performance metrics from STATE.md
+ */
+function cmdStateGetMetrics(cwd, options, raw) {
+  const statePath = path.join(cwd, '.planning', 'STATE.md');
+  const content = safeReadFile(statePath) || '';
+  if (!content) {
+    output({ by_phase: [], plan_entries: [] }, raw, '{}');
+    return;
+  }
+
+  const metrics = parsePerformanceMetrics(content);
+  let { by_phase, plan_entries } = metrics;
+
+  // Filter by phase if provided
+  if (options.phase) {
+    const phaseNum = parseInt(options.phase, 10);
+    if (!isNaN(phaseNum)) {
+      by_phase = by_phase.filter(p => p.phase === phaseNum);
+      plan_entries = plan_entries.filter(e => {
+        const text = e.phase_plan.toLowerCase();
+        return text.includes(`phase ${phaseNum}`) || text.includes(`phase${phaseNum}`);
+      });
+    }
+  }
+
+  // Filter by plan if provided
+  if (options.plan) {
+    const planStr = options.plan.toString();
+    plan_entries = plan_entries.filter(e => {
+      const text = e.phase_plan.toLowerCase();
+      return text.includes(`p${planStr}`) || text.includes(`p0${planStr}`) || text.includes(planStr);
+    });
+  }
+
+  const result = { by_phase, plan_entries };
+  output(result, raw, JSON.stringify(result));
 }
 
 module.exports = {
@@ -1368,6 +1528,8 @@ module.exports = {
   cmdStateVerify,   // new: live verification
   cmdStatePause,    // new
   cmdStateResume,   // new
+  parsePerformanceMetrics,
+  cmdStateGetMetrics,
   cmdStateHarvestContext,
   parseStateSnapshot,
   buildStateFrontmatter,

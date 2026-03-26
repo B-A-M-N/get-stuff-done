@@ -353,7 +353,14 @@ async function main() {
           plan: planIdx !== -1 ? args[planIdx + 1] : null,
           wave: taskIdx !== -1 ? args[taskIdx + 1] : '1',
         }, raw);
-} else if (subcommand === 'add-decision') {
+} else if (subcommand === 'get-metrics') {
+        const phaseIdx = args.indexOf('--phase');
+        const planIdx = args.indexOf('--plan');
+        state.cmdStateGetMetrics(cwd, {
+          phase: phaseIdx !== -1 ? args[phaseIdx + 1] : null,
+          plan: planIdx !== -1 ? args[planIdx + 1] : null,
+        }, raw);
+      } else if (subcommand === 'add-decision') {
         const phaseIdx = args.indexOf('--phase');
         const summaryIdx = args.indexOf('--summary');
         const summaryFileIdx = args.indexOf('--summary-file');
@@ -423,7 +430,9 @@ async function main() {
         const reason = reasonIdx !== -1 ? args[reasonIdx + 1] : (args[2] || null);
         state.cmdStatePause(cwd, reason, raw);
       } else if (subcommand === 'resume') {
-        state.cmdStateResume(cwd, raw);
+        const clearIdx = args.indexOf('--clear');
+        const clear = clearIdx !== -1;
+        state.cmdStateResume(cwd, { clear }, raw);
       } else if (subcommand === 'assert') {
         // Pre-condition validation for workflow entry points
         state.cmdStateAssert(cwd, raw);

@@ -289,6 +289,7 @@ function loadConfig(cwd) {
       ui_safety_gate: get('ui_safety_gate', { section: 'workflow', field: 'ui_safety_gate' }) ?? defaults.ui_safety_gate,
       node_repair: get('node_repair', { section: 'workflow', field: 'node_repair' }) ?? defaults.node_repair,
       node_repair_budget: get('node_repair_budget', { section: 'workflow', field: 'node_repair_budget' }) ?? defaults.node_repair_budget,
+      _auto_chain_active: get('_auto_chain_active', { section: 'workflow', field: '_auto_chain_active' }) ?? false,
       parallelization,
       brave_search: get('brave_search') ?? defaults.brave_search,
       gates: { ...defaults.gates, ...((parsed.gates && typeof parsed.gates === 'object') ? parsed.gates : {}) },
@@ -296,6 +297,18 @@ function loadConfig(cwd) {
       model_overrides: parsed.model_overrides || null,
       log_level: get('log_level') ?? defaults.log_level,
       _load_error: null,
+    };
+
+    // Provide nested workflow namespace for compatibility with dot-path config-get
+    config.workflow = {
+      auto_advance: config.auto_advance,
+      nyquist_validation: config.nyquist_validation,
+      adversarial_test_harness: config.adversarial_test_harness,
+      ui_phase: config.ui_phase,
+      ui_safety_gate: config.ui_safety_gate,
+      node_repair: config.node_repair,
+      node_repair_budget: config.node_repair_budget,
+      _auto_chain_active: config._auto_chain_active,
     };
 
     // Apply log level to logger (config takes precedence over env set at module load)
