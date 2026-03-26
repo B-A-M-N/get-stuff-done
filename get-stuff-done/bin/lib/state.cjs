@@ -336,9 +336,9 @@ function cmdStateAddDecision(cwd, options, raw) {
     let sectionBody = match[2];
     // Remove placeholders
     sectionBody = sectionBody.replace(/None yet\.?\s*\n?/gi, '').replace(/No decisions yet\.?\s*\n?/gi, '');
-    sectionBody = sectionBody.trimEnd() + '\n' + entry + '\n';
+    sectionBody = sectionBody.trimEnd();
 
-    // Decision Deduplication: Check if this exact decision already exists
+    // Decision Deduplication: Check if this exact decision already exists in the ORIGINAL set
     const normalizedEntry = entry.trim().toLowerCase();
     const existingEntries = sectionBody.split('\n').filter(line => line.trim().startsWith('- '));
     const isDuplicate = existingEntries.some(existing => existing.trim().toLowerCase() === normalizedEntry);
@@ -347,6 +347,9 @@ function cmdStateAddDecision(cwd, options, raw) {
       output({ added: false, reason: 'duplicate decision — already recorded' }, raw, 'false');
       return;
     }
+
+    // Append the new entry (now that we know it's not a duplicate)
+    sectionBody = sectionBody + (sectionBody ? '\n' : '') + entry + '\n';
 
     content = content.replace(sectionPattern, (_match, header) => `${header}${sectionBody}`);
     writeStateMd(statePath, content, cwd);
@@ -1206,19 +1209,40 @@ function cmdStateBeginPhase(cwd, phaseNumber, phaseName, planCount, raw) {
  */
 function cmdStatePause(cwd, reason, raw) {
   const statePath = path.join(cwd, '.planning', 'STATE.md');
-  const content = safeReadFile(statePath);
+  let content = safeReadFile(statePath);
 
   if (!content) {
     error('STATE.md not found — cannot pause');
   }
 
-  // Update Status to Paused
   let updated = false;
-  const statusPattern = /^Status:\s*(.+)$/m;
-  if (statusPattern.test(content)) {
-    const result = stateReplaceField(content, 'Status', 'Paused');
-    if (result) {
-      content = result;
+  const now = new Date().toISOString();
+
+  // Add Paused At: timestamp if not already present
+  const pausedAtPattern = /^Paused At:/im;
+  if (!pausedAtPattern.test(content)) {
+    // Find the closing frontmatter delimiter (second "---" line)
+    const lines = content.split('\n');
+    let fmEndLineIdx = -1;
+    let dashCount = 0;
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].trim() === '---') {
+        dashCount++;
+        if (dashCount === 2) {
+          fmEndLineIdx = i;
+          break;
+        }
+      }
+    }
+
+    if (fmEndLineIdx !== -1) {
+      // Insert Paused At after the closing delimiter
+      lines.splice(fmEndLineIdx + 1, 0, `Paused At: ${now}`, '');
+      content = lines.join('\n');
+      updated = true;
+    } else {
+      // Fallback: prepend to file (unlikely)
+      content = `Paused At: ${now}\n\n` + content;
       updated = true;
     }
   }
@@ -1226,7 +1250,7 @@ function cmdStatePause(cwd, reason, raw) {
   // Append pause reason to body if provided
   if (reason) {
     const pauseSection = `\n## Paused\n\n${reason}\n`;
-    // Insert after frontmatter and before first heading
+    // Insert after frontmatter and before first heading, or at end
     const insertionPoint = content.indexOf('\n## ');
     if (insertionPoint !== -1) {
       content = content.slice(0, insertionPoint) + pauseSection + content.slice(insertionPoint);
@@ -1238,9 +1262,9 @@ function cmdStatePause(cwd, reason, raw) {
 
   if (updated) {
     writeStateMd(statePath, content, cwd);
-    output({ paused: true, reason }, raw, 'paused');
+    output({ paused: true, reason, paused_at: now }, raw, 'paused');
   } else {
-    output({ paused: false, reason: null }, raw, 'already paused or no changes');
+    output({ paused: false, reason: null, message: 'already paused or no changes' }, raw, 'already paused');
   }
 }
 
@@ -1251,7 +1275,7 @@ function cmdStatePause(cwd, reason, raw) {
  */
 function cmdStateResume(cwd, raw) {
   const statePath = path.join(cwd, '.planning', 'STATE.md');
-  const content = safeReadFile(statePath);
+  let content = safeReadFile(statePath);
 
   if (!content) {
     error('STATE.md not found — cannot resume');
@@ -1259,20 +1283,14 @@ function cmdStateResume(cwd, raw) {
 
   let updated = false;
 
-  // Check if currently paused
-  const statusMatch = content.match(/^Status:\s*(.+)$/m);
-  const isPaused = statusMatch && statusMatch[1].toLowerCase() === 'paused';
-
-  if (isPaused) {
-    // Set status back to "In Progress" (or could be configurable)
-    const result = stateReplaceField(content, 'Status', 'In Progress');
-    if (result) {
-      content = result;
-      updated = true;
-    }
+  // Remove Paused At: line if present
+  const pausedAtPattern = /^Paused At:.*$/im;
+  if (pausedAtPattern.test(content)) {
+    content = content.replace(pausedAtPattern, '');
+    updated = true;
   }
 
-  // Remove Paused section from body
+  // Remove ## Paused section if present
   const pauseSectionPattern = /\n## Paused\n[\s\S]*?(?=\n##|\n#|\Z)/;
   if (pauseSectionPattern.test(content)) {
     content = content.replace(pauseSectionPattern, '');
