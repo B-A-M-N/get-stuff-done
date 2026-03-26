@@ -31,7 +31,7 @@ const finalData = JSON.parse(fs.readFileSync(finalPath, 'utf-8'));
 const summaryData = JSON.parse(fs.readFileSync(summaryPath, 'utf-8'));
 
 const LINE_THRESHOLD = 85;
-const BRANCH_THRESHOLD = 80;
+const BRANCH_THRESHOLD = 85;
 
 const gaps = [];
 const report = {};
