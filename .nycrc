@@ -4,19 +4,9 @@
   "branches": 80,
   "statements": 85,
   "include": [
-    "get-stuff-done/bin/lib/core.cjs",
-    "get-stuff-done/bin/lib/init.cjs",
-    "get-stuff-done/bin/lib/commands.cjs",
-    "get-stuff-done/bin/lib/phase.cjs",
-    "get-stuff-done/bin/lib/roadmap.cjs",
-    "get-stuff-done/bin/lib/config.cjs",
-    "get-stuff-done/bin/lib/itl.cjs",
-    "get-stuff-done/bin/lib/itl-ambiguity.cjs",
-    "get-stuff-done/bin/lib/gate.cjs",
-    "get-stuff-done/bin/lib/policy.cjs",
-    "get-stuff-done/bin/lib/authority.cjs",
-    "get-stuff-done/bin/lib/verify.cjs",
-    "get-stuff-done/bin/lib/state.cjs"
+    "packages/gsd-tools/src/logging/SafeLogger.js",
+    "packages/gsd-tools/src/validation/ProofHarness.js",
+    "packages/gsd-tools/src/audit/TruthAuditor.js"
   ],
   "exclude": [
     "tests/**",
