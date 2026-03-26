@@ -1,5 +1,5 @@
-import { test, describe, it, before, after } from 'node:test';
-import assert from 'node:assert';
+const { test, describe, it, before, after } = require('node:test');
+const assert = require('node:assert');
 
 // Firecrawl client
 const firecrawlClient = require('../get-stuff-done/bin/lib/firecrawl-client.cjs');

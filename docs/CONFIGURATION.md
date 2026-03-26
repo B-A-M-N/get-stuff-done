@@ -170,10 +170,9 @@ Control confirmation prompts during workflows.
 | `gates.confirm_phases` | boolean | `true` | Confirm phase breakdown |
 | `gates.confirm_roadmap` | boolean | `true` | Confirm roadmap before proceeding |
 | `gates.confirm_breakdown` | boolean | `true` | Confirm task breakdown |
-| `gates.confirm_plan` | boolean | `true` | Confirm each plan before execution |
-| `gates.execute_next_plan` | boolean | `true` | Confirm before executing next plan |
 | `gates.issues_review` | boolean | `true` | Review issues before creating fix plans |
 | `gates.confirm_transition` | boolean | `true` | Confirm phase transition |
+| `gates.confirm_milestone_scope` | boolean | `true` | Confirm milestone scope before completion |
 
 ---
 

@@ -234,9 +234,9 @@ Warnings include a `severity` field: `"stop"` means treat as a hard blocker; `"i
 
 **Workflow gate pattern:**
 ```bash
-if ! node gsd-tools.cjs gate enforce --key gates.confirm_plan; then
+if ! node gsd-tools.cjs gate enforce --key gates.confirm_project; then
   # Gate is active — present context, wait for human response
-  node gsd-tools.cjs gate release --key gates.confirm_plan
+  node gsd-tools.cjs gate release --key gates.confirm_project
 fi
 ```
 
