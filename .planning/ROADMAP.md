@@ -306,7 +306,7 @@ Plans:
 Plans:
 - [x] 52-01-PLAN.md — Test coverage closure (≥85% across critical modules)
 - [x] 52-02-PLAN.md — SafeLogger + kill tests for secret leakage prevention
-- [ ] 52-03-PLAN.md — Validation proof system with adversarial test harness
+- [x] 52-03-PLAN.md — Validation proof system with adversarial test harness
 - [ ] 52-04-PLAN.md — Truth audit engine (requirement → evidence mapping)
 
 ---
