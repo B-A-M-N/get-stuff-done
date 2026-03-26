@@ -801,7 +801,8 @@ function cmdStateAssert(cwd, raw) {
   const phasesDir = path.join(planningDir, 'phases');
   if (fs.existsSync(phasesDir)) {
     try {
-      const phaseDirs = fs.readdirSync(phasesDir).filter(d => d.startsWith('phase-'));
+      const entries = fs.readdirSync(phasesDir, { withFileTypes: true });
+      const phaseDirs = entries.filter(dirent => dirent.isDirectory()).map(dirent => dirent.name);
       for (const phaseDir of phaseDirs) {
         const phaseCheckpointPath = path.join(phasesDir, phaseDir, 'CHECKPOINT.md');
         if (fs.existsSync(phaseCheckpointPath)) {
@@ -834,11 +835,13 @@ function cmdStateAssert(cwd, raw) {
     },
   };
 
-  output(result, raw, passed ? 'passed' : 'failed');
-
-  if (!passed) {
-    process.exit(1); // Hard stop — workflow cannot proceed
+  // Output result manually and exit with appropriate code
+  if (raw) {
+    process.stdout.write(passed ? 'passed' : 'failed');
+  } else {
+    process.stdout.write(JSON.stringify(result, null, 2));
   }
+  process.exit(passed ? 0 : 1);
 }
 
 // ─── Live Verification ─────────────────────────────────────────────────────
