@@ -346,7 +346,7 @@ function buildOpenBrainRecallPackResult(result = {}, metadata = {}) {
   };
 }
 
-async function buildOpenBrainRecallPack({ workflow, pointer = {}, recallReader, projectScope } = {}) {
+async function buildOpenBrainRecallPack({ cwd, workflow, pointer = {}, recallReader, projectScope } = {}) {
   const phase = formatMemoryPhase(pointer.phase);
   const plan = workflow === 'execute-plan' ? formatMemoryPlan(pointer.plan) : null;
   const query = buildOpenBrainQuery({ workflow, pointer });
@@ -376,6 +376,18 @@ async function buildOpenBrainRecallPack({ workflow, pointer = {}, recallReader, 
           }
         ),
       };
+    }
+
+    if (cwd && result.recall_event) {
+      openBrain.trackWorkflowRecallEvent({
+        cwd,
+        workflow,
+        phase,
+        plan,
+        recallEvent: result.recall_event,
+        query,
+        selected: result.selected,
+      });
     }
 
     return {
@@ -561,6 +573,7 @@ async function buildExecutePlan(cwd, options) {
     pointer,
   });
   const { open_brain_recall } = await buildOpenBrainRecallPack({
+    cwd,
     workflow: 'execute-plan',
     pointer,
     recallReader: options.openBrainRecallReader,
@@ -675,6 +688,7 @@ async function buildPlanPhase(cwd, options = {}) {
     pointer: { phase: next_phase, plan: null },
   });
   const { open_brain_recall } = await buildOpenBrainRecallPack({
+    cwd,
     workflow: 'plan-phase',
     pointer: { phase: next_phase, plan: null },
     recallReader: options.openBrainRecallReader,

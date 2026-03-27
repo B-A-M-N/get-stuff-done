@@ -1,5 +1,8 @@
 const { describe, test } = require('node:test');
 const assert = require('node:assert');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
 
 const openBrain = require('../get-stuff-done/bin/lib/open-brain.cjs');
 const openBrainRanker = require('../get-stuff-done/bin/lib/open-brain-ranker.cjs');
@@ -160,5 +163,55 @@ describe('open brain ranking feedback loop', () => {
 
     assert.deepStrictEqual(after.selected.map((item) => item.id), ['memory-a', 'memory-b']);
     assert.strictEqual(after.recall_event.selected_ids[0], 'memory-a');
+  });
+
+  test('workflow lifecycle feedback records outcomes through tracked recall events', async () => {
+    const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'gsd-open-brain-'));
+    const recallEvents = [];
+    const storage = {
+      async updateRecallOutcome({ recallEventId, outcome, selected_ids }) {
+        const stored = {
+          id: String(recallEventId),
+          outcome,
+          selected_ids,
+        };
+        recallEvents.push(stored);
+        return stored;
+      },
+    };
+
+    openBrain.trackWorkflowRecallEvent({
+      cwd: tempRoot,
+      workflow: 'execute-plan',
+      phase: '55',
+      plan: '03',
+      recallEventId: 'recall-42',
+      selected_ids: ['memory-a', 'memory-b'],
+      query: 'phase 55 plan 03 open brain recall',
+    });
+
+    const recorded = await openBrain.recordWorkflowRecallOutcome({
+      cwd: tempRoot,
+      workflow: 'execute-plan',
+      phase: '55',
+      plan: '03',
+      outcome: 'helpful',
+      storage,
+      source_ref: '.planning/phases/55-open-brain-v1-foundations/55-03-SUMMARY.md',
+    });
+
+    assert.strictEqual(recorded.available, true);
+    assert.strictEqual(recorded.recall_event.id, 'recall-42');
+    assert.strictEqual(recallEvents[0].outcome, 'helpful');
+    assert.deepStrictEqual(recallEvents[0].selected_ids, ['memory-a', 'memory-b']);
+
+    const tracked = openBrain.readTrackedWorkflowRecallEvent({
+      cwd: tempRoot,
+      workflow: 'execute-plan',
+      phase: '55',
+      plan: '03',
+    });
+    assert.strictEqual(tracked.outcome, 'helpful');
+    assert.match(tracked.source_ref, /55-03-SUMMARY\.md$/);
   });
 });

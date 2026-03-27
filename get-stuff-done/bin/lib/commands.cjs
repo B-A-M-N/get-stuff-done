@@ -10,6 +10,7 @@ const { MODEL_PROFILES } = require('./model-profiles.cjs');
 const authority = require('./authority.cjs');
 const checkpointPlaneSync = require('./checkpoint-plane-sync.cjs');
 const secondBrain = require('./second-brain.cjs');
+const openBrain = require('./open-brain.cjs');
 
 function stripFrontmatter(content) {
   return String(content || '').replace(/^---\r?\n[\s\S]+?\r?\n---\r?\n?/, '');
@@ -90,10 +91,22 @@ function buildSummaryMemoryEntry(cwd, relPath) {
   };
 }
 
-async function writeCheckpointLifecycleMemory(phase, options, relPath) {
-  return secondBrain.writeModelFacingMemoryCheckpoint(
+async function writeCheckpointLifecycleMemory(cwd, phase, options, relPath) {
+  const memoryWriteback = await secondBrain.writeModelFacingMemoryCheckpoint(
     buildCheckpointMemoryEntry(phase, options, relPath)
   );
+  const recallOutcome = await openBrain.recordWorkflowRecallOutcome({
+    cwd,
+    workflow: 'execute-plan',
+    phase: String(phase),
+    plan: options.plan != null ? String(options.plan).padStart(2, '0') : null,
+    outcome: 'unused',
+    source_ref: relPath,
+  });
+  return {
+    ...memoryWriteback,
+    recall_outcome: recallOutcome,
+  };
 }
 
 async function writeSummaryLifecycleMemory(cwd, relPath) {
@@ -101,7 +114,19 @@ async function writeSummaryLifecycleMemory(cwd, relPath) {
   if (!entry) {
     return null;
   }
-  return secondBrain.writeModelFacingMemorySummary(entry);
+  const memoryWriteback = await secondBrain.writeModelFacingMemorySummary(entry);
+  const recallOutcome = await openBrain.recordWorkflowRecallOutcome({
+    cwd,
+    workflow: 'execute-plan',
+    phase: entry.phase,
+    plan: entry.plan,
+    outcome: 'helpful',
+    source_ref: relPath,
+  });
+  return {
+    ...memoryWriteback,
+    recall_outcome: recallOutcome,
+  };
 }
 
 function cmdGenerateSlug(text, raw) {
@@ -1201,7 +1226,7 @@ async function cmdCheckpointWrite(cwd, phase, options, raw) {
   let memory_writeback = null;
 
   try {
-    memory_writeback = await writeCheckpointLifecycleMemory(phase, options, relPath);
+    memory_writeback = await writeCheckpointLifecycleMemory(cwd, phase, options, relPath);
   } catch (err) {
     memory_writeback = {
       available: false,

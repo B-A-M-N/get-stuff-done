@@ -8,9 +8,204 @@ const { isPromotableOpenBrainArtifact } = require('./internal-normalizer.cjs');
 const OPEN_BRAIN_SCHEMA = 'gsd_open_brain';
 const REQUIRED_TABLES = ['memory_item', 'memory_link', 'recall_event', 'consolidation_job'];
 const SQL_PATH = path.resolve(__dirname, '..', '..', '..', 'scripts', 'init-open-brain.sql');
+const RECALL_TRACK_DIR = path.join('.planning', 'open-brain');
 
 function getBootstrapSql() {
   return fs.readFileSync(SQL_PATH, 'utf8');
+}
+
+async function ensureOpenBrainStorage() {
+  secondBrain.requirePostgres('Open Brain storage');
+  if (typeof secondBrain._ensureInitialized === 'function') {
+    await secondBrain._ensureInitialized();
+  }
+  await secondBrain.pool.query(getBootstrapSql());
+  return secondBrain.pool;
+}
+
+function toPgVector(value) {
+  if (!Array.isArray(value) || value.length === 0) return null;
+  return `[${value.map((entry) => Number(entry) || 0).join(',')}]`;
+}
+
+function normalizeMemoryIds(values) {
+  if (!Array.isArray(values)) return [];
+  return values
+    .filter((value) => value !== null && value !== undefined && value !== '')
+    .map((value) => String(value));
+}
+
+function getRecallTrackingPath(options = {}) {
+  const cwd = options.cwd || process.cwd();
+  const workflow = String(options.workflow || 'workflow');
+  const phase = options.phase == null ? 'none' : String(options.phase);
+  const plan = options.plan == null ? 'none' : String(options.plan);
+  return path.join(cwd, RECALL_TRACK_DIR, `${workflow}-${phase}-${plan}.json`);
+}
+
+function trackWorkflowRecallEvent(options = {}) {
+  const recallEventId = options.recallEventId || options.recallEvent?.id;
+  if (!recallEventId || !options.cwd) {
+    return null;
+  }
+
+  const trackingPath = getRecallTrackingPath(options);
+  fs.mkdirSync(path.dirname(trackingPath), { recursive: true });
+  const payload = {
+    workflow: options.workflow || null,
+    phase: options.phase || null,
+    plan: options.plan || null,
+    query: options.query || null,
+    recall_event_id: String(recallEventId),
+    selected_ids: normalizeMemoryIds(options.selected_ids || options.selected?.map((item) => item.id)),
+    source_ref: options.source_ref || null,
+    outcome: options.outcome || null,
+    tracked_at: new Date().toISOString(),
+  };
+  fs.writeFileSync(trackingPath, JSON.stringify(payload, null, 2), 'utf8');
+  return payload;
+}
+
+function readTrackedWorkflowRecallEvent(options = {}) {
+  const trackingPath = getRecallTrackingPath(options);
+  if (!fs.existsSync(trackingPath)) return null;
+  return JSON.parse(fs.readFileSync(trackingPath, 'utf8'));
+}
+
+async function createStorageAdapter() {
+  const pool = await ensureOpenBrainStorage();
+  return {
+    async writeMemory(memoryItem) {
+      const result = await pool.query(
+        `INSERT INTO ${OPEN_BRAIN_SCHEMA}.memory_item
+           (project_scope, memory_type, title, body_markdown, source_uri, source_kind, embedding,
+            importance_score, confidence_score, reuse_count, last_recalled_at, status, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7::vector, $8, $9, $10, $11, $12, $13, $14)
+         RETURNING id::text AS id, project_scope, memory_type, title, body_markdown, source_uri, source_kind,
+                   importance_score, confidence_score, reuse_count, last_recalled_at, superseded_by, status,
+                   created_at, updated_at`,
+        [
+          memoryItem.project_scope || null,
+          memoryItem.memory_type,
+          memoryItem.title,
+          memoryItem.body_markdown,
+          memoryItem.source_uri || null,
+          memoryItem.source_kind || null,
+          toPgVector(memoryItem.embedding),
+          memoryItem.importance_score ?? 0,
+          memoryItem.confidence_score ?? 0,
+          memoryItem.reuse_count ?? 0,
+          memoryItem.last_recalled_at || null,
+          memoryItem.status || 'promoted',
+          memoryItem.created_at || new Date().toISOString(),
+          memoryItem.updated_at || new Date().toISOString(),
+        ]
+      );
+      return result.rows[0] || null;
+    },
+
+    async writeMemoryLink(link) {
+      const result = await pool.query(
+        `INSERT INTO ${OPEN_BRAIN_SCHEMA}.memory_link (from_id, to_id, relation_type, score)
+         VALUES ($1, $2, $3, $4)
+         RETURNING id::text AS id, from_id::text AS from_id, to_id::text AS to_id, relation_type, score, created_at`,
+        [link.from_id, link.to_id, link.relation_type, link.score ?? 0]
+      );
+      return result.rows[0] || null;
+    },
+
+    async searchMemories(options = {}) {
+      const limit = Number.isFinite(Number(options.limit)) ? Math.max(Number(options.limit), 1) : 5;
+      const result = await pool.query(
+        `SELECT
+           mi.id::text AS id,
+           mi.project_scope,
+           mi.memory_type,
+           mi.title,
+           mi.body_markdown,
+           mi.source_uri,
+           mi.source_kind,
+           mi.embedding::text AS embedding_text,
+           mi.importance_score,
+           mi.confidence_score,
+           mi.reuse_count,
+           mi.last_recalled_at,
+           mi.superseded_by::text AS superseded_by,
+           mi.status,
+           mi.created_at,
+           mi.updated_at,
+           COALESCE(helpful.helpful_count, 0) AS helpful_count,
+           COALESCE(harmful.harmful_count, 0) AS harmful_count
+         FROM ${OPEN_BRAIN_SCHEMA}.memory_item mi
+         LEFT JOIN LATERAL (
+           SELECT COUNT(*)::int AS helpful_count
+           FROM ${OPEN_BRAIN_SCHEMA}.recall_event re
+           WHERE re.outcome = 'helpful' AND re.selected_ids ? (mi.id::text)
+         ) helpful ON true
+         LEFT JOIN LATERAL (
+           SELECT COUNT(*)::int AS harmful_count
+           FROM ${OPEN_BRAIN_SCHEMA}.recall_event re
+           WHERE re.outcome = 'harmful' AND re.selected_ids ? (mi.id::text)
+         ) harmful ON true
+         ORDER BY mi.updated_at DESC
+         LIMIT $1`,
+        [Math.max(limit * 5, 10)]
+      );
+
+      return result.rows.map((row) => ({
+        ...row,
+        embedding: row.embedding_text
+          ? row.embedding_text.replace(/^\[|\]$/g, '').split(',').filter(Boolean).map((value) => Number(value))
+          : null,
+      }));
+    },
+
+    async writeRecallEvent(event) {
+      const retrievedIds = normalizeMemoryIds(event.retrieved_ids);
+      const selectedIds = normalizeMemoryIds(event.selected_ids);
+      const result = await pool.query(
+        `INSERT INTO ${OPEN_BRAIN_SCHEMA}.recall_event
+           (workflow, phase, plan, query_text, retrieved_ids, selected_ids, outcome, feedback_score, created_at)
+         VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb, $7, $8, $9)
+         RETURNING id::text AS id, workflow, phase, plan, query_text, retrieved_ids, selected_ids, outcome, feedback_score, created_at`,
+        [
+          event.workflow || null,
+          event.phase || null,
+          event.plan || null,
+          event.query_text,
+          JSON.stringify(retrievedIds),
+          JSON.stringify(selectedIds),
+          event.outcome || null,
+          event.feedback_score ?? null,
+          event.created_at || new Date().toISOString(),
+        ]
+      );
+      return result.rows[0] || null;
+    },
+
+    async updateRecallOutcome({ recallEventId, outcome, selected_ids }) {
+      const normalizedSelectedIds = normalizeMemoryIds(selected_ids);
+      const feedbackScore = outcome === 'helpful' ? 1 : outcome === 'harmful' ? -1 : 0;
+      const result = await pool.query(
+        `UPDATE ${OPEN_BRAIN_SCHEMA}.recall_event
+         SET outcome = $2,
+             feedback_score = $3,
+             selected_ids = CASE
+               WHEN $4::jsonb = '[]'::jsonb THEN selected_ids
+               ELSE $4::jsonb
+             END
+         WHERE id = $1::bigint
+         RETURNING id::text AS id, workflow, phase, plan, query_text, retrieved_ids, selected_ids, outcome, feedback_score, created_at`,
+        [
+          String(recallEventId),
+          outcome,
+          feedbackScore,
+          JSON.stringify(normalizedSelectedIds),
+        ]
+      );
+      return result.rows[0] || null;
+    },
+  };
 }
 
 function getSchemaContract() {
@@ -207,7 +402,7 @@ function sanitizeMemory(memory) {
 }
 
 async function loadSearchCandidates(options = {}) {
-  const storage = getStorage(options);
+  const storage = getStorage(options) || await createStorageAdapter();
   if (!storage || typeof storage.searchMemories !== 'function') {
     throw new Error('Open Brain search requires a storage.searchMemories adapter.');
   }
@@ -236,7 +431,7 @@ function filterCandidates(candidates, options = {}) {
 async function ingestNormalizedArtifact(artifact, options = {}) {
   validateNormalizedArtifact(artifact);
 
-  const storage = getStorage(options);
+  const storage = getStorage(options) || await createStorageAdapter();
   if (!storage || typeof storage.writeMemory !== 'function') {
     throw new Error('Open Brain ingestion requires a storage.writeMemory adapter.');
   }
@@ -308,7 +503,7 @@ async function searchOpenBrain(options = {}) {
 
 async function recallForWorkflow(options = {}) {
   const result = await searchOpenBrain(options);
-  const storage = getStorage(options);
+  const storage = getStorage(options) || await createStorageAdapter();
   let recallEvent = null;
 
   if (storage && typeof storage.writeRecallEvent === 'function') {
@@ -331,7 +526,7 @@ async function recallForWorkflow(options = {}) {
 }
 
 async function recordRecallOutcome(options = {}) {
-  const storage = getStorage(options);
+  const storage = getStorage(options) || await createStorageAdapter();
   if (!storage || typeof storage.updateRecallOutcome !== 'function') {
     throw new Error('Open Brain feedback requires a storage.updateRecallOutcome adapter.');
   }
@@ -351,6 +546,47 @@ async function recordRecallOutcome(options = {}) {
   });
 }
 
+async function recordWorkflowRecallOutcome(options = {}) {
+  const tracked = options.recallEventId
+    ? null
+    : readTrackedWorkflowRecallEvent(options);
+  const recallEventId = options.recallEventId || tracked?.recall_event_id;
+
+  if (!recallEventId) {
+    return {
+      available: false,
+      blocked: false,
+      reason: 'no_recall_event',
+      message: 'No tracked Open Brain recall event found for this workflow lifecycle.',
+    };
+  }
+
+  const selectedIds = Array.isArray(options.selected_ids) && options.selected_ids.length > 0
+    ? options.selected_ids
+    : tracked?.selected_ids;
+  const result = await recordRecallOutcome({
+    ...options,
+    recallEventId,
+    selected_ids: selectedIds,
+  });
+
+  if (options.cwd) {
+    trackWorkflowRecallEvent({
+      ...options,
+      recallEventId,
+      selected_ids: selectedIds,
+      outcome: options.outcome,
+      source_ref: options.source_ref || tracked?.source_ref || null,
+    });
+  }
+
+  return {
+    available: true,
+    blocked: false,
+    recall_event: result,
+  };
+}
+
 module.exports = {
   OPEN_BRAIN_SCHEMA,
   REQUIRED_TABLES,
@@ -358,11 +594,15 @@ module.exports = {
   getBootstrapSql,
   getSchemaContract,
   checkAvailability,
+  createStorageAdapter,
   ingestNormalizedArtifact,
   promoteMemoryCandidate,
   recallForWorkflow,
   recordRecallOutcome,
+  recordWorkflowRecallOutcome,
   searchOpenBrain,
   sanitizeMemory,
+  trackWorkflowRecallEvent,
+  readTrackedWorkflowRecallEvent,
   validateNormalizedArtifact,
 };

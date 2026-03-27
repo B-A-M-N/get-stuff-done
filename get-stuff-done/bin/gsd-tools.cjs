@@ -833,8 +833,27 @@ async function main() {
         const status = openBrain.checkAvailability();
         process.stdout.write(JSON.stringify(status, null, 2) + '\n');
         process.exit(0);
+      } else if (subcommand === 'recall-feedback') {
+        const workflowIdx = args.indexOf('--workflow');
+        const phaseIdx = args.indexOf('--phase');
+        const planIdx = args.indexOf('--plan');
+        const outcomeIdx = args.indexOf('--outcome');
+        const sourceRefIdx = args.indexOf('--source-ref');
+        const recallEventIdIdx = args.indexOf('--recall-event-id');
+
+        const result = await openBrain.recordWorkflowRecallOutcome({
+          cwd,
+          workflow: workflowIdx !== -1 ? args[workflowIdx + 1] : null,
+          phase: phaseIdx !== -1 ? args[phaseIdx + 1] : null,
+          plan: planIdx !== -1 ? args[planIdx + 1] : null,
+          outcome: outcomeIdx !== -1 ? args[outcomeIdx + 1] : null,
+          source_ref: sourceRefIdx !== -1 ? args[sourceRefIdx + 1] : null,
+          recallEventId: recallEventIdIdx !== -1 ? args[recallEventIdIdx + 1] : null,
+        });
+        process.stdout.write(JSON.stringify(result, null, 2) + '\n');
+        process.exit(result.available === false && result.reason === 'no_recall_event' ? 1 : 0);
       } else {
-        error('Unknown brain subcommand. Available: status, health, open-status');
+        error('Unknown brain subcommand. Available: status, health, open-status, recall-feedback');
       }
       break;
     }
