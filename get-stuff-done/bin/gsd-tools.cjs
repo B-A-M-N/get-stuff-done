@@ -266,6 +266,7 @@ const driftCatalog = require('./lib/drift-catalog.cjs');
 const driftEngine = require('./lib/drift-engine.cjs');
 const driftReconcile = require('./lib/drift-reconcile.cjs');
 const degradedMode = require('./lib/degraded-mode.cjs');
+const commandGovernance = require('./lib/command-governance.cjs');
 
 async function enforceWorkflowOrBlock(cwd, workflow, options = {}) {
   const snapshot = await degradedMode.buildDegradedState(cwd, options);
@@ -275,6 +276,17 @@ async function enforceWorkflowOrBlock(cwd, workflow, options = {}) {
     process.stdout.write(JSON.stringify(decision, null, 2) + '\n');
     process.exit(1);
   }
+  return decision;
+}
+
+async function enforceRouteGovernanceOrBlock(cwd, args, raw, options = {}) {
+  const route = commandGovernance.buildRouteFromArgs(args);
+  const decision = await commandGovernance.evaluateCommandGovernance(cwd, route, options);
+  if (!decision.allowed) {
+    process.stdout.write(JSON.stringify(decision, null, 2) + '\n');
+    process.exit(1);
+  }
+  commandGovernance.emitGovernanceWarning(decision, raw);
   return decision;
 }
 
@@ -346,6 +358,8 @@ async function main() {
   if (!command) {
     error('Usage: gsd-tools <command> [args] [--raw] [--cwd <path>]\nCommands: state, resolve-model, find-phase, commit, verify-summary, verify, frontmatter, template, generate-slug, current-timestamp, list-todos, verify-path-exists, policy, config-ensure-section, init, itl');
   }
+
+  await enforceRouteGovernanceOrBlock(cwd, args, raw);
 
   switch (command) {
     case 'state': {
@@ -733,7 +747,6 @@ async function main() {
         getVerify().cmdVerifyOrphanedState(cwd, args[2], raw);
       } else if (subcommand === 'workflow-readiness') {
         const phaseIdx = args.indexOf('--phase');
-        await enforceWorkflowOrBlock(cwd, 'verify:workflow-readiness');
         getVerify().cmdVerifyWorkflowReadiness(cwd, args[2], {
           phase: phaseIdx !== -1 ? args[phaseIdx + 1] : null,
           skip_research: args.includes('--skip-research'),
@@ -753,7 +766,6 @@ async function main() {
       } else if (subcommand === 'integrity') {
         const intPhaseIdx = args.indexOf('--phase');
         const intPlanIdx = args.indexOf('--plan');
-        await enforceWorkflowOrBlock(cwd, 'verify:integrity');
         getVerify().cmdVerifyIntegrity(cwd, {
           phase: intPhaseIdx !== -1 ? args[intPhaseIdx + 1] : null,
           plan: intPlanIdx !== -1 ? args[intPlanIdx + 1] : null,
@@ -1744,11 +1756,6 @@ async function main() {
         const phaseVal = phaseIdx !== -1 ? args[phaseIdx + 1] : null;
         const planIdx = args.indexOf('--plan');
         const planVal = planIdx !== -1 ? args[planIdx + 1] : null;
-        if (workflow === 'plan-phase') {
-          await enforceWorkflowOrBlock(cwd, 'context:plan-phase');
-        } else if (workflow === 'execute-plan') {
-          await enforceWorkflowOrBlock(cwd, 'context:execute-plan');
-        }
         await getContext().cmdContextBuild(cwd, workflow, { phase: phaseVal, plan: planVal }, raw);
       } else if (sub === 'read') {
         const ids = args.slice(2).filter(a => !a.startsWith('--'));
