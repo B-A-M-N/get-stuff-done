@@ -897,6 +897,87 @@ describe('verify summary command', () => {
     assert.ok(output.errors.some(err => err.includes('Task commit hashes not found in git history')));
   });
 
+  test('requires structured proof index for phase 71 summaries', () => {
+    fs.writeFileSync(path.join(tmpDir, 'task.txt'), 'task\n');
+    execSync('git add -A', { cwd: tmpDir, stdio: 'pipe' });
+    execSync('git commit -m "task 1"', { cwd: tmpDir, stdio: 'pipe' });
+    const hash = execSync('git rev-parse --short HEAD', { cwd: tmpDir, encoding: 'utf-8' }).trim();
+
+    const summaryPath = path.join(tmpDir, '.planning', 'phases', '01-test', '71-01-SUMMARY.md');
+    fs.writeFileSync(summaryPath, [
+      '---',
+      'phase: 71',
+      'plan: 01',
+      'subsystem: truth',
+      'tags: [proof]',
+      'provides: [proof-chain]',
+      'context_artifact_ids: [phase-71-proof]',
+      'duration: 5min',
+      'completed: 2026-03-27',
+      '---',
+      '# Summary',
+      '',
+      '- **Tasks:** 1',
+      '',
+      '## Task Commits',
+      '',
+      `- Task 1: ${hash}`,
+    ].join('\n'));
+
+    const output = JSON.parse(runGsdTools('verify-summary .planning/phases/01-test/71-01-SUMMARY.md', tmpDir).output);
+    assert.strictEqual(output.passed, false);
+    assert.ok(output.errors.some(err => err.includes('Missing required ## Proof Index section')));
+  });
+
+  test('accepts structured proof index for phase 71 summaries', () => {
+    fs.writeFileSync(path.join(tmpDir, 'task.txt'), 'task\n');
+    execSync('git add -A', { cwd: tmpDir, stdio: 'pipe' });
+    execSync('git commit -m "task 1"', { cwd: tmpDir, stdio: 'pipe' });
+    const hash = execSync('git rev-parse --short HEAD', { cwd: tmpDir, encoding: 'utf-8' }).trim();
+
+    const summaryPath = path.join(tmpDir, '.planning', 'phases', '01-test', '71-02-SUMMARY.md');
+    fs.writeFileSync(summaryPath, [
+      '---',
+      'phase: 71',
+      'plan: 02',
+      'subsystem: truth',
+      'tags: [proof]',
+      'provides: [proof-chain]',
+      'context_artifact_ids: [phase-71-proof]',
+      'duration: 5min',
+      'completed: 2026-03-27',
+      '---',
+      '# Summary',
+      '',
+      '- **Tasks:** 1',
+      '',
+      '## Task Commits',
+      '',
+      `- Task 1: ${hash}`,
+      '',
+      '## Proof Index',
+      '',
+      '```json',
+      JSON.stringify([
+        {
+          task: 1,
+          canonical_commit: hash,
+          files: ['task.txt'],
+          verify: 'node --test tests/proof.test.cjs',
+          evidence: ['node --test tests/proof.test.cjs'],
+          runtime_required: false,
+          runtime_proof: [],
+        },
+      ], null, 2),
+      '```',
+    ].join('\n'));
+
+    const output = JSON.parse(runGsdTools('verify-summary .planning/phases/01-test/71-02-SUMMARY.md', tmpDir).output);
+    assert.strictEqual(output.passed, true, JSON.stringify(output));
+    assert.strictEqual(output.checks.proof_index.required, true);
+    assert.strictEqual(output.checks.proof_index.entries, 1);
+  });
+
   test('verify-work-cold-start reports runtime-sensitive summary paths', () => {
     fs.mkdirSync(path.join(tmpDir, 'src'), { recursive: true });
     fs.writeFileSync(path.join(tmpDir, 'src', 'server.js'), 'console.log("server");\n');

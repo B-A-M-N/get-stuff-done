@@ -12,6 +12,7 @@ const { checkpointResponseSchema, executionSummarySchema } = require('./artifact
 
 function extractSummaryReferencedPaths(content, frontmatter = {}) {
   const found = new Set();
+  const contentWithoutCodeBlocks = String(content || '').replace(/```[\s\S]*?```/g, '');
   const keyFiles = frontmatter['key-files'];
   if (keyFiles && typeof keyFiles === 'object') {
     for (const bucket of ['created', 'modified']) {
@@ -33,7 +34,7 @@ function extractSummaryReferencedPaths(content, frontmatter = {}) {
 
   for (const pattern of patterns) {
     let match;
-    while ((match = pattern.exec(content)) !== null) {
+    while ((match = pattern.exec(contentWithoutCodeBlocks)) !== null) {
       const candidate = match[1]?.trim();
       if (candidate && candidate.includes('/') && !candidate.startsWith('http')) {
         found.add(candidate);
@@ -74,6 +75,42 @@ function extractTaskCommitHashes(content) {
   }
 
   return { sectionPresent: true, hashes };
+}
+
+function extractStructuredProofIndex(content) {
+  const sectionMatch = content.match(/##\s*Proof Index([\s\S]*?)(?:\n##\s|\n#\s|$)/i);
+  if (!sectionMatch) {
+    return { sectionPresent: false, entries: [], parse_error: null };
+  }
+
+  const blockMatch = sectionMatch[1].match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (!blockMatch) {
+    return { sectionPresent: true, entries: [], parse_error: 'missing fenced JSON block' };
+  }
+
+  try {
+    const parsed = JSON.parse(blockMatch[1]);
+    return {
+      sectionPresent: true,
+      entries: Array.isArray(parsed) ? parsed : [],
+      parse_error: Array.isArray(parsed) ? null : 'proof index must be a JSON array',
+    };
+  } catch (err) {
+    return { sectionPresent: true, entries: [], parse_error: err.message };
+  }
+}
+
+function normalizeProofEntry(entry = {}) {
+  return {
+    task: entry.task != null ? Number(entry.task) : null,
+    proof_mode: entry.proof_mode || 'commit',
+    canonical_commit: entry.canonical_commit || entry.hash || null,
+    files: Array.isArray(entry.files) ? entry.files.map(String) : [],
+    verify: entry.verify || entry.verify_command || null,
+    evidence: Array.isArray(entry.evidence) ? entry.evidence.map(String) : [],
+    runtime_required: Boolean(entry.runtime_required),
+    runtime_proof: Array.isArray(entry.runtime_proof) ? entry.runtime_proof.map(String) : [],
+  };
 }
 
 function cmdVerifySummary(cwd, summaryPath, checkFileCount, raw) {
@@ -142,10 +179,13 @@ function cmdVerifySummary(cwd, summaryPath, checkFileCount, raw) {
   const commitsExist = allHashes.length > 0 && invalidHashes.length === 0;
 
   const taskCommitInfo = extractTaskCommitHashes(content);
+  const proofIndexInfo = extractStructuredProofIndex(content);
+  const normalizedProofEntries = proofIndexInfo.entries.map(normalizeProofEntry);
   const uniqueTaskHashes = Array.from(new Set(taskCommitInfo.hashes));
   const invalidTaskHashes = uniqueTaskHashes.filter(hash => invalidHashes.includes(hash));
   const declaredTaskCount = extractTaskCountFromSummary(content);
   const taskCommitsRequired = !isLegacy;
+  const structuredProofRequired = !isNaN(phaseNum) && phaseNum >= 71;
 
   let selfCheck = 'not_found';
   const selfCheckPattern = /##\s*(?:Self[- ]?Check|Verification|Quality Check)/i;
@@ -182,6 +222,51 @@ function cmdVerifySummary(cwd, summaryPath, checkFileCount, raw) {
     errors.push('Task commit hashes not found in git history: ' + invalidTaskHashes.join(', '));
   }
 
+  if (structuredProofRequired && !proofIndexInfo.sectionPresent) {
+    errors.push('Missing required ## Proof Index section');
+  }
+  if (proofIndexInfo.parse_error) {
+    errors.push(`Proof Index parse error: ${proofIndexInfo.parse_error}`);
+  }
+  if (structuredProofRequired && normalizedProofEntries.length === 0) {
+    errors.push('Proof Index must contain at least one structured proof entry');
+  }
+
+  const invalidProofHashes = [];
+  const proofEntryErrors = [];
+  for (const entry of normalizedProofEntries) {
+    if (entry.task == null || Number.isNaN(entry.task)) {
+      proofEntryErrors.push('Proof Index entry missing numeric task id');
+    }
+    if (!Array.isArray(entry.files) || entry.files.length === 0) {
+      proofEntryErrors.push(`Proof Index task ${entry.task ?? '?'} missing files`);
+    }
+    if (!entry.verify) {
+      proofEntryErrors.push(`Proof Index task ${entry.task ?? '?'} missing verify command`);
+    }
+    if (!Array.isArray(entry.evidence) || entry.evidence.length === 0) {
+      proofEntryErrors.push(`Proof Index task ${entry.task ?? '?'} missing evidence`);
+    }
+    if (entry.proof_mode !== 'proof_only' && !entry.canonical_commit) {
+      proofEntryErrors.push(`Proof Index task ${entry.task ?? '?'} missing canonical commit`);
+    }
+    if (entry.canonical_commit) {
+      const result = execGit(cwd, ['cat-file', '-t', entry.canonical_commit]);
+      if (!(result.exitCode === 0 && result.stdout.trim() === 'commit')) {
+        invalidProofHashes.push(entry.canonical_commit);
+      }
+    }
+    if (entry.runtime_required && (!Array.isArray(entry.runtime_proof) || entry.runtime_proof.length === 0)) {
+      proofEntryErrors.push(`Proof Index task ${entry.task ?? '?'} missing runtime proof`);
+    }
+  }
+  if (invalidProofHashes.length > 0) {
+    errors.push('Proof Index canonical commits not found in git history: ' + invalidProofHashes.join(', '));
+  }
+  if (proofEntryErrors.length > 0) {
+    errors.push(...proofEntryErrors);
+  }
+
   const passed = errors.length === 0;
 
   const checks = {
@@ -196,6 +281,13 @@ function cmdVerifySummary(cwd, summaryPath, checkFileCount, raw) {
       unique: uniqueTaskHashes.length,
       section_present: taskCommitInfo.sectionPresent,
       invalid: invalidTaskHashes,
+    },
+    proof_index: {
+      required: structuredProofRequired,
+      section_present: proofIndexInfo.sectionPresent,
+      parsed: !proofIndexInfo.parse_error,
+      entries: normalizedProofEntries.length,
+      invalid: invalidProofHashes,
     },
     self_check: selfCheck,
   };
@@ -2668,32 +2760,68 @@ function runVerifyIntegrity(cwd, options) {
       if (fs.existsSync(summaryFile) && fs.existsSync(logFile)) {
         const summaryContent = fs.readFileSync(summaryFile, 'utf-8');
         const summaryInfo = extractTaskCommitHashes(summaryContent);
+        const proofIndexInfo = extractStructuredProofIndex(summaryContent);
         const summaryHashSet = new Set(summaryInfo.hashes);
 
         const lines = fs.readFileSync(logFile, 'utf-8').trim().split('\n').filter(Boolean);
         const logHashes = [];
+        const logEntries = [];
         for (const line of lines) {
           let entry = null;
           try { entry = JSON.parse(line); } catch { continue; }
+          if (!entry) continue;
+          logEntries.push(normalizeProofEntry(entry));
           if (entry?.hash) logHashes.push(entry.hash);
         }
         const logHashSet = new Set(logHashes);
 
         const inLogNotSummary = logHashes.filter(h => !summaryHashSet.has(h));
         const inSummaryNotLog = summaryInfo.hashes.filter(h => !logHashSet.has(h));
+        const requiresStructuredProof = parseInt(String(phase), 10) >= 71;
+        const summaryProofEntries = proofIndexInfo.entries.map(normalizeProofEntry);
+        const summaryByTask = new Map(summaryProofEntries.map(entry => [entry.task, entry]));
+        const structuredMismatches = [];
+        if (requiresStructuredProof) {
+          for (const entry of logEntries) {
+            const summaryEntry = summaryByTask.get(entry.task);
+            if (!summaryEntry) {
+              structuredMismatches.push({ task: entry.task, reason: 'missing task entry in Proof Index' });
+              continue;
+            }
+            const filesMatch = JSON.stringify([...entry.files].sort()) === JSON.stringify([...summaryEntry.files].sort());
+            const evidencePresent = Array.isArray(summaryEntry.evidence) && summaryEntry.evidence.length > 0;
+            const verifyPresent = Boolean(summaryEntry.verify);
+            const commitMatches = (entry.canonical_commit || null) === (summaryEntry.canonical_commit || null);
+            if (!commitMatches) structuredMismatches.push({ task: entry.task, reason: 'canonical commit mismatch' });
+            if (!filesMatch) structuredMismatches.push({ task: entry.task, reason: 'files mismatch' });
+            if (!verifyPresent) structuredMismatches.push({ task: entry.task, reason: 'missing verify command' });
+            if (!evidencePresent) structuredMismatches.push({ task: entry.task, reason: 'missing evidence' });
+            if (entry.runtime_required && (!summaryEntry.runtime_proof || summaryEntry.runtime_proof.length === 0)) {
+              structuredMismatches.push({ task: entry.task, reason: 'missing runtime proof' });
+            }
+          }
+          if (!proofIndexInfo.sectionPresent) {
+            structuredMismatches.push({ task: null, reason: 'missing Proof Index section' });
+          }
+        }
 
         summaryAgreement = {
-          pass: inLogNotSummary.length === 0 && inSummaryNotLog.length === 0,
+          pass: inLogNotSummary.length === 0 && inSummaryNotLog.length === 0 && structuredMismatches.length === 0,
           log_count: logHashes.length,
           summary_count: summaryInfo.hashes.length,
           in_log_not_summary: inLogNotSummary,
           in_summary_not_log: inSummaryNotLog,
+          structured_mismatches: structuredMismatches,
+          proof_index_present: proofIndexInfo.sectionPresent,
         };
         if (inLogNotSummary.length > 0) {
           errors.push(`${inLogNotSummary.length} task log hash(es) absent from SUMMARY ## Task Commits: ${inLogNotSummary.join(', ')}`);
         }
         if (inSummaryNotLog.length > 0) {
           warnings.push(`${inSummaryNotLog.length} hash(es) in SUMMARY ## Task Commits not found in task log (may be legitimate if log was reset): ${inSummaryNotLog.join(', ')}`);
+        }
+        if (structuredMismatches.length > 0) {
+          errors.push(`Structured proof index mismatch: ${structuredMismatches.map(item => `task ${item.task} ${item.reason}`).join('; ')}`);
         }
       }
     }

@@ -86,13 +86,18 @@ describe('E2E: task commit enforcement across multiple tasks', () => {
     fs.writeFileSync(path.join(tmpDir, 'api.js'), 'module.exports = {}\n');
     const r = runGsdTools(
       ['commit-task', 'feat(01-01): add api module', '--scope', '01-01',
-        '--phase', '01', '--plan', '01', '--task', '1', '--files', 'api.js'],
+        '--phase', '01', '--plan', '01', '--task', '1',
+        '--proof-type', 'behavioral',
+        '--verify-command', 'node --test tests/api.test.cjs',
+        '--evidence', 'node --test tests/api.test.cjs',
+        '--files', 'api.js'],
       tmpDir
     );
     assert.ok(r.success, r.error);
     const out = JSON.parse(r.output);
     assert.strictEqual(out.verified, true);
     assert.ok(out.task_log_path, 'task_log_path should be returned');
+    assert.ok(out.proof_log_path, 'proof_log_path should be returned');
 
     // Log file must exist and contain the record
     const logPath = path.join(tmpDir, '.planning', 'phases', '01-auth', '01-01-TASK-LOG.jsonl');
@@ -102,8 +107,19 @@ describe('E2E: task commit enforcement across multiple tasks', () => {
     const record = JSON.parse(lines[0]);
     assert.strictEqual(record.task, 1);
     assert.strictEqual(record.hash, out.hash);
+    assert.strictEqual(record.canonical_commit, out.hash);
     assert.strictEqual(record.scope, '01-01');
+    assert.strictEqual(record.proof_type, 'behavioral');
+    assert.deepStrictEqual(record.files, ['api.js']);
+    assert.strictEqual(record.verify_command, 'node --test tests/api.test.cjs');
+    assert.deepStrictEqual(record.evidence, ['node --test tests/api.test.cjs']);
     assert.ok(record.ts, 'timestamp should be present');
+
+    const proofLogPath = path.join(tmpDir, '.proof', 'task-log.jsonl');
+    assert.ok(fs.existsSync(proofLogPath), 'global proof log should exist');
+    const proofRecord = JSON.parse(fs.readFileSync(proofLogPath, 'utf-8').trim().split('\n')[0]);
+    assert.strictEqual(proofRecord.task, 1);
+    assert.strictEqual(proofRecord.canonical_commit, out.hash);
   });
 
   test('multiple tasks append to same log file', () => {

@@ -129,6 +129,145 @@ async function writeSummaryLifecycleMemory(cwd, relPath) {
   };
 }
 
+function getProofDir(cwd) {
+  return path.join(cwd, '.proof');
+}
+
+function getGlobalProofLogPath(cwd) {
+  return path.join(getProofDir(cwd), 'task-log.jsonl');
+}
+
+function getProofFailureLogPath(cwd) {
+  return path.join(getProofDir(cwd), 'failures.jsonl');
+}
+
+function appendJsonlRecord(filePath, record) {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.appendFileSync(filePath, JSON.stringify(record) + '\n', 'utf-8');
+}
+
+function normalizeStringArray(values) {
+  return (Array.isArray(values) ? values : [])
+    .map(value => String(value || '').trim())
+    .filter(Boolean);
+}
+
+function normalizeProofType(proofType, proofOnly, files = []) {
+  if (proofType) return String(proofType).trim().toLowerCase();
+  if (proofOnly) return 'audit';
+  return 'artifact';
+}
+
+function inferRuntimeSurface(files = []) {
+  const runtimePatterns = [
+    /(^|\/)get-stuff-done\/bin\//,
+    /(^|\/)bin\//,
+    /(^|\/)cmd\//,
+    /(^|\/)scripts\//,
+    /(^|\/)docs\/commands\.md$/,
+    /(^|\/)docs\/readme\.md$/,
+    /(^|\/)readme\.md$/,
+  ];
+  return files.some((file) => {
+    const normalized = String(file || '').replace(/\\/g, '/').toLowerCase();
+    return runtimePatterns.some(pattern => pattern.test(normalized));
+  });
+}
+
+function resolveChangedFilesForCommit(cwd, hash) {
+  if (!hash) return [];
+  const result = execGit(cwd, ['show', '--pretty=format:', '--name-only', hash]);
+  if (result.exitCode !== 0) return [];
+  return result.stdout
+    .split('\n')
+    .map(line => line.trim())
+    .filter(Boolean)
+    .map(file => file.replace(/\\/g, '/'));
+}
+
+function buildProofRecord(cwd, hash, subject, scope, files, options = {}) {
+  const branchResult = execGit(cwd, ['rev-parse', '--abbrev-ref', 'HEAD']);
+  const branch = branchResult.exitCode === 0 ? branchResult.stdout.trim() : null;
+  const changedFiles = hash ? resolveChangedFilesForCommit(cwd, hash) : files.map(file => String(file).replace(/\\/g, '/'));
+  const ancestorCommits = normalizeStringArray(options.ancestor_commits);
+  if (options.prev_hash && !ancestorCommits.includes(options.prev_hash)) {
+    ancestorCommits.unshift(options.prev_hash);
+  }
+
+  return {
+    phase: options.phase != null ? String(options.phase).padStart(2, '0') : null,
+    plan: options.plan != null ? String(options.plan).padStart(2, '0') : null,
+    task: options.task != null ? Number(options.task) : null,
+    scope,
+    subject,
+    proof_type: normalizeProofType(options.proof_type, options.proof_only, files),
+    proof_mode: options.proof_only ? 'proof_only' : 'commit',
+    canonical_commit: hash || null,
+    hash: hash || null,
+    ancestor_commits: ancestorCommits,
+    files: changedFiles,
+    declared_files: files.map(file => String(file).replace(/\\/g, '/')),
+    verify_command: options.verify_command ? String(options.verify_command).trim() : null,
+    evidence: normalizeStringArray(options.evidence),
+    runtime_required: Boolean(options.runtime_surface) || inferRuntimeSurface(changedFiles),
+    runtime_proof: normalizeStringArray(options.runtime_proof),
+    branch,
+    ts: new Date().toISOString(),
+  };
+}
+
+function validateProofRecord(record) {
+  const errors = [];
+
+  if (!record.scope) errors.push('Proof record missing scope');
+  if (!Array.isArray(record.files) || record.files.length === 0) errors.push('Proof record missing changed file set');
+
+  if (record.proof_mode === 'commit') {
+    if (!record.canonical_commit) errors.push('Commit-backed proof requires a canonical commit');
+  } else if (record.proof_mode === 'proof_only') {
+    if (record.canonical_commit) errors.push('Proof-only tasks must not record a canonical commit');
+    if (!Array.isArray(record.evidence) || record.evidence.length === 0) {
+      errors.push('Proof-only tasks require explicit replacement evidence');
+    }
+  }
+
+  if (record.proof_type === 'behavioral') {
+    if (!Array.isArray(record.evidence) || record.evidence.length === 0) {
+      errors.push('Behavior-changing tasks require execution evidence');
+    }
+    if (!record.verify_command) {
+      errors.push('Behavior-changing tasks require a verification command');
+    }
+  }
+
+  if (record.proof_type === 'audit') {
+    if (!Array.isArray(record.evidence) || record.evidence.length === 0) {
+      errors.push('Audit/no-op tasks require explicit evidence');
+    }
+    if (!record.verify_command) {
+      errors.push('Audit/no-op tasks require a verification command');
+    }
+  }
+
+  if (record.runtime_required && (!Array.isArray(record.runtime_proof) || record.runtime_proof.length === 0)) {
+    errors.push('Runtime-facing tasks require installed/runtime proof');
+  }
+
+  return errors;
+}
+
+function emitProofFailureArtifact(cwd, record, errors) {
+  const artifact = {
+    ...record,
+    status: 'INVALID',
+    errors: normalizeStringArray(errors),
+    ts: new Date().toISOString(),
+  };
+  const filePath = getProofFailureLogPath(cwd);
+  appendJsonlRecord(filePath, artifact);
+  return filePath;
+}
+
 function cmdGenerateSlug(text, raw) {
   if (!text) {
     error('text required for slug generation');
@@ -443,116 +582,118 @@ function cmdCommitTask(cwd, message, files, scope, options, raw) {
     }
   }
 
-  // Stage files
-  for (const file of files) {
-    // Sign file before staging if phase/plan/wave available
-    if (options.phase && options.plan) {
-      const wave = options.wave || options.task || '1';
-      const filePath = path.isAbsolute(file) ? file : path.join(cwd, file);
-      if (fs.existsSync(filePath) && !fs.lstatSync(filePath).isDirectory()) {
-        authority.signFile(filePath, options.phase, options.plan, wave);
+  let hash = null;
+  let committed = false;
+  let subject = message;
+  let scopeMatches = true;
+  let commitErrors = [];
+
+  if (!options.proof_only) {
+    for (const file of files) {
+      if (options.phase && options.plan) {
+        const wave = options.wave || options.task || '1';
+        const filePath = path.isAbsolute(file) ? file : path.join(cwd, file);
+        if (fs.existsSync(filePath) && !fs.lstatSync(filePath).isDirectory()) {
+          authority.signFile(filePath, options.phase, options.plan, wave);
+        }
+      }
+
+      const addResult = execGit(cwd, ['add', file]);
+      if (addResult.exitCode !== 0) {
+        output({
+          committed: false, verified: false, hash: null, subject: null,
+          scope, scope_matches: false,
+          errors: [`git add failed for ${file}: ${addResult.stderr || addResult.stdout}`],
+        }, raw, 'failed');
+        return;
       }
     }
 
-    const addResult = execGit(cwd, ['add', file]);
-    if (addResult.exitCode !== 0) {
-      output({
-        committed: false, verified: false, hash: null, subject: null,
-        scope, scope_matches: false,
-        errors: [`git add failed for ${file}: ${addResult.stderr || addResult.stdout}`],
-      }, raw, 'failed');
+    const commitResult = execGit(cwd, ['commit', '-m', message]);
+    if (commitResult.exitCode !== 0) {
+      if (commitResult.stdout.includes('nothing to commit') || commitResult.stderr.includes('nothing to commit')) {
+        process.stdout.write(JSON.stringify({ committed: false, verified: false, hash: null, subject: null, scope, scope_matches: false, errors: ['nothing to commit'] }, null, 2));
+        process.exit(1);
+      }
+      output({ committed: false, verified: false, hash: null, subject: null, scope, scope_matches: false, errors: [commitResult.stderr || 'commit failed'] }, raw, 'failed');
       return;
     }
-  }
 
-  // Commit
-  const commitResult = execGit(cwd, ['commit', '-m', message]);
-  if (commitResult.exitCode !== 0) {
-    if (commitResult.stdout.includes('nothing to commit') || commitResult.stderr.includes('nothing to commit')) {
-      process.stdout.write(JSON.stringify({ committed: false, verified: false, hash: null, subject: null, scope, scope_matches: false, errors: ['nothing to commit'] }, null, 2));
-      process.exit(1);
+    const hashResult = execGit(cwd, ['rev-parse', '--short', 'HEAD']);
+    if (hashResult.exitCode !== 0) {
+      output({ committed: true, verified: false, hash: null, subject: null, scope, scope_matches: false, errors: ['could not resolve HEAD hash'] }, raw, 'failed');
+      return;
     }
-    output({ committed: false, verified: false, hash: null, subject: null, scope, scope_matches: false, errors: [commitResult.stderr || 'commit failed'] }, raw, 'failed');
-    return;
+    hash = hashResult.stdout.trim();
+    committed = true;
+
+    const typeResult = execGit(cwd, ['cat-file', '-t', hash]);
+    const exists = typeResult.exitCode === 0 && typeResult.stdout.trim() === 'commit';
+
+    const headResult = execGit(cwd, ['rev-parse', '--short', 'HEAD']);
+    const isHead = headResult.exitCode === 0 && headResult.stdout.trim() === hash;
+
+    const subjectResult = execGit(cwd, ['log', '-1', '--format=%s', hash]);
+    subject = subjectResult.exitCode === 0 ? subjectResult.stdout.trim() : null;
+    const openParen = subject ? subject.indexOf('(') : -1;
+    const closeParen = subject ? subject.indexOf('):') : -1;
+    const subjectScope = openParen !== -1 && closeParen !== -1 && closeParen > openParen
+      ? subject.slice(openParen + 1, closeParen)
+      : null;
+    scopeMatches = subjectScope === scope;
+
+    if (!exists) commitErrors.push('Commit hash not found in git history');
+    if (exists && !isHead) commitErrors.push('Task commit is not the current HEAD');
+    if (!scopeMatches) commitErrors.push(`Task commit subject does not match expected scope ${scope}`);
   }
 
-  // Resolve HEAD hash
-  const hashResult = execGit(cwd, ['rev-parse', '--short', 'HEAD']);
-  if (hashResult.exitCode !== 0) {
-    output({ committed: true, verified: false, hash: null, subject: null, scope, scope_matches: false, errors: ['could not resolve HEAD hash'] }, raw, 'failed');
-    return;
-  }
-  const hash = hashResult.stdout.trim();
+  const proofRecord = buildProofRecord(cwd, hash, subject, scope, files, options);
+  const proofErrors = validateProofRecord(proofRecord);
+  const errors = [...commitErrors, ...proofErrors];
 
-  // Verify: hash is a real commit object
-  const typeResult = execGit(cwd, ['cat-file', '-t', hash]);
-  const exists = typeResult.exitCode === 0 && typeResult.stdout.trim() === 'commit';
-
-  // Verify: hash is current HEAD (always true here since we just committed, but confirms no race)
-  const headResult = execGit(cwd, ['rev-parse', '--short', 'HEAD']);
-  const isHead = headResult.exitCode === 0 && headResult.stdout.trim() === hash;
-
-  // Verify: commit subject contains the expected scope
-  const subjectResult = execGit(cwd, ['log', '-1', '--format=%s', hash]);
-  const subject = subjectResult.exitCode === 0 ? subjectResult.stdout.trim() : null;
-  const openParen = subject ? subject.indexOf('(') : -1;
-  const closeParen = subject ? subject.indexOf('):') : -1;
-  const subjectScope = openParen !== -1 && closeParen !== -1 && closeParen > openParen
-    ? subject.slice(openParen + 1, closeParen)
-    : null;
-  const scopeMatches = subjectScope === scope;
-
-  const errors = [];
-  if (!exists) errors.push('Commit hash not found in git history');
-  if (exists && !isHead) errors.push('Task commit is not the current HEAD');
-  if (!scopeMatches) errors.push(`Task commit subject does not match expected scope ${scope}`);
-
-  // Persist task hash record when phase/plan/task are provided and commit is valid
   let task_log_path = null;
+  let proof_log_path = null;
+  let failure_artifact_path = null;
   if (errors.length === 0 && options.phase && options.plan) {
     const phaseInfo = findPhaseInternal(cwd, options.phase);
     if (phaseInfo) {
       const logFile = `${options.phase}-${options.plan}-TASK-LOG.jsonl`;
       const absDir = path.join(cwd, phaseInfo.directory);
       task_log_path = path.join(absDir, logFile);
-      const branchResult = execGit(cwd, ['rev-parse', '--abbrev-ref', 'HEAD']);
-      const branch = branchResult.exitCode === 0 ? branchResult.stdout.trim() : null;
-      const record = JSON.stringify({
-        task: options.task != null ? Number(options.task) : null,
-        hash,
-        subject,
-        scope,
-        branch,
-        ts: new Date().toISOString(),
-      });
+      proof_log_path = getGlobalProofLogPath(cwd);
       try {
-        fs.appendFileSync(task_log_path, record + '\n', 'utf-8');
+        appendJsonlRecord(task_log_path, proofRecord);
+        appendJsonlRecord(proof_log_path, proofRecord);
       } catch (appendErr) {
-        // Log append failure is fatal — the commit succeeded (hash is valid) but
-        // the task log is now out of sync. Caller must not proceed; they can
-        // re-append manually using: task-log reconstruct --phase N --plan M
         const result = {
-          committed: true,
+          committed,
           verified: false,
           hash,
           subject,
           scope,
-          errors: [`Task log append failed: ${appendErr.message} — commit ${hash} succeeded but was not recorded. Run: task-log reconstruct --phase ${options.phase} --plan ${options.plan}`],
+          errors: [`Task log append failed: ${appendErr.message} — commit ${hash || 'proof-only task'} was not recorded. Run: task-log reconstruct --phase ${options.phase} --plan ${options.plan}`],
         };
         process.stdout.write(JSON.stringify(result, null, 2) + '\n');
         process.exit(1);
       }
     }
+  } else if (errors.length > 0) {
+    failure_artifact_path = emitProofFailureArtifact(cwd, proofRecord, errors);
   }
 
   const result = {
-    committed: true,
+    committed,
     verified: errors.length === 0,
     hash,
     subject,
     scope,
     scope_matches: scopeMatches,
     task_log_path,
+    proof_log_path,
+    failure_artifact_path,
+    proof_type: proofRecord.proof_type,
+    proof_mode: proofRecord.proof_mode,
+    runtime_required: proofRecord.runtime_required,
     errors,
   };
 
@@ -654,6 +795,13 @@ function cmdCompleteTask(cwd, message, files, scope, options, raw) {
     plan: options.plan,
     task: options.task,
     prev_hash: options.prev_hash || auto_prev_hash,
+    proof_type: options.proof_type,
+    evidence: options.evidence,
+    verify_command: options.verify_command,
+    runtime_proof: options.runtime_proof,
+    runtime_surface: options.runtime_surface,
+    ancestor_commits: options.ancestor_commits,
+    proof_only: options.proof_only,
   }, raw);
 }
 

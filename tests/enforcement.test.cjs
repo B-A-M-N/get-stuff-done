@@ -70,6 +70,135 @@ describe('enforcement: gate pending stops flow', () => {
   });
 });
 
+describe('enforcement: typed proof and runtime proof', () => {
+  let tmpDir;
+
+  beforeEach(() => { tmpDir = createTempGitProject(); });
+  afterEach(() => { cleanup(tmpDir); });
+
+  test('behavior-changing task without execution evidence exits 1 and writes failure artifact', () => {
+    fs.writeFileSync(path.join(tmpDir, 'feature.js'), 'module.exports = {}\n');
+
+    const r = runGsdTools(
+      ['commit-task', 'feat(01-01): feature', '--scope', '01-01',
+        '--proof-type', 'behavioral',
+        '--verify-command', 'node --test tests/feature.test.cjs',
+        '--files', 'feature.js'],
+      tmpDir
+    );
+
+    assert.strictEqual(r.success, false, 'behavioral task without evidence should fail');
+    const out = JSON.parse(r.output);
+    assert.ok(out.errors.some(e => e.includes('Behavior-changing tasks require execution evidence')));
+    assert.ok(out.failure_artifact_path, 'failure artifact path should be returned');
+
+    const failureLines = fs.readFileSync(out.failure_artifact_path, 'utf-8').trim().split('\n').filter(Boolean);
+    const failure = JSON.parse(failureLines[failureLines.length - 1]);
+    assert.strictEqual(failure.status, 'INVALID');
+    assert.strictEqual(failure.proof_type, 'behavioral');
+  });
+
+  test('runtime-facing task without runtime proof exits 1 and writes failure artifact', () => {
+    fs.writeFileSync(path.join(tmpDir, 'cli.js'), 'module.exports = {}\n');
+
+    const r = runGsdTools(
+      ['commit-task', 'feat(01-01): cli', '--scope', '01-01',
+        '--proof-type', 'behavioral',
+        '--verify-command', 'node --test tests/cli.test.cjs',
+        '--evidence', 'node --test tests/cli.test.cjs',
+        '--runtime-surface',
+        '--files', 'cli.js'],
+      tmpDir
+    );
+
+    assert.strictEqual(r.success, false, 'runtime-facing task without runtime proof should fail');
+    const out = JSON.parse(r.output);
+    assert.ok(out.errors.some(e => e.includes('Runtime-facing tasks require installed/runtime proof')));
+    assert.ok(out.failure_artifact_path, 'failure artifact path should be returned');
+  });
+
+  test('proof-only audit task succeeds when explicit evidence is supplied', () => {
+    fs.mkdirSync(path.join(tmpDir, '.planning', 'phases', '01-auth'), { recursive: true });
+    fs.writeFileSync(path.join(tmpDir, 'existing.md'), '# existing\n');
+
+    const r = runGsdTools(
+      ['commit-task', 'docs(01-01): audit existing state', '--scope', '01-01',
+        '--phase', '01', '--plan', '01', '--task', '1',
+        '--proof-only', '--proof-type', 'audit',
+        '--verify-command', 'node get-stuff-done/bin/gsd-tools.cjs verify integrity --phase 01 --plan 01',
+        '--evidence', 'file:existing.md',
+        '--files', 'existing.md'],
+      tmpDir
+    );
+
+    assert.ok(r.success, r.error);
+    const out = JSON.parse(r.output);
+    assert.strictEqual(out.committed, false);
+    assert.strictEqual(out.verified, true);
+    const logPath = path.join(tmpDir, '.planning', 'phases', '01-auth', '01-01-TASK-LOG.jsonl');
+    const entry = JSON.parse(fs.readFileSync(logPath, 'utf-8').trim().split('\n')[0]);
+    assert.strictEqual(entry.proof_mode, 'proof_only');
+    assert.strictEqual(entry.canonical_commit, null);
+  });
+
+  test('phase 71 integrity requires structured proof index agreement', () => {
+    const phaseDir = path.join(tmpDir, '.planning', 'phases', '71-proof');
+    fs.mkdirSync(phaseDir, { recursive: true });
+    fs.writeFileSync(path.join(tmpDir, 'feature.js'), 'module.exports = {}\n');
+
+    const r = runGsdTools(
+      ['commit-task', 'feat(71-01): feature', '--scope', '71-01',
+        '--phase', '71', '--plan', '01', '--task', '1',
+        '--proof-type', 'behavioral',
+        '--verify-command', 'node --test tests/feature.test.cjs',
+        '--evidence', 'node --test tests/feature.test.cjs',
+        '--files', 'feature.js'],
+      tmpDir
+    );
+    assert.ok(r.success, r.error);
+    const hash = JSON.parse(r.output).hash;
+
+    fs.writeFileSync(path.join(phaseDir, '71-01-SUMMARY.md'), [
+      '---',
+      'phase: 71',
+      'plan: 01',
+      'subsystem: truth',
+      'tags: [proof]',
+      'provides: [proof-chain]',
+      'duration: 5min',
+      'completed: 2026-03-27',
+      '---',
+      '# Summary',
+      '',
+      '- **Tasks:** 1',
+      '',
+      '## Task Commits',
+      '',
+      `- Task 1: ${hash}`,
+      '',
+      '## Proof Index',
+      '',
+      '```json',
+      JSON.stringify([
+        {
+          task: 1,
+          canonical_commit: hash,
+          files: ['feature.js'],
+          verify: 'node --test tests/feature.test.cjs',
+          evidence: ['node --test tests/feature.test.cjs'],
+          runtime_required: false,
+          runtime_proof: [],
+        },
+      ], null, 2),
+      '```',
+    ].join('\n'));
+
+    const ri = runGsdTools(['verify', 'integrity', '--phase', '71', '--plan', '01'], tmpDir);
+    const out = JSON.parse(ri.output);
+    assert.strictEqual(out.checks.task_log_summary_agreement.pass, true, JSON.stringify(out.checks.task_log_summary_agreement));
+  });
+});
+
 // ─────────────────────────────────────────────────────────────────────────────
 // 2. Missing checkpoint artifact blocks completion
 // ─────────────────────────────────────────────────────────────────────────────

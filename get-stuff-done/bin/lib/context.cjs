@@ -762,6 +762,9 @@ function cmdContextNormalize(cwd, sourceUri, contentPath, options = {}) {
 
   try {
     const saved = contextStore.put(cwd, artifact);
+    if (options.silent) {
+      return saved;
+    }
     output({ id: saved.id }, options.raw, 'stored');
   } catch (err) {
     error(`Failed to store artifact: ${err.message}`);

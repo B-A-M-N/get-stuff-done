@@ -24,12 +24,18 @@
  *   commit <message> [--files f1 f2]   Commit planning docs
  *   commit-task <message> --scope <phase-plan> --files f1 [f2 ...]
  *     [--phase <phase>] [--plan <plan>] [--task <N>]
+ *     [--proof-type behavioral|artifact|audit] [--verify-command "<cmd>"]
+ *     [--evidence <ref>]... [--runtime-proof <ref>]... [--runtime-surface]
+ *     [--proof-only] [--ancestor-commit <hash>]...
  *     [--prev-hash <hash>]             Verify <hash> is still HEAD before staging — catches
  *                                      out-of-band commits between tasks automatically
  *                                      Commit task source files, verify atomically, and
- *                                      optionally persist hash to per-plan TASK-LOG.jsonl
+ *                                      persist structured proof to per-plan and global logs
  *   complete-task <message> --scope <phase-plan> --files f1 [f2 ...]
  *     --phase <phase> --plan <plan> --task <N>
+ *     [--proof-type behavioral|artifact|audit] [--verify-command "<cmd>"]
+ *     [--evidence <ref>]... [--runtime-proof <ref>]... [--runtime-surface]
+ *     [--proof-only] [--ancestor-commit <hash>]...
  *     [--prev-hash <hash>]             Stricter wrapper around commit-task:
  *                                      --phase/--plan/--task are REQUIRED (not optional),
  *                                      auto-injects --prev-hash from last task log entry,
@@ -516,7 +522,34 @@ async function main() {
       }
       const ctPrevHashIdx = args.indexOf('--prev-hash');
       const ctPrevHash = ctPrevHashIdx !== -1 ? args[ctPrevHashIdx + 1] : null;
-      getCommands().cmdCommitTask(cwd, ctMessage, ctFiles, ctScope, { phase: ctPhase, plan: ctPlan, task: ctTask, wave: ctWave, prev_hash: ctPrevHash }, raw);
+      const ctProofTypeIdx = args.indexOf('--proof-type');
+      const ctProofType = ctProofTypeIdx !== -1 ? args[ctProofTypeIdx + 1] : null;
+      const ctVerifyCommandIdx = args.indexOf('--verify-command');
+      const ctVerifyCommand = ctVerifyCommandIdx !== -1 ? args[ctVerifyCommandIdx + 1] : null;
+      const ctRuntimeSurface = args.includes('--runtime-surface');
+      const ctProofOnly = args.includes('--proof-only');
+      const ctEvidence = [];
+      const ctRuntimeProof = [];
+      const ctAncestorCommits = [];
+      for (let j = 0; j < args.length; j++) {
+        if (args[j] === '--evidence' && args[j + 1]) ctEvidence.push(args[j + 1]);
+        if (args[j] === '--runtime-proof' && args[j + 1]) ctRuntimeProof.push(args[j + 1]);
+        if (args[j] === '--ancestor-commit' && args[j + 1]) ctAncestorCommits.push(args[j + 1]);
+      }
+      getCommands().cmdCommitTask(cwd, ctMessage, ctFiles, ctScope, {
+        phase: ctPhase,
+        plan: ctPlan,
+        task: ctTask,
+        wave: ctWave,
+        prev_hash: ctPrevHash,
+        proof_type: ctProofType,
+        verify_command: ctVerifyCommand,
+        evidence: ctEvidence,
+        runtime_proof: ctRuntimeProof,
+        runtime_surface: ctRuntimeSurface,
+        proof_only: ctProofOnly,
+        ancestor_commits: ctAncestorCommits,
+      }, raw);
       break;
     }
 
@@ -549,7 +582,35 @@ async function main() {
       }
       const cptPrevHashIdx = args.indexOf('--prev-hash');
       const cptPrevHash = cptPrevHashIdx !== -1 ? args[cptPrevHashIdx + 1] : null;
-      getCommands().cmdCompleteTask(cwd, cptMessage, cptFiles, cptScope, { phase: cptPhase, plan: cptPlan, task: cptTask, wave: cptWave, prev_hash: cptPrevHash, force_scope: cptForceScope }, raw);
+      const cptProofTypeIdx = args.indexOf('--proof-type');
+      const cptProofType = cptProofTypeIdx !== -1 ? args[cptProofTypeIdx + 1] : null;
+      const cptVerifyCommandIdx = args.indexOf('--verify-command');
+      const cptVerifyCommand = cptVerifyCommandIdx !== -1 ? args[cptVerifyCommandIdx + 1] : null;
+      const cptRuntimeSurface = args.includes('--runtime-surface');
+      const cptProofOnly = args.includes('--proof-only');
+      const cptEvidence = [];
+      const cptRuntimeProof = [];
+      const cptAncestorCommits = [];
+      for (let j = 0; j < args.length; j++) {
+        if (args[j] === '--evidence' && args[j + 1]) cptEvidence.push(args[j + 1]);
+        if (args[j] === '--runtime-proof' && args[j + 1]) cptRuntimeProof.push(args[j + 1]);
+        if (args[j] === '--ancestor-commit' && args[j + 1]) cptAncestorCommits.push(args[j + 1]);
+      }
+      getCommands().cmdCompleteTask(cwd, cptMessage, cptFiles, cptScope, {
+        phase: cptPhase,
+        plan: cptPlan,
+        task: cptTask,
+        wave: cptWave,
+        prev_hash: cptPrevHash,
+        force_scope: cptForceScope,
+        proof_type: cptProofType,
+        verify_command: cptVerifyCommand,
+        evidence: cptEvidence,
+        runtime_proof: cptRuntimeProof,
+        runtime_surface: cptRuntimeSurface,
+        proof_only: cptProofOnly,
+        ancestor_commits: cptAncestorCommits,
+      }, raw);
       break;
     }
 
