@@ -33,6 +33,11 @@ Phase 74 is the first mutation phase in the drift stack. It should apply consequ
   - conditional validity
   - re-verification required markers
   - degraded operator health
+- Downgrade matrix is fixed:
+  - `CRITICAL` -> `verification_status=INVALID`, `phase_status=INVALID`, `roadmap_status=BLOCKED`, `operator_health=UNHEALTHY`
+  - `MAJOR` -> `verification_status=CONDITIONAL`, `phase_status=CONDITIONAL`, `roadmap_status=AT_RISK`, `operator_health=DEGRADED`
+  - `MINOR` -> `verification_status=VALID`, `phase_status=VALID`, `roadmap_status=INFO`, `operator_health=HEALTHY_WITH_WARNINGS`
+- Worst severity wins per affected surface.
 
 ### Truth surfaces in scope
 - Phase 74 reconciliation may affect:
@@ -47,23 +52,47 @@ Phase 74 is the first mutation phase in the drift stack. It should apply consequ
 - Re-verification requirements must be machine-readable so later operator and audit flows can act on them deterministically.
 
 ### Sanctioned output
-- Phase 74 should produce a deterministic reconciliation artifact or status record describing:
-  - input drift report identity
+- Phase 74 must produce `.planning/drift/latest-reconciliation.json` as the canonical audit artifact.
+- The reconciliation artifact must record:
+  - source report identity
   - applied downgrade decisions
+  - unchanged surfaces
   - re-verification requirements
-  - untouched historical findings
-- Exact artifact layout remains implementation discretion so long as it is machine-readable and attributable.
+  - severity summary
+- Every applied change must carry `from`, `to`, `reason`, and evidence reference fields.
+
+### Command surface
+- Canonical mutation entrypoint: `gsd:drift reconcile`
+- Supporting dry-run surface: `gsd:drift preview`
+- `gsd:drift status` remains the read-only operator truth surface
+- `reconcile` is the only mutation command
+
+### Mutation scope lock
+- Phase 74 must mutate:
+  - `STATE.md` truth and degraded markers
+  - phase metadata or phase-status truth markers
+  - operator health markers
+  - machine-readable re-verification markers
+- Phase 74 must not mutate:
+  - `ROADMAP.md` structure
+  - `REQUIREMENTS.md`
+  - historical artifacts
+  - code or runtime behavior itself
+
+### Adapter boundary
+- Phase 74 must normalize Phase 73 report inputs through a thin reconciliation adapter before rule evaluation.
+- Reconciliation logic must not depend directly on raw Phase 73 report shape.
+- Adapter location is expected to live alongside reconciliation code as a narrow translation layer.
 
 ### Claude's Discretion
-- Exact downgrade matrix by surface and severity
-- Exact sanctioned command shape for reconciliation
-- Whether reconciliation writes one central artifact plus targeted state updates, or a small family of consistent artifacts
+- Exact field names inside the adapter-normalized intermediate structure
+- Exact representation of phase metadata markers so long as mutation stays inside sanctioned surfaces
 
 </decisions>
 
 ### Unresolved Ambiguities
 
-- None blocking for planning. Exact artifact layout and command shape are implementation choices, not phase-thesis ambiguity.
+- None
 
 ### Interpreted Assumptions
 
@@ -137,4 +166,4 @@ Phase 74 is the first mutation phase in the drift stack. It should apply consequ
 *Phase: 74-state-reconciliation-layer*
 *Context gathered: 2026-03-27*
 
-<!-- GSD-AUTHORITY: 74-00-0:c296852a0729d057a59f5e37f4a37b8d15c1444a1092fdac406dd68498f4659c -->
+<!-- GSD-AUTHORITY: 74-00-0:e0f8fc80d103c5a47e621be250d2fb434bfb37f2db31acc7a4a60c4fd3c9799e -->
