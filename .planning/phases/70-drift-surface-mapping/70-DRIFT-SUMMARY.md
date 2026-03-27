@@ -24,4 +24,5 @@ Source of truth: `.planning/phases/70-drift-surface-mapping/drift_catalog.yaml`
 ## Installed vs Repo-Local Truth
 - `phase70-installed-milestone-resolution` — activity `healthy`, severity `MINOR`
 - `phase70-open-brain-runtime-split` — activity `active`, severity `CRITICAL`
+
 <!-- GSD-AUTHORITY: 70-02-2:87908fd04bce15d789ec70d45950d4af878acce2ff8b3fd6e10d8dd20de70ba5 -->
