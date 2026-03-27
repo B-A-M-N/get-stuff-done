@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v0.2
-milestone_name: milestone
-current_plan: Phase 54-02 complete; Phase 54 is fully complete
+milestone: v0.6.0
+milestone_name: Open Brain Foundations
+current_plan: Phase 55-01 complete; ready for Phase 55-02
 status: active
-stopped_at: Completed 54-02-PLAN.md
-last_updated: "2026-03-27T02:03:45.549Z"
+stopped_at: Completed 55-01-PLAN.md
+last_updated: "2026-03-27T13:25:05.232Z"
 progress:
-  total_phases: 16
+  total_phases: 17
   completed_phases: 11
-  total_plans: 29
-  completed_plans: 25
+  total_plans: 32
+  completed_plans: 26
 ---
 
 # Project State
@@ -20,14 +20,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-17)
 
 **Core value:** Runtime-bound orchestration integrity — enforcement that cannot be bypassed by following a different workflow path.
-**Current focus:** Phase 54 is complete; the sanctioned model-facing memory path now covers bounded workflow reads and executor lifecycle writeback without bypassing Firecrawl.
+**Current focus:** Phase 55 is in progress; the Open Brain sidecar now has its separate schema/bootstrap foundation and optional degraded-mode contract without weakening the Firecrawl or Second Brain boundaries.
 
 ## Current Position
 
-Phase: 54
-Plan: 02
-**Current Plan:** Phase 54-02 complete; Phase 54 is fully complete
-**Total Plans in Phase:** 2
+Phase: 55
+Plan: 01
+**Current Plan:** Phase 55-01 complete; ready for Phase 55-02
+**Total Plans in Phase:** 3
 
 ## Performance Metrics
 
@@ -70,6 +70,7 @@ Plan: 02
 | Phase 52 P03 | 6min | 2 tasks | 21 files |
 | Phase 52 P04 | 13min | 4 tasks | 19 files |
 | Phase 54 P01 | session-based | 3 tasks | 6 files |
+| Phase 55 P01 | 2min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -165,32 +166,24 @@ Plan: 02
 - [Phase 54]: Workflow context now carries a bounded memory_pack with curated decisions, summaries, pitfalls, and unresolved blockers instead of raw workflow-memory rows.
 - [Phase 54]: Executor lifecycle writeback is attached to the real checkpoint and summary completion hooks so checkpoint and summary memory flows through sanctioned helpers rather than direct storage calls.
 - [Phase 54]: Planner guidance explicitly treats memory_pack as internal execution memory only, preserving Firecrawl as the sole external-context boundary.
+- [Phase 55]: Open Brain foundation lives in `gsd_open_brain` as a sidecar contract and explicitly leaves execution truth with Second Brain.
+- [Phase 55]: The default embedding target is `fastembed`, but the adapter reports unavailable capability instead of making local embeddings a hard runtime dependency.
+- [Phase 55]: Operator visibility is limited to a truthful `brain open-status` readiness surface so Open Brain health is observable without conflating it with Second Brain backend truth.
 
 ### Blockers/Concerns
 
-- No active blocker for Phase 54. Future work should preserve the explicit split between Firecrawl-managed external context and sanctioned internal workflow memory.
+- No active blocker for Phase 55. Future work should preserve the explicit split between Open Brain semantic recall, Firecrawl normalization, and Second Brain execution truth.
 
 ### Pending Todos
 
-- 0 pending todos for Phase 54. Model-facing Second Brain MCP integration is now wired through the sanctioned workflow contract.
+- 0 pending todos for Phase 55. Open Brain sidecar foundations are in place and the next work is planned ingestion and retrieval.
 
 ## Session Continuity
 
-Last session: 2026-03-27T02:03:45.545Z
-Stopped at: Completed 54-02-PLAN.md
+Last session: 2026-03-27T13:25:05.229Z
+Stopped at: Completed 55-01-PLAN.md
 Resume file: None
 Checkpoint Status: None
 Checkpoint Path: None
 
-<!-- GSD-AUTHORITY: 28-02-3:8a43d14ba0f51b66a1b1b3504f525deefbbc6aee55db6710c6b6792574237a21 -->
-<!-- GSD-AUTHORITY: 42-02-1:327e26beee92b16110688b40091c6557cb6954aa774c7a92de3df1e35755d2fd -->
-<!-- GSD-AUTHORITY: 42-03-1:89696fc8bcd070f8073b706a33b3b9f74cd0d43a2d73382a2539d3dcbb48f7a4 -->
-<!-- GSD-AUTHORITY: 42-42-04-1:10a4864406e65e4a6016a88079527b10a17d9e2c59c7f025b46a9cf2fd82369a -->
-<!-- GSD-AUTHORITY: 46-01-1:4509114a83ad683e69853c247a2f1936dc3ce9fb56b8e33fcbc58e737ea0bb59 -->
-<!-- GSD-AUTHORITY: 46-02-1:d81b8bd4e43419d6701a869b12e397e868f02395f4a12f517772f680605efb14 -->
-<!-- GSD-AUTHORITY: 46-02-1:4399f08f3d2548d702535a1ef6d592a77256df27381523b3012bb14365f892a1 -->
-<!-- GSD-AUTHORITY: 46-02-1:c2b6fb115d2655174739e5be2c83624798e88b1b4024ddaa57ba6059b6ee8228 -->
-<!-- GSD-AUTHORITY: 47-01-1:cc80360048b0f057d4cd1db4cd4bd82f42b01baa784289b9105f06c23d54f4bf -->
-<!-- GSD-AUTHORITY: 47-01-1:85fe132a1df102cacad9d11d9a3c15ea731712289d1efdd0739214886ee7ba23 -->
-<!-- GSD-AUTHORITY: 47-02-1:4065454f2badb7d9d4a2daf00970bad9e4a8e0efa105499ff32854c210d18228 -->
-<!-- GSD-AUTHORITY: 53-01-1:cd725139c5fe413da7e00b95f8b5e9dd951972ce6089f105e2f8432e17a1c93e -->
+<!-- GSD-AUTHORITY: 54-02-1:3141a6f1c2bd3d0cebfac5743033997baec8e5df523e420c8dc65f11bb3eec65 -->

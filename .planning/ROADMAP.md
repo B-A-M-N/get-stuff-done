@@ -360,10 +360,21 @@ Plans:
 
 ---
 
-<!-- GSD-AUTHORITY: 28-02-3:55f9931d8818c5453cd0c6cab0cfe3a4ad85d0e2435a859b3a4087f2ce91feae -->
-<!-- GSD-AUTHORITY: 42-42-04-1:8041f8bf3f51284502fbc7c376f1b954e2c70ec20bae8f12a78fafd89504b6f5 -->
-<!-- GSD-AUTHORITY: 47-47-02-1:3784f5e2a75880fd689bb11a77bd059a2573319d43760bf89c2fd82983304f9a -->
-<!-- GSD-AUTHORITY: 51-01-1:5e58f732c148a9957695314cba5d79158b71e94281c49af5afe7bcc1cd9cd2a5 -->
-<!-- GSD-AUTHORITY: 51-51-02-1:4743a94cde125fb8ed4e85ff6b8d7f72b1396669cc89ff79a43fd55048b83e31 -->
-<!-- GSD-AUTHORITY: 53-01-1:e9f1629b9c60209b15814095f65456d247b42360c9ec4bc82a6a93b29bed1327 -->
-<!-- GSD-AUTHORITY: 53-01-1:21dd8df723021d56f3b9737e891800858c6da8841665dadfea040fdf342faffc -->
+## v0.6.0 Open Brain Foundations
+
+### Phase 55: Open Brain V1 Foundations
+
+**Goal:** Add a separate local-first Open Brain sidecar that ingests normalized artifacts, embeds them, retrieves bounded semantic recall, and records recall outcomes without changing Second Brain's role as the execution-truth store.
+**Requirements**: OPEN-BRAIN-01, OPEN-BRAIN-02, OPEN-BRAIN-03, OPEN-BRAIN-04, OPEN-BRAIN-05, OPEN-BRAIN-06
+**Depends on:** Phase 54
+**Status**: [In Progress]
+**Plans:** 1/3 plans executed
+
+Plans:
+- [x] 55-01-PLAN.md — Open Brain schema, pgvector foundation, local embeddings, and graph-ready relational links
+- [ ] 55-02-PLAN.md — normalized artifact ingestion, semantic retrieval, bounded ranking, and curated recall API
+- [ ] 55-03-PLAN.md — workflow integration, recall feedback, safe degradation, and end-to-end validation
+
+---
+
+<!-- GSD-AUTHORITY: 54-02-1:d4740e23039f501be1528082a93a6b7b76ca8f84015fe6752362e2363060bce1 -->
