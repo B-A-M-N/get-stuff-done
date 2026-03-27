@@ -94,6 +94,7 @@
  *   searxng search --query <q>         Perform an audit-logged web search
  *   brain status                       Show active backend truth for Second Brain.
  *   brain health [--require-postgres]  Check health of Postgres, RabbitMQ, and Planning Server.
+ *   brain open-status                  Show Open Brain sidecar readiness truth.
  *   verify-agent-connectivity          Verify if agents can connect to Local Planning Server.
  *   context build --workflow <name>    Build Zod-validated execution snapshot for a workflow
  *     [--phase N] [--plan M]           Workflows: execute-plan | verify-work | plan-phase
@@ -817,6 +818,7 @@ async function main() {
 
     case 'brain': {
       const brainManager = require('./lib/brain-manager.cjs');
+      const openBrain = require('./lib/open-brain.cjs');
       const subcommand = args[1];
       if (subcommand === 'status') {
         const status = await brainManager.getStatus();
@@ -827,8 +829,12 @@ async function main() {
         const status = await brainManager.checkHealth({ requirePostgres });
         process.stdout.write(JSON.stringify(status, null, 2) + '\n');
         process.exit(status.allOk ? 0 : 1);
+      } else if (subcommand === 'open-status') {
+        const status = openBrain.checkAvailability();
+        process.stdout.write(JSON.stringify(status, null, 2) + '\n');
+        process.exit(0);
       } else {
-        error('Unknown brain subcommand. Available: status, health');
+        error('Unknown brain subcommand. Available: status, health, open-status');
       }
       break;
     }

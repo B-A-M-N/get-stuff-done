@@ -1,5 +1,7 @@
 const fs = require('fs');
 const path = require('path');
+const secondBrain = require('./second-brain.cjs');
+const openBrainEmbedder = require('./open-brain-embedder.cjs');
 
 const OPEN_BRAIN_SCHEMA = 'gsd_open_brain';
 const REQUIRED_TABLES = ['memory_item', 'memory_link', 'recall_event', 'consolidation_job'];
@@ -35,18 +37,35 @@ function makeUnavailable(reason, detail, extra = {}) {
   };
 }
 
-function checkAvailability(options = {}) {
-  const {
-    postgresAvailable = true,
-    pgvectorAvailable = true,
+function resolveCapabilities(options = {}) {
+  const backendState = options.backendState || secondBrain.getBackendState();
+  const embeddingProvider = options.embeddingProvider || openBrainEmbedder.getDefaultEmbeddingProvider();
+
+  return {
+    backendState,
     embeddingProvider,
-  } = options;
+    postgresAvailable:
+      options.postgresAvailable ??
+      (backendState.active_backend === 'postgres' && backendState.degraded === false),
+    pgvectorAvailable: options.pgvectorAvailable ?? true,
+  };
+}
+
+function checkAvailability(options = {}) {
+  const { backendState, postgresAvailable, pgvectorAvailable, embeddingProvider } = resolveCapabilities(options);
 
   if (!postgresAvailable) {
     return makeUnavailable(
       'postgres_unavailable',
       'Open Brain storage unavailable; continuing without semantic recall.',
-      { storage_ready: false, embedding_ready: false }
+      {
+        storage_ready: false,
+        embedding_ready: false,
+        schema: OPEN_BRAIN_SCHEMA,
+        sidecar_only: true,
+        execution_truth_owner: 'second_brain',
+        backend_state: backendState,
+      }
     );
   }
 
@@ -54,7 +73,14 @@ function checkAvailability(options = {}) {
     return makeUnavailable(
       'pgvector_unavailable',
       'Open Brain vector storage unavailable; continuing without semantic recall.',
-      { storage_ready: false, embedding_ready: false }
+      {
+        storage_ready: false,
+        embedding_ready: false,
+        schema: OPEN_BRAIN_SCHEMA,
+        sidecar_only: true,
+        execution_truth_owner: 'second_brain',
+        backend_state: backendState,
+      }
     );
   }
 
@@ -63,7 +89,15 @@ function checkAvailability(options = {}) {
     return makeUnavailable(
       'embedding_unavailable',
       providerState.detail || 'Open Brain embeddings unavailable; continuing without semantic recall.',
-      { storage_ready: true, embedding_ready: false, embedding_provider: providerState }
+      {
+        storage_ready: true,
+        embedding_ready: false,
+        embedding_provider: providerState,
+        schema: OPEN_BRAIN_SCHEMA,
+        sidecar_only: true,
+        execution_truth_owner: 'second_brain',
+        backend_state: backendState,
+      }
     );
   }
 
@@ -77,6 +111,10 @@ function checkAvailability(options = {}) {
     storage_ready: true,
     embedding_ready: true,
     embedding_provider: providerState,
+    schema: OPEN_BRAIN_SCHEMA,
+    sidecar_only: true,
+    execution_truth_owner: 'second_brain',
+    backend_state: backendState,
   };
 }
 
