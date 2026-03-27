@@ -23,6 +23,7 @@ const { runVerifyIntegrity } = require('./verify.cjs');
 const contextStore = require('./context-store.cjs');
 const contextArtifact = require('./context-artifact.cjs');
 const schemaRegistry = require('./schema-registry.cjs');
+const secondBrain = require('./second-brain.cjs');
 const crypto = require('crypto');
 
 // ─── Fragment schemas ─────────────────────────────────────────────────────────
@@ -58,6 +59,30 @@ const WarningSchema = z.object({
   severity: z.enum(['stop', 'ignorable']),
 });
 
+const MemoryEntrySchema = z.object({
+  memory_kind: z.string(),
+  title: z.string(),
+  body_markdown: z.string(),
+  source_ref: z.string().nullable(),
+  created_at: z.string().nullable(),
+  importance: z.number(),
+  phase: z.string().nullable(),
+  plan: z.string().nullable(),
+});
+
+const MemoryPackSchema = z.object({
+  available: z.boolean(),
+  blocked: z.boolean(),
+  reason: z.string().nullable().optional(),
+  message: z.string().nullable().optional(),
+  total_entries: z.number().int().nonnegative(),
+  recent_decisions: z.array(MemoryEntrySchema),
+  prior_summaries: z.array(MemoryEntrySchema),
+  known_pitfalls: z.array(MemoryEntrySchema),
+  unresolved_blockers: z.array(MemoryEntrySchema),
+  backend_state: z.unknown().optional(),
+});
+
 // ─── Per-workflow schemas ─────────────────────────────────────────────────────
 // Each workflow declares exactly the fields it needs. Add new workflows here;
 // no other file needs to change. Bump schema_version on breaking changes.
@@ -77,10 +102,11 @@ const IntentFingerprintSchema = z.object({
 
 const SCHEMAS = {
   'execute-plan': z.object({
-    schema_version: z.literal(2),
+    schema_version: z.literal(3),
     workflow: z.literal('execute-plan'),
     git: GitStateSchema,
     pointer: PlanPointerSchema,
+    memory_pack: MemoryPackSchema,
     pending_gates: z.array(GateSummarySchema),
     last_task: TaskEntrySchema,
     checkpoint_present: z.boolean(),
@@ -103,12 +129,13 @@ const SCHEMAS = {
   }),
 
   'plan-phase': z.object({
-    schema_version: z.literal(1),
+    schema_version: z.literal(2),
     workflow: z.literal('plan-phase'),
     git: GitStateSchema,
     next_phase: z.number().nullable(),
     roadmap_exists: z.boolean(),
     research_exists: z.boolean(),
+    memory_pack: MemoryPackSchema,
     warnings: z.array(WarningSchema),
     firecrawl_parity: z.boolean().default(false),
   }),
@@ -191,6 +218,120 @@ function checkpointPresent(cwd, phase) {
   return safeFs.existsSync(path.join(cwd, phaseInfo.directory, 'CHECKPOINT.md'));
 }
 
+function formatMemoryPhase(value) {
+  if (value == null || value === '') return null;
+  return String(value);
+}
+
+function formatMemoryPlan(value) {
+  if (value == null || value === '') return null;
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return String(value).padStart(2, '0');
+  }
+  if (typeof value === 'string' && /^\d+$/.test(value)) {
+    return value.padStart(2, '0');
+  }
+  return String(value);
+}
+
+function sanitizeMemoryEntry(entry = {}) {
+  return {
+    memory_kind: String(entry.memory_kind || 'unknown'),
+    title: String(entry.title || ''),
+    body_markdown: String(entry.body_markdown || ''),
+    source_ref: entry.source_ref || null,
+    created_at: entry.created_at || null,
+    importance: Number.isFinite(Number(entry.importance)) ? Number(entry.importance) : 3,
+    phase: formatMemoryPhase(entry.phase),
+    plan: formatMemoryPlan(entry.plan),
+  };
+}
+
+function buildMemoryPack(items = [], metadata = {}) {
+  const buckets = {
+    recent_decisions: [],
+    prior_summaries: [],
+    known_pitfalls: [],
+    unresolved_blockers: [],
+  };
+  const limits = {
+    recent_decisions: 3,
+    prior_summaries: 2,
+    known_pitfalls: 2,
+    unresolved_blockers: 1,
+  };
+
+  for (const rawEntry of items) {
+    const entry = sanitizeMemoryEntry(rawEntry);
+    let bucket = null;
+
+    if (entry.memory_kind === 'decision') bucket = 'recent_decisions';
+    else if (entry.memory_kind === 'summary') bucket = 'prior_summaries';
+    else if (entry.memory_kind === 'pitfall') bucket = 'known_pitfalls';
+    else if (entry.memory_kind === 'checkpoint') bucket = 'unresolved_blockers';
+
+    if (!bucket) continue;
+    if (buckets[bucket].length >= limits[bucket]) continue;
+    buckets[bucket].push(entry);
+  }
+
+  const total_entries = Object.values(buckets).reduce((sum, entries) => sum + entries.length, 0);
+
+  return {
+    available: metadata.available !== false,
+    blocked: Boolean(metadata.blocked),
+    reason: metadata.reason || null,
+    message: metadata.message || null,
+    total_entries,
+    backend_state: metadata.backend_state,
+    ...buckets,
+  };
+}
+
+async function loadWorkflowMemoryPack({ workflow, pointer = {}, memoryReader } = {}) {
+  const phase = formatMemoryPhase(pointer.phase);
+  const plan = workflow === 'execute-plan' ? formatMemoryPlan(pointer.plan) : null;
+
+  if (!phase) {
+    return {
+      memory_pack: buildMemoryPack([], {
+        available: false,
+        blocked: false,
+        reason: 'phase_unavailable',
+        message: 'No phase pointer available for workflow memory.',
+      }),
+    };
+  }
+
+  const reader = memoryReader || ((filters) => secondBrain.readModelFacingMemory(filters));
+  const result = await reader({
+    project_id: secondBrain.projectId,
+    phase,
+    plan,
+    limit: 12,
+  });
+
+  if (!result || result.available === false || result.blocked) {
+    return {
+      memory_pack: buildMemoryPack([], {
+        available: false,
+        blocked: Boolean(result && result.blocked),
+        reason: result && result.reason ? result.reason : 'unavailable',
+        message: result && result.message ? result.message : 'Workflow memory unavailable.',
+        backend_state: result && result.backend_state ? result.backend_state : undefined,
+      }),
+    };
+  }
+
+  return {
+    memory_pack: buildMemoryPack(result.items || [], {
+      available: true,
+      blocked: false,
+      backend_state: result.backend_state,
+    }),
+  };
+}
+
 // ─── Per-workflow builders ────────────────────────────────────────────────────
 
 async function ensureExternalParity(cwd, phase, plan) {
@@ -259,6 +400,10 @@ async function buildExecutePlan(cwd, options) {
   const git = readGitState(cwd);
   const pointer = readPlanPointer(cwd, options.phase, options.plan);
   const firecrawl_parity = await ensureExternalParity(cwd, pointer.phase, pointer.plan);
+  const { memory_pack } = await loadWorkflowMemoryPack({
+    workflow: 'execute-plan',
+    pointer,
+  });
 
   const warnings = [];
   const pending_gates = readPendingGates(cwd);
@@ -309,7 +454,7 @@ async function buildExecutePlan(cwd, options) {
 
   const coherent = integrity.coherent && git.head !== 'unknown' && pointer.phase != null;
 
-  return { schema_version: 2, workflow: 'execute-plan', git, pointer, pending_gates, last_task, checkpoint_present, integrity, coherent, warnings, fingerprint, baseline_active, firecrawl_parity };
+  return { schema_version: 3, workflow: 'execute-plan', git, pointer, memory_pack, pending_gates, last_task, checkpoint_present, integrity, coherent, warnings, fingerprint, baseline_active, firecrawl_parity };
 }
 
 async function buildVerifyWork(cwd, options) {
@@ -361,10 +506,15 @@ async function buildPlanPhase(cwd) {
     }
   }
 
+  const { memory_pack } = await loadWorkflowMemoryPack({
+    workflow: 'plan-phase',
+    pointer: { phase: next_phase, plan: null },
+  });
+
   if (!roadmap_exists) warnings.push({ message: 'ROADMAP.md not found — cannot determine next phase', severity: 'stop' });
   if (next_phase == null && roadmap_exists) warnings.push({ message: 'no pending phases found in ROADMAP.md', severity: 'ignorable' });
 
-  return { schema_version: 1, workflow: 'plan-phase', git, next_phase, roadmap_exists, research_exists, warnings, firecrawl_parity };
+  return { schema_version: 2, workflow: 'plan-phase', git, next_phase, roadmap_exists, research_exists, memory_pack, warnings, firecrawl_parity };
 }
 
 // ─── Entry point ──────────────────────────────────────────────────────────────
@@ -469,5 +619,9 @@ module.exports = {
   cmdContextBuild,
   cmdContextRead,
   cmdContextNormalize,
-  ensureExternalParity
+  ensureExternalParity,
+  buildMemoryPack,
+  loadWorkflowMemoryPack,
+  buildExecutePlan,
+  buildPlanPhase,
 };

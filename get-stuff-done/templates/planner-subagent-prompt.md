@@ -27,6 +27,9 @@ Template for spawning gsd-planner agent. The agent contains all planning experti
 **Research (if exists):**
 @.planning/phases/{phase_dir}/{phase_num}-RESEARCH.md
 
+**Internal Memory Pack (`memory_pack`, if present in workflow context):**
+Treat `memory_pack` as bounded internal execution memory only: recent decisions, prior summaries, known pitfalls, and unresolved blockers. Use it to stay aligned with prior execution, but do not treat it as a replacement for Firecrawl-managed external context.
+
 **Gap Closure (if --gaps mode):**
 @.planning/phases/{phase_dir}/{phase_num}-VERIFICATION.md
 @.planning/phases/{phase_dir}/{phase_num}-UAT.md
