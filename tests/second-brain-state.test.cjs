@@ -1,4 +1,4 @@
-const { test, describe, beforeEach, afterEach } = require('node:test');
+const { test, describe, beforeEach, afterEach, after } = require('node:test');
 const assert = require('node:assert');
 
 const secondBrain = require('../get-stuff-done/bin/lib/second-brain.cjs');
@@ -21,6 +21,10 @@ describe('second-brain backend state', () => {
     await secondBrain.resetForTests();
   });
 
+  after(async () => {
+    await secondBrain.close();
+  });
+
   test('classifies auth and connection failures into degraded SQLite state', () => {
     secondBrain.transitionToDegraded(
       secondBrain.classifyPostgresFailure(new Error('SASL: SCRAM-SERVER-FIRST-MESSAGE: client password must be a string')),
@@ -34,14 +38,15 @@ describe('second-brain backend state', () => {
     assert.strictEqual(state.degraded_reason, 'postgres_auth_failed');
     assert.strictEqual(state.warning_emitted, true);
     assert.strictEqual(state.memory_critical_blocked, false);
-    assert.deepStrictEqual(warnCalls, ['Brain degraded: Postgres unavailable, using SQLite fallback.']);
+    const degradedWarnings = warnCalls.filter((entry) => entry === 'Brain degraded: Postgres unavailable, using SQLite fallback.');
+    assert.deepStrictEqual(degradedWarnings, ['Brain degraded: Postgres unavailable, using SQLite fallback.']);
   });
 
   test('repeating the same degraded reason does not emit a second warning', () => {
     secondBrain.transitionToDegraded('postgres_connect_failed', { message: 'connect ECONNREFUSED' });
     secondBrain.transitionToDegraded('postgres_connect_failed', { message: 'connect ECONNREFUSED' });
 
-    assert.strictEqual(warnCalls.length, 1);
+    assert.strictEqual(warnCalls.filter((entry) => entry === 'Brain degraded: Postgres unavailable, using SQLite fallback.').length, 1);
     assert.strictEqual(secondBrain.getBackendState().degraded_reason, 'postgres_connect_failed');
   });
 
@@ -50,7 +55,7 @@ describe('second-brain backend state', () => {
     secondBrain.transitionToDegraded('postgres_pool_exhausted', { message: 'sorry, too many clients already' });
 
     const state = secondBrain.getBackendState();
-    assert.strictEqual(warnCalls.length, 2);
+    assert.strictEqual(warnCalls.filter((entry) => entry === 'Brain degraded: Postgres unavailable, using SQLite fallback.').length, 2);
     assert.strictEqual(state.degraded_reason, 'postgres_pool_exhausted');
     assert.strictEqual(state.warning_emitted, true);
   });

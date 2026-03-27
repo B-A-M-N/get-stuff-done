@@ -17,23 +17,44 @@ try {
  */
 class SecondBrain {
   constructor() {
+    this._projectRoot = path.resolve(process.cwd());
+    this._config = this._buildConfig();
+    this._poolClosed = false;
+    this._sqliteOpen = false;
+    this._lastDegradedDetails = null;
+    this._warningReasons = new Set();
+    this._initializeState();
+
     // Sanitize environment: if these are empty strings, pg's internal fallback will fail SASL checks.
     if (process.env.PGPASSWORD === '') delete process.env.PGPASSWORD;
     if (process.env.PGUSER === '') delete process.env.PGUSER;
 
     // Compute project identifier and database name for isolation
-    const projectRoot = path.resolve(process.cwd());
-    this.projectRoot = projectRoot;
-    const projectHash = crypto.createHash('sha256').update(projectRoot).digest('hex').substring(0, 12);
+    const projectHash = crypto.createHash('sha256').update(this._projectRoot).digest('hex').substring(0, 12);
+    this.projectRoot = this._projectRoot;
     this.projectId = projectHash;
     this.databaseName = process.env.GSD_DB_NAME || `gsd_local_brain_${projectHash}`;
+    this._refreshConfig();
+    this._createPool();
+    this._initPromise = null;
 
-    const config = {
+    if (process.env.GSD_MEMORY_MODE === 'sqlite') {
+      this.fallbackToSqlite();
+    }
+  }
+
+  _buildConfig() {
+    return {
       host: process.env.PGHOST || 'localhost',
       port: process.env.PGPORT || 5432,
-      database: process.env.PGDATABASE || this.databaseName,
-      connectionTimeoutMillis: 2000, // Shorter timeout for faster fallback
+      connectionTimeoutMillis: 2000,
+      allowExitOnIdle: true,
     };
+  }
+
+  _refreshConfig() {
+    const config = this._buildConfig();
+    config.database = process.env.PGDATABASE || this.databaseName;
 
     const envUser = process.env.PGUSER;
     if (typeof envUser === 'string' && envUser.length > 0) {
@@ -41,46 +62,146 @@ class SecondBrain {
     }
 
     const envPass = process.env.PGPASSWORD;
-    if (typeof envPass === 'string' && envPass.length > 0) {
-      config.password = envPass;
-    } else {
-      config.password = undefined;
-    }
+    config.password = typeof envPass === 'string' && envPass.length > 0 ? envPass : undefined;
 
     const envUrl = process.env.DATABASE_URL;
     if (typeof envUrl === 'string' && envUrl.length > 0) {
       config.connectionString = envUrl;
     }
 
-    this.pool = new Pool(config);
+    this._config = config;
+  }
+
+  _initializeState() {
+    const configuredBackend = process.env.GSD_MEMORY_MODE === 'sqlite' ? 'sqlite' : 'postgres';
+    this.backendState = {
+      configured_backend: configuredBackend,
+      active_backend: configuredBackend,
+      degraded: false,
+      degraded_reason: null,
+      warning_emitted: false,
+      memory_critical_blocked: false,
+    };
     this.offlineMode = false;
-    this.useSqlite = false;
+    this.useSqlite = configuredBackend === 'sqlite';
     this.sqliteDb = null;
+  }
 
-    // Ensure Postgres indexes exist for firecrawl_audit
-    if (!process.env.GSD_MEMORY_MODE || process.env.GSD_MEMORY_MODE !== 'sqlite') {
-      this._ensureAuditIndexes().catch((err) => {
-        console.warn('[SecondBrain] Failed to ensure audit indexes:', err.message);
-        // Continue anyway - audit may still work, just without indexes
-      });
-    }
-
-    if (process.env.GSD_MEMORY_MODE === 'sqlite') {
-      this.fallbackToSqlite();
-    }
-
-    // Suppress unhandled pool errors
+  _createPool() {
+    this.pool = new Pool(this._config);
+    this._poolClosed = false;
     this.pool.on('error', (err) => {
       if (!this.useSqlite) {
-        console.warn('[SecondBrain] Postgres idle error, falling back to SQLite:', err.message);
-        this.fallbackToSqlite();
+        this.transitionToDegraded(this.classifyPostgresFailure(err), {
+          message: err.message,
+          source: 'pool_error',
+        });
       }
     });
-    this._initializeProjectIsolation().catch((err) => {
-      console.warn('[SecondBrain] Failed to initialize project isolation:', err.message);
-      // Continue in degraded mode - project isolation may not work properly
-      this.projectIsolationInitialized = false;
+  }
+
+  getBackendState() {
+    return {
+      ...this.backendState,
+      degraded_details: this._lastDegradedDetails,
+    };
+  }
+
+  classifyPostgresFailure(err) {
+    const message = String(err?.message || '').toLowerCase();
+    const code = String(err?.code || '').toLowerCase();
+
+    if (
+      message.includes('scram-server-first-message') ||
+      message.includes('password authentication failed') ||
+      code === '28p01'
+    ) {
+      return 'postgres_auth_failed';
+    }
+    if (
+      message.includes('too many clients') ||
+      message.includes('pool') && message.includes('exhaust') ||
+      code === '53300'
+    ) {
+      return 'postgres_pool_exhausted';
+    }
+    if (
+      message.includes('econnrefused') ||
+      message.includes('connect') ||
+      message.includes('connection terminated') ||
+      message.includes('socket') ||
+      code === '57p01'
+    ) {
+      return 'postgres_connect_failed';
+    }
+    return 'postgres_unavailable';
+  }
+
+  emitDegradedWarning(reason) {
+    if (this._warningReasons.has(reason)) {
+      return;
+    }
+    console.warn('Brain degraded: Postgres unavailable, using SQLite fallback.');
+    this._warningReasons.add(reason);
+    this.backendState.warning_emitted = true;
+  }
+
+  transitionToDegraded(reason, details = {}) {
+    const nextReason = reason || 'postgres_unavailable';
+    const changedReason = this.backendState.degraded_reason !== nextReason;
+
+    this.backendState.active_backend = 'sqlite';
+    this.backendState.degraded = true;
+    this.backendState.degraded_reason = nextReason;
+    this.backendState.memory_critical_blocked = false;
+    this._lastDegradedDetails = {
+      ...details,
+      message: details?.message || null,
+      at: new Date().toISOString(),
+    };
+
+    this.fallbackToSqlite(nextReason, this._lastDegradedDetails);
+    if (changedReason || !this._warningReasons.has(nextReason)) {
+      this.emitDegradedWarning(nextReason);
+    }
+  }
+
+  requirePostgres(operationName = 'operation') {
+    if (this.backendState.active_backend === 'postgres' && !this.offlineMode && !this._poolClosed) {
+      this.backendState.memory_critical_blocked = false;
+      return true;
+    }
+
+    this.backendState.memory_critical_blocked = true;
+    const error = new Error(`Postgres is required for ${operationName}`);
+    error.code = 'SECOND_BRAIN_POSTGRES_REQUIRED';
+    error.backend_state = this.getBackendState();
+    throw error;
+  }
+
+  _handlePostgresFailure(err, source) {
+    this.transitionToDegraded(this.classifyPostgresFailure(err), {
+      message: err?.message || null,
+      source,
     });
+  }
+
+  async _ensureInitialized() {
+    if (this.useSqlite || this.offlineMode || this._poolClosed) {
+      return;
+    }
+    if (!this._initPromise) {
+      this._initPromise = (async () => {
+        try {
+          await this._ensureAuditIndexes();
+          await this._initializeProjectIsolation();
+        } catch (err) {
+          console.warn('[SecondBrain] Failed to initialize project isolation:', err.message);
+          this.projectIsolationInitialized = false;
+        }
+      })();
+    }
+    await this._initPromise;
   }
 
   async _initializeProjectIsolation() {
@@ -138,8 +259,18 @@ class SecondBrain {
     // For SQLite, handled separately
   }
 
-  fallbackToSqlite() {
-    if (this.useSqlite) return;
+  fallbackToSqlite(reason = null, details = null) {
+    if (this.useSqlite && this.sqliteDb) {
+      this.backendState.active_backend = 'sqlite';
+      this.backendState.degraded = this.backendState.configured_backend === 'postgres';
+      if (reason) {
+        this.backendState.degraded_reason = reason;
+      }
+      if (details) {
+        this._lastDegradedDetails = details;
+      }
+      return;
+    }
     if (!DatabaseSync) {
       console.error('[SecondBrain] SQLite fallback requested but node:sqlite not available.');
       this.offlineMode = true;
@@ -218,7 +349,15 @@ class SecondBrain {
       `);
       
       this.useSqlite = true;
-      console.log('[SecondBrain] Using SQLite fallback at', dbPath);
+      this.backendState.active_backend = 'sqlite';
+      this.backendState.degraded = this.backendState.configured_backend === 'postgres';
+      if (reason) {
+        this.backendState.degraded_reason = reason;
+      }
+      if (details) {
+        this._lastDegradedDetails = details;
+      }
+      this._sqliteOpen = true;
       // Insert project identity for SQLite
       try {
         this.sqliteDb.prepare(`
@@ -236,6 +375,7 @@ class SecondBrain {
 
   async recordFirecrawlAudit(audit) {
     if (this.offlineMode) return;
+    await this._ensureInitialized();
 
     if (!this.useSqlite) {
       try {
@@ -245,8 +385,7 @@ class SecondBrain {
         );
         return;
       } catch (err) {
-        console.warn('[SecondBrain] Postgres audit log failed, falling back to SQLite:', err.message);
-        this.fallbackToSqlite();
+        this._handlePostgresFailure(err, 'recordFirecrawlAudit');
         // Do NOT return here; fall through to SQLite path to record this specific event.
       }
     }
@@ -269,6 +408,7 @@ class SecondBrain {
    */
   async createGrant(pattern, type, ttlSeconds = null) {
     if (this.offlineMode) return;
+    await this._ensureInitialized();
 
     const expiresAt = ttlSeconds ? new Date(Date.now() + ttlSeconds * 1000).toISOString() : null;
 
@@ -290,8 +430,7 @@ class SecondBrain {
         } catch (e) {}
         return;
       } catch (err) {
-        console.warn('[SecondBrain] Postgres grant create failed, falling back to SQLite:', err.message);
-        this.fallbackToSqlite();
+        this._handlePostgresFailure(err, 'createGrant');
       }
     }
 
@@ -322,6 +461,7 @@ class SecondBrain {
    */
   async revokeGrant(pattern) {
     if (this.offlineMode) return;
+    await this._ensureInitialized();
 
     if (!this.useSqlite) {
       try {
@@ -333,8 +473,7 @@ class SecondBrain {
         } catch (e) {}
         return;
       } catch (err) {
-        console.warn('[SecondBrain] Postgres grant revoke failed, falling back to SQLite:', err.message);
-        this.fallbackToSqlite();
+        this._handlePostgresFailure(err, 'revokeGrant');
       }
     }
 
@@ -357,6 +496,7 @@ class SecondBrain {
    */
   async listGrants() {
     if (this.offlineMode) return [];
+    await this._ensureInitialized();
 
     if (!this.useSqlite) {
       try {
@@ -365,8 +505,7 @@ class SecondBrain {
         );
         return res.rows;
       } catch (err) {
-        console.warn('[SecondBrain] Postgres grants fetch failed, falling back to SQLite:', err.message);
-        this.fallbackToSqlite();
+        this._handlePostgresFailure(err, 'listGrants');
       }
     }
 
@@ -439,8 +578,9 @@ class SecondBrain {
    */
   async getFirecrawlAudit(limit = 20, filters = {}) {
     if (this.offlineMode) return [];
+    await this._ensureInitialized();
 
-    const { from, to, domain, status, action } = filters;
+    const { from, to, domain, status, action, actionPrefix } = filters;
     const conditions = [];
     const params = [];
 
@@ -464,6 +604,10 @@ class SecondBrain {
       conditions.push('action = $' + (params.length + 1));
       params.push(action);
     }
+    if (actionPrefix) {
+      conditions.push('action LIKE $' + (params.length + 1));
+      params.push(`${actionPrefix}%`);
+    }
 
     const whereClause = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
     params.push(limit);
@@ -474,8 +618,7 @@ class SecondBrain {
         const res = await this.pool.query(query, params);
         return res.rows;
       } catch (err) {
-        console.warn('[SecondBrain] Postgres audit fetch failed, falling back to SQLite:', err.message);
-        this.fallbackToSqlite();
+        this._handlePostgresFailure(err, 'getFirecrawlAudit');
       }
     }
 
@@ -504,6 +647,10 @@ class SecondBrain {
         if (action) {
           sqliteConditions.push('action = ?');
           sqliteParams.push(action);
+        }
+        if (actionPrefix) {
+          sqliteConditions.push('action LIKE ?');
+          sqliteParams.push(`${actionPrefix}%`);
         }
 
         const whereClauseSqlite = sqliteConditions.length > 0 ? 'WHERE ' + sqliteConditions.join(' AND ') : '';
@@ -594,6 +741,7 @@ class SecondBrain {
    */
   async cleanupOldAudits(retentionDays = 90) {
     if (this.offlineMode) return 0;
+    await this._ensureInitialized();
 
     const cutoffDate = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000).toISOString();
     let deletedCount = 0;
@@ -607,8 +755,7 @@ class SecondBrain {
         deletedCount = result.rowCount || 0;
         return deletedCount;
       } catch (err) {
-        console.warn('[SecondBrain] Postgres audit cleanup failed, falling back to SQLite:', err.message);
-        this.fallbackToSqlite();
+        this._handlePostgresFailure(err, 'cleanupOldAudits');
       }
     }
 
@@ -641,6 +788,7 @@ class SecondBrain {
       highErrorRateDomains: [],
       latencyByAction: []
     };
+    await this._ensureInitialized();
 
     const periodHours = 24;
     const cutoffDate = new Date(Date.now() - periodHours * 60 * 60 * 1000).toISOString();
@@ -655,8 +803,7 @@ class SecondBrain {
         );
         rows = res.rows;
       } catch (err) {
-        console.warn('[SecondBrain] Postgres health fetch failed, falling back to SQLite:', err.message);
-        this.fallbackToSqlite();
+        this._handlePostgresFailure(err, 'getFirecrawlHealthSummary');
       }
     }
 
@@ -760,11 +907,120 @@ class SecondBrain {
     };
   }
 
+  async getPlaneAudit(limit = 20, filters = {}) {
+    return this.getFirecrawlAudit(limit, { ...filters, actionPrefix: 'plane-' });
+  }
+
+  async getPlaneHealthSummary(periodMinutes = 60) {
+    if (this.offlineMode) {
+      return {
+        generated_at: new Date().toISOString(),
+        period_minutes: periodMinutes,
+        recent_outbound_total: 0,
+        recent_outbound_errors: 0,
+        recent_error_rate: 0,
+        last_webhook_received_at: null,
+        top_failing_actions: [],
+        latency_by_action: [],
+        breaker_basis: {
+          consecutive_errors: 0,
+          last_error_at: null,
+          last_success_at: null,
+        },
+      };
+    }
+
+    const cutoffDate = new Date(Date.now() - periodMinutes * 60 * 1000).toISOString();
+    const rows = await this.getPlaneAudit(500, { from: cutoffDate });
+    const outboundRows = rows.filter((row) => !String(row.action || '').startsWith('plane-webhook'));
+    const webhookRows = rows.filter((row) => String(row.action || '').startsWith('plane-webhook'));
+    const errorStatuses = new Set(['error', 'blocked', 'denied', 'failed']);
+
+    let consecutiveErrors = 0;
+    let lastErrorAt = null;
+    let lastSuccessAt = null;
+    const sortedOutbound = [...outboundRows].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    for (const row of sortedOutbound) {
+      const status = String(row.status || '').toLowerCase();
+      if (lastErrorAt === null && errorStatuses.has(status)) {
+        lastErrorAt = row.timestamp || null;
+      }
+      if (lastSuccessAt === null && status === 'success') {
+        lastSuccessAt = row.timestamp || null;
+      }
+      if (errorStatuses.has(status)) {
+        consecutiveErrors += 1;
+      } else if (status === 'success') {
+        break;
+      }
+    }
+
+    const actionCounts = new Map();
+    const actionLatencies = new Map();
+    for (const row of outboundRows) {
+      const actionName = row.action || 'plane-unknown';
+      if (!actionCounts.has(actionName)) {
+        actionCounts.set(actionName, { action: actionName, total: 0, errors: 0 });
+      }
+      const countEntry = actionCounts.get(actionName);
+      countEntry.total += 1;
+      if (errorStatuses.has(String(row.status || '').toLowerCase())) {
+        countEntry.errors += 1;
+      }
+
+      if (row.latency_ms !== null && row.latency_ms !== undefined) {
+        if (!actionLatencies.has(actionName)) {
+          actionLatencies.set(actionName, { total_latency: 0, count: 0 });
+        }
+        const latencyEntry = actionLatencies.get(actionName);
+        latencyEntry.total_latency += Number(row.latency_ms) || 0;
+        latencyEntry.count += 1;
+      }
+    }
+
+    const topFailingActions = Array.from(actionCounts.values())
+      .filter((entry) => entry.errors > 0)
+      .sort((a, b) => b.errors - a.errors || b.total - a.total)
+      .slice(0, 5);
+
+    const latencyByAction = Array.from(actionLatencies.entries())
+      .map(([actionName, value]) => ({
+        action: actionName,
+        avg_latency: value.count > 0 ? Math.round(value.total_latency / value.count) : 0,
+      }))
+      .sort((a, b) => b.avg_latency - a.avg_latency);
+
+    const lastWebhookReceivedAt = webhookRows
+      .map((row) => row.timestamp || null)
+      .filter(Boolean)
+      .sort((a, b) => new Date(b) - new Date(a))[0] || null;
+
+    const recentOutboundErrors = outboundRows.filter((row) => errorStatuses.has(String(row.status || '').toLowerCase())).length;
+    const recentOutboundTotal = outboundRows.length;
+
+    return {
+      generated_at: new Date().toISOString(),
+      period_minutes: periodMinutes,
+      recent_outbound_total: recentOutboundTotal,
+      recent_outbound_errors: recentOutboundErrors,
+      recent_error_rate: recentOutboundTotal > 0 ? recentOutboundErrors / recentOutboundTotal : 0,
+      last_webhook_received_at: lastWebhookReceivedAt,
+      top_failing_actions: topFailingActions,
+      latency_by_action: latencyByAction,
+      breaker_basis: {
+        consecutive_errors: consecutiveErrors,
+        last_error_at: lastErrorAt,
+        last_success_at: lastSuccessAt,
+      },
+    };
+  }
+
   /**
    * Upsert an artifact and its analysis results.
    */
   async ingestArtifact(artifact) {
     if (this.offlineMode) return;
+    await this._ensureInitialized();
 
     if (!this.useSqlite) {
       let client;
@@ -816,8 +1072,7 @@ class SecondBrain {
         return;
       } catch (err) {
         if (client) await client.query('ROLLBACK');
-        console.warn('[SecondBrain] Postgres ingest failed, falling back to SQLite:', err.message);
-        this.fallbackToSqlite();
+        this._handlePostgresFailure(err, 'ingestArtifact');
       } finally {
         if (client) client.release();
       }
@@ -868,6 +1123,7 @@ class SecondBrain {
    */
   async listContext(limit = 100) {
     if (this.offlineMode) return [];
+    await this._ensureInitialized();
 
     if (!this.useSqlite) {
       try {
@@ -877,8 +1133,7 @@ class SecondBrain {
         );
         return res.rows;
       } catch (err) {
-        console.warn('[SecondBrain] Postgres list failed, falling back to SQLite:', err.message);
-        this.fallbackToSqlite();
+        this._handlePostgresFailure(err, 'listArtifacts');
       }
     }
 
@@ -901,6 +1156,7 @@ class SecondBrain {
    */
   async findSymbols(name) {
     if (this.offlineMode) return [];
+    await this._ensureInitialized();
 
     if (!this.useSqlite) {
       try {
@@ -910,8 +1166,7 @@ class SecondBrain {
         );
         return res.rows;
       } catch (err) {
-        console.warn('[SecondBrain] Postgres search failed, falling back to SQLite:', err.message);
-        this.fallbackToSqlite();
+        this._handlePostgresFailure(err, 'searchArtifacts');
       }
     }
 
@@ -1023,6 +1278,7 @@ class SecondBrain {
   }
 
   async registerSchema(domainPattern, schema, version = '1.0.0', approvedBy = null) {
+    await this._ensureInitialized();
     await this._ensureSchemaTableExists();
     if (this.offlineMode) return;
 
@@ -1045,8 +1301,7 @@ class SecondBrain {
         );
         return;
       } catch (err) {
-        console.warn('[SecondBrain] Postgres schema register failed, falling back to SQLite:', err.message);
-        this.fallbackToSqlite();
+        this._handlePostgresFailure(err, 'registerContextSchema');
       }
     }
 
@@ -1072,6 +1327,7 @@ class SecondBrain {
 
   async getSchemaForDomain(url) {
     if (this.offlineMode) return null;
+    await this._ensureInitialized();
 
     if (!this.useSqlite) {
       try {
@@ -1089,8 +1345,7 @@ class SecondBrain {
         }
         return null;
       } catch (err) {
-        console.warn('[SecondBrain] Postgres schema lookup failed, falling back to SQLite:', err.message);
-        this.fallbackToSqlite();
+        this._handlePostgresFailure(err, 'lookupContextSchema');
       }
     }
 
@@ -1120,6 +1375,7 @@ class SecondBrain {
 
   async listSchemas(domainPattern = null) {
     if (this.offlineMode) return [];
+    await this._ensureInitialized();
 
     if (!this.useSqlite) {
       try {
@@ -1133,8 +1389,7 @@ class SecondBrain {
         const res = await this.pool.query(query, params);
         return res.rows;
       } catch (err) {
-        console.warn('[SecondBrain] Postgres schema list failed, falling back to SQLite:', err.message);
-        this.fallbackToSqlite();
+        this._handlePostgresFailure(err, 'listContextSchemas');
       }
     }
 
@@ -1159,6 +1414,7 @@ class SecondBrain {
   }
 
   async markSchemaUsed(domainPattern) {
+    await this._ensureInitialized();
     await this._ensureSchemaTableExists();
     if (this.offlineMode) return;
 
@@ -1190,6 +1446,7 @@ class SecondBrain {
 
   async getStaleSchemas(days = 30) {
     if (this.offlineMode) return [];
+    await this._ensureInitialized();
 
     const thresholdDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
 
@@ -1201,8 +1458,7 @@ class SecondBrain {
         );
         return res.rows;
       } catch (err) {
-        console.warn('[SecondBrain] Postgres stale schemas fetch failed, falling back to SQLite:', err.message);
-        this.fallbackToSqlite();
+        this._handlePostgresFailure(err, 'getStaleSchemas');
       }
     }
 
@@ -1279,8 +1535,35 @@ class SecondBrain {
   }
 
   async close() {
-    await this.pool.end();
-    if (this.sqliteDb) this.sqliteDb.close();
+    this._initPromise = null;
+    if (this.pool && !this._poolClosed) {
+      const poolToClose = this.pool;
+      this._poolClosed = true;
+      try {
+        await poolToClose.end();
+      } catch (err) {
+        if (!String(err?.message || '').includes('calling end')) {
+          throw err;
+        }
+      }
+    }
+
+    if (this.sqliteDb && (this._sqliteOpen || typeof this.sqliteDb.close === 'function')) {
+      const sqliteToClose = this.sqliteDb;
+      this.sqliteDb = null;
+      this._sqliteOpen = false;
+      sqliteToClose.close();
+    }
+  }
+
+  async resetForTests() {
+    await this.close();
+    this._warningReasons.clear();
+    this._lastDegradedDetails = null;
+    this._initPromise = null;
+    this._initializeState();
+    this._refreshConfig();
+    this._createPool();
   }
 }
 

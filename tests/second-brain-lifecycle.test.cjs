@@ -1,4 +1,4 @@
-const { test, describe, beforeEach, afterEach } = require('node:test');
+const { test, describe, beforeEach, afterEach, after } = require('node:test');
 const assert = require('node:assert');
 
 const secondBrain = require('../get-stuff-done/bin/lib/second-brain.cjs');
@@ -10,6 +10,10 @@ describe('second-brain lifecycle helpers', () => {
 
   afterEach(async () => {
     await secondBrain.resetForTests();
+  });
+
+  after(async () => {
+    await secondBrain.close();
   });
 
   test('close is idempotent and does not end the same pool twice', async () => {
