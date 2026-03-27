@@ -1,7 +1,6 @@
 schema: gsd_drift_catalog
 phase: 70
 source_of_truth: .planning/phases/70-drift-surface-mapping/drift_catalog.yaml
-generated_from_head: f113c5d24f5a1715c02b1737539127c79ad27e75
 coverage:
   scope: full_truth_surface
   hierarchy:
@@ -340,5 +339,4 @@ entries:
     blocking: false
     memory_boundary_state: null
 catalog_hash: 18a58ae1e5ab1f698cc16172f1582cfaaa88603d071699f3ee138017eebd5994
-
-# GSD-AUTHORITY: 70-02-2:4d804442cf72b0b5c1063e01f81986e56152c3058b1b537693ad3565a78721a0
+# GSD-AUTHORITY: 70-02-2:01d0b81f4abba0ae1a3f8417b05e0932a5c58aed5f87f5cb0d64700ed6386e71

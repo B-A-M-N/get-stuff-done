@@ -363,7 +363,6 @@ function buildCatalog(cwd, options = {}) {
     schema: 'gsd_drift_catalog',
     phase: '70',
     source_of_truth: CATALOG_PATH,
-    generated_from_head: probes.head || getHeadHash(cwd),
     coverage: {
       scope: 'full_truth_surface',
       hierarchy: ['evidence', 'code', 'verification', 'roadmap'],
