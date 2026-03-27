@@ -1,9 +1,9 @@
 ---
 phase: 54
 slug: model-facing-second-brain-via-mcp
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: in_progress
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-03-26
 updated: 2026-03-27
 ---
@@ -20,8 +20,8 @@ updated: 2026-03-27
 |----------|-------|
 | **Framework** | Node.js test runner (`node --test`) |
 | **Config file** | `package.json` test script plus targeted `node --test` invocations |
-| **Quick run command** | `node --test tests/second-brain-mcp-tools.test.cjs tests/context-memory-pack.test.cjs` |
-| **Full suite command** | `node --test tests/second-brain-mcp-tools.test.cjs tests/context-memory-pack.test.cjs tests/brain-mcp-degraded-mode.test.cjs tests/firecrawl-memory-boundary.test.cjs` |
+| **Quick run command** | `node --test tests/context-memory-pack.test.cjs tests/firecrawl-memory-boundary.test.cjs tests/executor-memory-writeback.test.cjs` |
+| **Full suite command** | `node --test tests/second-brain-mcp-tools.test.cjs tests/context-memory-pack.test.cjs tests/brain-mcp-degraded-mode.test.cjs tests/firecrawl-memory-boundary.test.cjs tests/executor-memory-writeback.test.cjs` |
 | **Estimated runtime** | ~45 seconds |
 
 ---
@@ -41,8 +41,11 @@ updated: 2026-03-27
 |---------|------|------|-------------|-----------|-------------------|-------------|--------|
 | 54-01-01 | 01 | 1 | MEMORY-MCP-01 | unit | `node --test tests/second-brain-mcp-tools.test.cjs` | ✅ present | ✅ green |
 | 54-01-02 | 01 | 1 | MEMORY-MCP-01 | integration | `node --test tests/brain-mcp-degraded-mode.test.cjs` | ✅ present | ✅ green |
-| 54-01-03 | 01 | 2 | MEMORY-MCP-02 | integration | `node --test tests/context-memory-pack.test.cjs` | ❌ W0 | ⬜ pending |
-| 54-01-04 | 01 | 2 | MEMORY-MCP-02 | regression | `node --test tests/firecrawl-memory-boundary.test.cjs` | ❌ W0 | ⬜ pending |
+| 54-01-03 | 01 | 2 | MEMORY-MCP-02 | integration | `node --test tests/context-memory-pack.test.cjs` | ✅ present | ✅ green |
+| 54-01-04 | 01 | 2 | MEMORY-MCP-02 | regression | `node --test tests/firecrawl-memory-boundary.test.cjs` | ✅ present | ✅ green |
+| 54-02-01 | 02 | 2 | MEMORY-MCP-02 | integration | `node --test tests/context-memory-pack.test.cjs tests/firecrawl-memory-boundary.test.cjs` | ✅ present | ✅ green |
+| 54-02-02 | 02 | 2 | MEMORY-MCP-01 | integration | `node --test tests/executor-memory-writeback.test.cjs` | ✅ present | ✅ green |
+| 54-02-03 | 02 | 2 | MEMORY-MCP-01,MEMORY-MCP-02 | integration | `node --check get-stuff-done/bin/lib/context.cjs && node --check get-stuff-done/bin/lib/second-brain.cjs && node --test tests/context-memory-pack.test.cjs tests/firecrawl-memory-boundary.test.cjs tests/executor-memory-writeback.test.cjs` | ✅ present | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -52,8 +55,9 @@ updated: 2026-03-27
 
 - [x] `tests/second-brain-mcp-tools.test.cjs` — planner/executor MCP tool contract coverage
 - [x] `tests/brain-mcp-degraded-mode.test.cjs` — explicit Postgres-required blocking and degraded-mode behavior
-- [ ] `tests/context-memory-pack.test.cjs` — bounded memory-pack integration into planning/execution context assembly
-- [ ] `tests/firecrawl-memory-boundary.test.cjs` — verifies Firecrawl remains the sole external-context boundary
+- [x] `tests/context-memory-pack.test.cjs` — bounded memory-pack integration into planning/execution context assembly
+- [x] `tests/firecrawl-memory-boundary.test.cjs` — verifies Firecrawl remains the sole external-context boundary
+- [x] `tests/executor-memory-writeback.test.cjs` — checkpoint and summary lifecycle writeback uses sanctioned helpers
 - [x] toolbox config fixture or checked-in sample under phase-owned docs/tests — validates expected tool names and role split
 
 **Wave 0 Note:** These tests are expected to be created during Phase 54 execution. They are not prerequisites for planning; they are required deliverables for the implementation to be considered Nyquist-complete.
@@ -80,4 +84,4 @@ updated: 2026-03-27
 - [ ] Feedback latency < 60s
 - [ ] `nyquist_compliant: true` set in frontmatter after first green full-suite run
 
-**Approval:** pending (requires first successful full Phase 54 suite run)
+**Approval:** focused Phase 54 suite green on 2026-03-27
