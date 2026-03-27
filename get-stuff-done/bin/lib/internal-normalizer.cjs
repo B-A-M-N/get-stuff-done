@@ -167,6 +167,26 @@ async function normalizeInternal(cwd) {
   return artifacts;
 }
 
+function isPromotableOpenBrainArtifact(artifact) {
+  if (!artifact || typeof artifact !== 'object') return false;
+  if (artifact.type !== 'internal' && artifact.type !== 'external') return false;
+  if (typeof artifact.source_uri !== 'string' || artifact.source_uri.trim().length === 0) return false;
+  if (typeof artifact.content_markdown !== 'string' || artifact.content_markdown.trim().length === 0) return false;
+
+  const sourceUri = artifact.source_uri.toLowerCase();
+
+  return (
+    sourceUri.includes('summary') ||
+    sourceUri.includes('research') ||
+    sourceUri.includes('validation') ||
+    sourceUri.includes('architecture') ||
+    sourceUri.includes('requirements') ||
+    sourceUri.includes('roadmap') ||
+    sourceUri.includes('decision')
+  );
+}
+
 module.exports = {
+  isPromotableOpenBrainArtifact,
   normalizeInternal,
 };
