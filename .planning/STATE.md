@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v0.6.0
 milestone_name: Open Brain Foundations
-current_plan: Phase 55-01 complete; ready for Phase 55-02
+current_plan: Phase 55-02 complete; ready for Phase 55-03
 status: active
-stopped_at: Completed 55-01-PLAN.md
-last_updated: "2026-03-27T13:25:05.232Z"
+stopped_at: Completed 55-02-PLAN.md
+last_updated: "2026-03-27T13:35:33Z"
 progress:
   total_phases: 17
   completed_phases: 11
   total_plans: 32
-  completed_plans: 26
+  completed_plans: 28
 ---
 
 # Project State
@@ -20,22 +20,22 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-17)
 
 **Core value:** Runtime-bound orchestration integrity — enforcement that cannot be bypassed by following a different workflow path.
-**Current focus:** Phase 55 is in progress; the Open Brain sidecar now has its separate schema/bootstrap foundation and optional degraded-mode contract without weakening the Firecrawl or Second Brain boundaries.
+**Current focus:** Phase 55 is in progress; the Open Brain sidecar now has curated artifact ingestion, bounded retrieval, and explicit feedback-driven ranking without weakening the Firecrawl or Second Brain boundaries.
 
 ## Current Position
 
 Phase: 55
-Plan: 01
-**Current Plan:** Phase 55-01 complete; ready for Phase 55-02
+Plan: 02
+**Current Plan:** Phase 55-02 complete; ready for Phase 55-03
 **Total Plans in Phase:** 3
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 27
+- Total plans completed: 28
 - Average duration: 15min
-- Total execution time: 405min
+- Total execution time: 410min
 
 **By Phase:**
 
@@ -71,6 +71,7 @@ Plan: 01
 | Phase 52 P04 | 13min | 4 tasks | 19 files |
 | Phase 54 P01 | session-based | 3 tasks | 6 files |
 | Phase 55 P01 | 2min | 3 tasks | 6 files |
+| Phase 55 P02 | 5min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -169,6 +170,9 @@ Plan: 01
 - [Phase 55]: Open Brain foundation lives in `gsd_open_brain` as a sidecar contract and explicitly leaves execution truth with Second Brain.
 - [Phase 55]: The default embedding target is `fastembed`, but the adapter reports unavailable capability instead of making local embeddings a hard runtime dependency.
 - [Phase 55]: Operator visibility is limited to a truthful `brain open-status` readiness surface so Open Brain health is observable without conflating it with Second Brain backend truth.
+- [Phase 55]: Open Brain ingestion accepts the existing normalized artifact shape and keeps promotion gated to curated artifact classes instead of adding a second raw-source ingestion path.
+- [Phase 55]: Bounded retrieval returns sanitized ranked memory candidates with ranking metadata, never raw rows or stored embeddings.
+- [Phase 55]: Recall ranking changes only through explicit helpful or harmful outcome recording, not from retrieval count alone.
 
 ### Blockers/Concerns
 
@@ -176,12 +180,12 @@ Plan: 01
 
 ### Pending Todos
 
-- 0 pending todos for Phase 55. Open Brain sidecar foundations are in place and the next work is planned ingestion and retrieval.
+- 0 pending todos for Phase 55. Open Brain ingestion and retrieval are complete and the next work is workflow-context integration.
 
 ## Session Continuity
 
-Last session: 2026-03-27T13:25:05.229Z
-Stopped at: Completed 55-01-PLAN.md
+Last session: 2026-03-27T13:35:51.193Z
+Stopped at: Completed 55-02-PLAN.md
 Resume file: None
 Checkpoint Status: None
 Checkpoint Path: None
