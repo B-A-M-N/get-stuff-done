@@ -696,6 +696,13 @@ class SecondBrain {
     }
   }
 
+  async writeModelFacingMemorySummary(entry = {}) {
+    return this.writeModelFacingMemoryCheckpoint({
+      ...entry,
+      memory_kind: 'summary',
+    });
+  }
+
   /**
    * Create a new access grant.
    */

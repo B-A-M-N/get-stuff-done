@@ -8,6 +8,101 @@ const { safeReadFile, loadConfig, isGitIgnored, execGit, normalizePhaseName, com
 const { extractFrontmatter } = require('./frontmatter.cjs');
 const { MODEL_PROFILES } = require('./model-profiles.cjs');
 const authority = require('./authority.cjs');
+const checkpointPlaneSync = require('./checkpoint-plane-sync.cjs');
+const secondBrain = require('./second-brain.cjs');
+
+function stripFrontmatter(content) {
+  return String(content || '').replace(/^---\r?\n[\s\S]+?\r?\n---\r?\n?/, '');
+}
+
+function extractSummaryExcerpt(content) {
+  const lines = stripFrontmatter(content)
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  for (const line of lines) {
+    if (line.startsWith('#')) continue;
+    if (line.startsWith('## ')) break;
+    return line.replace(/^\*\*|\*\*$/g, '');
+  }
+
+  return 'Execution summary recorded.';
+}
+
+function parseSummaryRef(relPath) {
+  const match = path.basename(relPath).match(/^(\d+(?:\.\d+)?)-(\d+)-SUMMARY\.md$/);
+  if (!match) return null;
+  return {
+    phase: match[1],
+    plan: match[2],
+  };
+}
+
+function buildCheckpointMemoryEntry(phase, options, relPath) {
+  const checkpointTitle = options.task_name
+    ? `Checkpoint: ${options.task_name}`
+    : `Checkpoint: Phase ${phase} Plan ${options.plan || '?'}`;
+  const bodyLines = [
+    `Why blocked: ${options.why_blocked}`,
+    `What is uncertain: ${options.what_is_uncertain}`,
+    options.resume_condition ? `Resume condition: ${options.resume_condition}` : null,
+    options.choices ? `Choices: ${options.choices}` : null,
+  ].filter(Boolean);
+
+  return {
+    phase: String(phase),
+    plan: options.plan != null ? String(options.plan).padStart(2, '0') : null,
+    memory_kind: 'checkpoint',
+    title: checkpointTitle,
+    body_markdown: bodyLines.join('\n'),
+    source_ref: relPath,
+    created_by: 'executor-checkpoint',
+    importance: 4,
+  };
+}
+
+function buildSummaryMemoryEntry(cwd, relPath) {
+  const absolutePath = path.join(cwd, relPath);
+  const content = safeReadFile(absolutePath);
+  if (!content) {
+    return null;
+  }
+
+  const planRef = parseSummaryRef(relPath);
+  if (!planRef) {
+    return null;
+  }
+
+  const headingMatch = stripFrontmatter(content).match(/^#\s+(.+)$/m);
+  const heading = headingMatch ? headingMatch[1].trim() : `Phase ${planRef.phase} Plan ${planRef.plan} Summary`;
+  const excerpt = extractSummaryExcerpt(content);
+  const frontmatter = extractFrontmatter(content);
+
+  return {
+    phase: planRef.phase,
+    plan: planRef.plan,
+    title: heading,
+    body_markdown: excerpt,
+    source_ref: relPath,
+    created_by: 'executor-summary',
+    importance: Number.isFinite(Number(frontmatter.importance)) ? Number(frontmatter.importance) : 4,
+  };
+}
+
+async function writeCheckpointLifecycleMemory(phase, options, relPath) {
+  return secondBrain.writeModelFacingMemoryCheckpoint(
+    buildCheckpointMemoryEntry(phase, options, relPath)
+  );
+}
+
+async function writeSummaryLifecycleMemory(cwd, relPath) {
+  const entry = buildSummaryMemoryEntry(cwd, relPath);
+  if (!entry) {
+    return null;
+  }
+  return secondBrain.writeModelFacingMemorySummary(entry);
+}
 
 function cmdGenerateSlug(text, raw) {
   if (!text) {
@@ -215,7 +310,7 @@ function cmdResolveModel(cwd, agentType, raw) {
   output(result, raw, model);
 }
 
-function cmdCommit(cwd, message, files, raw, amend) {
+async function cmdCommit(cwd, message, files, raw, amend) {
   if (!message && !amend) {
     error('commit message required');
   }
@@ -264,7 +359,28 @@ function cmdCommit(cwd, message, files, raw, amend) {
   // Get short hash
   const hashResult = execGit(cwd, ['rev-parse', '--short', 'HEAD']);
   const hash = hashResult.exitCode === 0 ? hashResult.stdout : null;
-  const result = { committed: true, hash, reason: 'committed' };
+  const summaryFiles = filesToStage.filter((file) => /(^|\/)\d+(?:\.\d+)?-\d+-SUMMARY\.md$/.test(file));
+  const memory_writebacks = [];
+  for (const summaryFile of summaryFiles) {
+    try {
+      const writeback = await writeSummaryLifecycleMemory(cwd, summaryFile);
+      if (writeback) {
+        memory_writebacks.push({
+          source_ref: summaryFile,
+          ...writeback,
+        });
+      }
+    } catch (err) {
+      memory_writebacks.push({
+        source_ref: summaryFile,
+        available: false,
+        blocked: false,
+        error: err.message,
+      });
+    }
+  }
+
+  const result = { committed: true, hash, reason: 'committed', memory_writebacks };
   output(result, raw, hash || 'committed');
 }
 
@@ -1006,7 +1122,7 @@ function cmdStats(cwd, format, raw) {
  *
  * Returns: { written, committed, hash, path, type, why_blocked, what_is_uncertain }
  */
-function cmdCheckpointWrite(cwd, phase, options, raw) {
+async function cmdCheckpointWrite(cwd, phase, options, raw) {
   if (!phase) error('--phase required for checkpoint write');
   if (!options || !options.type) error('--type required (human-verify|decision|human-action)');
   if (!options.why_blocked) error('--why-blocked required');
@@ -1082,6 +1198,19 @@ function cmdCheckpointWrite(cwd, phase, options, raw) {
 
   const hashResult = execGit(cwd, ['rev-parse', '--short', 'HEAD']);
   const hash = hashResult.exitCode === 0 ? hashResult.stdout.trim() : null;
+  let memory_writeback = null;
+
+  try {
+    memory_writeback = await writeCheckpointLifecycleMemory(phase, options, relPath);
+  } catch (err) {
+    memory_writeback = {
+      available: false,
+      blocked: false,
+      error: err.message,
+    };
+  }
+
+  checkpointPlaneSync.notifyCheckpointWrite(phase, checkpointPath).catch(() => {});
 
   output({
     written: true,
@@ -1094,6 +1223,7 @@ function cmdCheckpointWrite(cwd, phase, options, raw) {
     resume_condition: resumeCondition,
     choices,
     allow_freeform: allowFreeform,
+    memory_writeback,
   }, raw, hash || 'written');
 }
 
@@ -1175,4 +1305,8 @@ module.exports = {
   cmdTodoComplete,
   cmdScaffold,
   cmdStats,
+  buildCheckpointMemoryEntry,
+  buildSummaryMemoryEntry,
+  writeCheckpointLifecycleMemory,
+  writeSummaryLifecycleMemory,
 };

@@ -471,7 +471,7 @@ async function main() {
       const messageArgs = args.slice(1, endIndex).filter(a => !a.startsWith('--'));
       const message = messageArgs.join(' ') || undefined;
       const files = filesIndex !== -1 ? args.slice(filesIndex + 1).filter(a => !a.startsWith('--')) : [];
-      commands.cmdCommit(cwd, message, files, raw, amend);
+      await commands.cmdCommit(cwd, message, files, raw, amend);
       break;
     }
 
@@ -761,7 +761,7 @@ async function main() {
         const cpTaskNameIdx = args.indexOf('--task-name');
         const cpChoicesIdx = args.indexOf('--choices');
         const cpResumeIdx = args.indexOf('--resume-condition');
-        commands.cmdCheckpointWrite(cwd, cpPhase, {
+      await commands.cmdCheckpointWrite(cwd, cpPhase, {
           plan: cpPlan,
           type: cpTypeIdx !== -1 ? args[cpTypeIdx + 1] : null,
           why_blocked: cpWhyIdx !== -1 ? args[cpWhyIdx + 1] : null,
