@@ -61,16 +61,30 @@ function extractTaskCountFromSummary(content) {
   return match ? parseInt(match[1], 10) : null;
 }
 
+function extractMarkdownSection(content, heading) {
+  const headingRegex = new RegExp(`^\\s*##\\s*${heading}\\s*$`, 'im');
+  const headingMatch = headingRegex.exec(content);
+  if (!headingMatch) return null;
+
+  const start = headingMatch.index + headingMatch[0].length;
+  const remainder = content.slice(start);
+  const nextHeadingMatch = /^\s*##\s+.+$/im.exec(remainder);
+  const sectionBody = nextHeadingMatch
+    ? remainder.slice(0, nextHeadingMatch.index)
+    : remainder;
+  return sectionBody;
+}
+
 function extractTaskCommitHashes(content) {
-  const sectionMatch = content.match(/##\s*Task Commits([\s\S]*?)(?:\n##\s|\n#\s|$)/i);
-  if (!sectionMatch) {
+  const section = extractMarkdownSection(content, 'Task Commits');
+  if (section === null) {
     return { sectionPresent: false, hashes: [] };
   }
 
   const hashes = [];
   const hashPattern = /\b([0-9a-f]{7,40})\b/g;
   let match;
-  while ((match = hashPattern.exec(sectionMatch[1])) !== null) {
+  while ((match = hashPattern.exec(section)) !== null) {
     hashes.push(match[1]);
   }
 
@@ -78,12 +92,12 @@ function extractTaskCommitHashes(content) {
 }
 
 function extractStructuredProofIndex(content) {
-  const sectionMatch = content.match(/##\s*Proof Index([\s\S]*?)(?:\n##\s|\n#\s|$)/i);
-  if (!sectionMatch) {
+  const section = extractMarkdownSection(content, 'Proof Index');
+  if (section === null) {
     return { sectionPresent: false, entries: [], parse_error: null };
   }
 
-  const blockMatch = sectionMatch[1].match(/```(?:json)?\s*([\s\S]*?)```/i);
+  const blockMatch = section.match(/```(?:json)?\s*([\s\S]*?)```/i);
   if (!blockMatch) {
     return { sectionPresent: true, entries: [], parse_error: 'missing fenced JSON block' };
   }
