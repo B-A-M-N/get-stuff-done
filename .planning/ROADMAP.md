@@ -4,6 +4,7 @@
 
 - [x] **v0.2.0 Orchestration Integrity** - Phases 15-22 (shipped 2026-03-18)
 - [x] **v0.3.0 Trusted Context & Local Memory** - Phases 23-32 (Completed 2026-03-23)
+- [ ] **v0.5.0 Model-Facing Memory & Service Resilience** - Phases 53-54
 
 ## Archived Milestones
 
@@ -200,7 +201,7 @@ Plans:
 **Goal:** Remove broken safeGit API and make policy cache TTL configurable.
 **Requirements**: GIT-UNIFY-01, CACHE-CONFIG-01
 **Depends on:** Phase 39
-**Status**: [Planned]
+**Status**: [Complete]
 
 Plans:
 - [ ] 43-01-PLAN.md — Replace safeGit.exec with execGit, remove safeGit, add POLICY_CACHE_TTL_MS config, wire clearAll() to revocations
@@ -212,7 +213,7 @@ Plans:
 **Goal:** Fix remaining P2/P3 issues and improve diagnostics and code quality.
 **Requirements**: OBSERV-POLISH-01, OBSERV-POLISH-02
 **Depends on:** Phase 39, Phase 40
-**Status**: [Planned]
+**Status**: [Completed 2026-03-26]
 
 Plans:
 - [ ] 44-01-PLAN.md — Fix audit.cjs sqlite require guard, remove dead code, add policy decision logging
@@ -222,10 +223,12 @@ Plans:
 **Goal:** Mirror GSD state to Plane for visibility and test control while keeping .planning/ as source of truth; integrate Firecrawl as unified context layer.
 **Requirements**: PLANE-SYNC-01, PLANE-VISIBILITY-01, FIRECRAWL-CONTROL-01
 **Depends on:** Phase 44
-**Status**: [Planned]
+**Status**: [Retired 2026-03-26; superseded by Phases 47 and 48]
+
+Ledger note: Phase 45 was not executed as planned. `plane-client.cjs` and `tests/plane-client.test.cjs` survive as groundwork, but the original state-mirroring integration never landed and the useful Plane foundation was delivered later by Phases 47 and 48. See `.planning/phases/45-plane-augmented-context-control/45-RETIREMENT.md`.
 
 Plans:
-- [x] 45-01-PLAN.md — Implement plane-client, STATE.md mirroring, and configuration
+- [ ] 45-01-PLAN.md — Retired; do not execute as originally written
 
 ---
 
@@ -234,12 +237,14 @@ Plans:
 **Goal:** Update GSD agents to use Firecrawl's crawl API for all context retrieval instead of direct file reads and WebSearch.
 **Requirements**: FIRECRAWL-CONTROL-02, CONTEXT-UNIFY-01
 **Depends on:** Phase 45
-**Status**: [Planned]
+**Status**: [Completed 2026-03-26]
+
+Ledger note: `46-01`, `46-02`, and `46-03` now have summary evidence. `46-02` was implemented in the actual local Firecrawl worktree at `/home/bamn/firecrawl-local`, and live smoke verification passed on 2026-03-26.
 
 Plans:
 - [x] 46-01-PLAN.md — Unified context spec schema and Firecrawl client extensions
 - [x] 46-02-PLAN.md — Firecrawl service adapters and /v1/context/crawl endpoint
-- [ ] 46-03-PLAN.md — Agent migration to unified context and smoke tests
+- [x] 46-03-PLAN.md — Agent migration to unified context and smoke tests
 
 ---
 
@@ -248,11 +253,11 @@ Plans:
 **Goal:** Extend Plane sync to include ROADMAP.md → Plane milestones + issues, creating full project visibility.
 **Requirements**: PLANE-VISIBILITY-02, PLANE-SYNC-02
 **Depends on:** Phase 46
-**Status**: [Planned]
+**Status**: [Completed 2026-03-25]
 
 Plans:
-- [ ] 47-01-PLAN.md — PlaneClient methods + sync orchestration with idempotent upsert, drift detection, force
-- [ ] 47-02-PLAN.md — Test coverage + command integration + ROADMAP write hook
+- [x] 47-01-PLAN.md — PlaneClient methods + sync orchestration with idempotent upsert, drift detection, force
+- [x] 47-02-PLAN.md — Test coverage + command integration + ROADMAP write hook
 
 ---
 
@@ -261,24 +266,13 @@ Plans:
 **Goal:** Mirror GSD checkpoints and summaries to Plane as issue comments, providing full traceability.
 **Requirements**: PLANE-VISIBILITY-03, PLANE-SYNC-03
 **Depends on:** Phase 47
-**Status**: [Planned]
+**Status**: [Completed 2026-03-26]
+
+Ledger note: Phase 48 was executed after rewrite/reconciliation against current Phase 46/47 reality. Checkpoint sync now hooks from `cmdCheckpointWrite`, and summary sync is exposed through `gsd-tools plane-sync summary`.
 
 Plans:
-- [ ] 48-01-PLAN.md — Sync CHECKPOINT.md and SUMMARY.md to Plane issue comments
-
----
-
-### **Phase 51 — [URGENT INSERT] Enforcement Boundary Restoration**
-
-**Goal:** Restore enforcement boundary integrity by making critical gates mandatory, persisting cross-session context, and eliminating bypass vectors. Inserted after Phase 48/49 due to P0 architectural drift identified in 2026-03-25 audit. Does not follow numeric order; ordering is intentional to address critical system guarantees without disrupting planned Plane sync sequence.
-**Requirements**: ENFORCE-09, ENFORCE-10, ENFORCE-11, ENFORCE-12, ENFORCE-13, STATE-01, STATE-02, CONFIG-01, METRICS-01
-**Depends on:** None (can be inserted immediately)
-**Status**: [Planned]
-
-Plans:
-- [ ] 51-01-PLAN.md — Pre-condition checking and phase completeness gate
-- [ ] 51-02-PLAN.md — Research contract mandatory, ITL persistence, auto-chain restriction
-- [ ] 51-03-PLAN.md — State deduplication, explicit pause/resume, config cleanup, metrics parser
+- [x] 48-01-PLAN.md — Sync CHECKPOINT.md to Plane phase issue comments
+- [x] 48-02-PLAN.md — Summary-to-Plane comment synchronization
 
 ---
 
@@ -287,12 +281,12 @@ Plans:
 **Goal:** Restore enforcement boundary integrity by making critical gates mandatory, persisting cross-session context, and eliminating bypass vectors. Inserted after Phase 48/49 due to P0 architectural drift identified in 2026-03-25 audit. Does not follow numeric order; ordering is intentional to address critical system guarantees without disrupting planned Plane sync sequence.
 **Requirements**: ENFORCE-09, ENFORCE-10, ENFORCE-11, ENFORCE-12, ENFORCE-13, STATE-01, STATE-02, CONFIG-01, METRICS-01
 **Depends on:** None (can be inserted immediately)
-**Status**: [Planned]
+**Status**: [Completed 2026-03-26]
 
 Plans:
-- [ ] 51-01-PLAN.md — Pre-condition checking and phase completeness gate
-- [ ] 51-02-PLAN.md — Research contract mandatory, ITL persistence, auto-chain restriction
-- [ ] 51-03-PLAN.md — State deduplication, explicit pause/resume, config cleanup, metrics parser
+- [x] 51-01-PLAN.md — Pre-condition checking and phase completeness gate
+- [x] 51-02-PLAN.md — Research contract mandatory, ITL persistence, auto-chain restriction
+- [x] 51-03-PLAN.md — State deduplication, explicit pause/resume, config cleanup, metrics parser
 
 ---
 
@@ -301,13 +295,13 @@ Plans:
 **Goal:** Eliminate divergence between claimed and provable system behavior. Implement secret leakage prevention, validation proof harness, and automated truth audit to close quality gaps identified in 2026-03-25 audit.
 **Requirements**: QUALITY-01, QUALITY-02, QUALITY-03, QUALITY-04
 **Depends on:** Phase 51 (enforcement gates must be functional)
-**Status**: [In Progress]
+**Status**: [Completed 2026-03-26; Verified 2026-03-26]
 
 Plans:
 - [x] 52-01-PLAN.md — Test coverage closure (≥85% across critical modules)
 - [x] 52-02-PLAN.md — SafeLogger + kill tests for secret leakage prevention
 - [x] 52-03-PLAN.md — Validation proof system with adversarial test harness
-- [ ] 52-04-PLAN.md — Truth audit engine (requirement → evidence mapping)
+- [x] 52-04-PLAN.md — Truth audit engine (requirement → evidence mapping)
 
 ---
 
@@ -316,10 +310,12 @@ Plans:
 **Goal:** Implement real-time Plane → GSD sync via webhooks, enable external triggers and CI integration.
 **Requirements**: PLANE-WEBHOOK-01, PLANE-TRIGGER-01
 **Depends on:** Phase 48
-**Status**: [Planned]
+**Status**: [Completed 2026-03-26]
+
+Ledger note: Phase 49 was implemented on the existing Planning Server + broker surfaces. Inbound Plane events now flow through `POST /v1/plane/webhook`, are normalized, and publish broker triggers without directly mutating planning files.
 
 Plans:
-- [ ] 49-01-PLAN.md — Webhook listener, event handlers, CI integration
+- [x] 49-01-PLAN.md — Webhook listener, event handlers, CI integration
 
 ---
 
@@ -331,16 +327,43 @@ Plans:
 **Status**: [Planned]
 
 Plans:
-- [ ] 50-01-PLAN.md — gsd:plane-status, structured logs, circuit breaker, metrics
+- [x] 50-01-PLAN.md — gsd:plane-status, structured logs, circuit breaker, metrics
 
 ---
 
-$1
-... (rest of the file)
+## v0.5.0 Model-Facing Memory & Service Resilience
+
+### Phase 53: Second Brain Connection & Fallback Hardening
+
+**Goal:** Eliminate noisy Second Brain auth/pool churn and make Postgres or SQLite backend state deterministic, operator-visible, and safe for repeated test and CLI execution.
+**Requirements**: BRAIN-OPS-01, BRAIN-OPS-02, BRAIN-OPS-03
+**Depends on:** Phase 50
+**Status**: [Complete]
+**Plans:** 1/1 plans complete
+
+Plans:
+- [x] 53-01-PLAN.md — pool lifecycle cleanup, deterministic fallback, backend health/runbook output
+
+---
+
+### Phase 54: Model-Facing Second Brain via MCP
+
+**Goal:** Make Second Brain directly usable by planner and executor workflows through the GenAI toolkit MCP without bypassing Firecrawl's external-context boundary.
+**Requirements**: MEMORY-MCP-01, MEMORY-MCP-02
+**Depends on:** Phase 53
+**Status**: [In Progress]
+**Plans:** 1/2 plans complete
+
+Plans:
+- [x] 54-01-PLAN.md — MCP-backed memory access contract, degraded-mode enforcement, and planner/executor toolbox split
+- [ ] 54-02-PLAN.md — workflow memory-pack integration, Firecrawl boundary verification, and executor lifecycle writeback
+
+---
 
 <!-- GSD-AUTHORITY: 28-02-3:55f9931d8818c5453cd0c6cab0cfe3a4ad85d0e2435a859b3a4087f2ce91feae -->
 <!-- GSD-AUTHORITY: 42-42-04-1:8041f8bf3f51284502fbc7c376f1b954e2c70ec20bae8f12a78fafd89504b6f5 -->
 <!-- GSD-AUTHORITY: 47-47-02-1:3784f5e2a75880fd689bb11a77bd059a2573319d43760bf89c2fd82983304f9a -->
 <!-- GSD-AUTHORITY: 51-01-1:5e58f732c148a9957695314cba5d79158b71e94281c49af5afe7bcc1cd9cd2a5 -->
 <!-- GSD-AUTHORITY: 51-51-02-1:4743a94cde125fb8ed4e85ff6b8d7f72b1396669cc89ff79a43fd55048b83e31 -->
-<!-- GSD-AUTHORITY: 51-51-03-1:92a199d5c3111db1ec0b6eab26c4f52688af18322bb1e0045c2e6bf28e13d191 -->
+<!-- GSD-AUTHORITY: 53-01-1:e9f1629b9c60209b15814095f65456d247b42360c9ec4bc82a6a93b29bed1327 -->
+<!-- GSD-AUTHORITY: 53-01-1:21dd8df723021d56f3b9737e891800858c6da8841665dadfea040fdf342faffc -->
