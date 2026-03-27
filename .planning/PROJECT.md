@@ -1,8 +1,8 @@
-# PROJECT: get-stuff-done (Intent Translation Layer Enhancement)
+# PROJECT: get-stuff-done
 
 ## Current State
 
-Version `0.1.0` is shipped.
+Versions `0.1.0`, `0.2.0`, `0.3.0`, `0.4.0`, `0.5.0`, and `0.6.0` are shipped. `v0.6.0` delivered Open Brain as a bounded local-first semantic-recall sidecar with curated ingestion, ranked retrieval, workflow-context integration, and installed Codex operator-surface repair while preserving Second Brain as execution truth.
 
 Delivered in `v0.1.0`:
 - narrative-first intake across initialization, discussion, and verification
@@ -12,29 +12,32 @@ Delivered in `v0.1.0`:
 - standalone `packages/itl` module with `interpret_narrative(input_text, context_data)`
 - stable `100%` line-coverage gate for the scoped ITL runtime and package surfaces
 
+Delivered in `v0.2.0`:
+- runtime-bound orchestration gates
+- checkpoint/state lifecycle and schema contracts
+- context enrichment and workflow surface hardening
+- end-to-end orchestration integrity coverage
+
+Delivered in `v0.3.0`:
+- trusted context sandboxing and canonical artifact storage
+- unified normalization pipeline and AST-aware context extraction
+- independent local memory foundation with Postgres/SQLite fallback
+- strict context determinism and observability hardening
+
 ## Current Core Value
 
-Provider-aware narrative interpretation that improves the user interaction layer without weakening GSD planning rigor.
+Runtime-bound orchestration integrity with controlled context retrieval, deterministic evidence, and local memory that can be audited instead of hand-waved.
 
-## Current Milestone: v0.2.0 Orchestration Integrity
+## Next Milestone Goals
 
-**Goal:** Harden the enforcement model from workflow-described to runtime-bound — add a persistent checkpoint artifact, mandatory gate checks, pre-flight context enrichment, schema contracts for execution artifacts, and full end-to-end scenario tests.
-
-**Target features:**
-- Runtime gate enforcement (blocked clarification state prevents plan/execute/autonomous)
-- Persistent CHECKPOINT.md artifact written, re-read, and audited across resume boundaries
-- Pre-flight context enrichment: ambient state harvested before escalating clarification to user
-- Workflow surface hardening (research-phase, validate-phase, autonomous get blocked-state awareness)
-- Orphaned workflow reconciliation (diagnose-issues, discovery-phase, node-repair, transition, verify-phase)
-- End-to-end behavioral scenario tests for pause→clarify→blocked→resume→resolve loop
-- Zod schemas for CHECKPOINT.md and SUMMARY.md artifacts; cmdVerifySummary upgraded to contract validation
+No active milestone is defined yet. The next planning pass should decide whether to deepen Open Brain capabilities, normalize historical roadmap bookkeeping, or expand model-facing workflow ergonomics around the new memory boundaries.
 
 ## Archived Context
 
 <details>
 <summary>v0.1.0 planning context</summary>
 
-### Vision
+### v0.1.0 Vision
 Improve the human interaction layer of `get-stuff-done` by introducing a provider-agnostic "Intent Translation Layer" (ITL) that adapts user narrative into the structured inputs required by the existing GSD engines (Initialization, Discussion, Planning, Research, Execution, and Verification).
 
 ### Core Principles
@@ -48,7 +51,23 @@ The ITL must adapt user input into the existing engines’ expected structures. 
 
 </details>
 
----
-*Last updated: 2026-03-17 after v0.2.0 milestone start*
+<details>
+<summary>v0.6.0 milestone context</summary>
 
-<!-- GSD-AUTHORITY: 28-02-3:6246a0e1bd7a78137c07b0209fe665f20443acbec8c7bef492e7f12ca64992b7 -->
+### v0.6.0 Goal
+Add a separate local-first Open Brain sidecar that improves agent performance over time through semantic recall, bounded retrieval, and feedback-driven ranking while preserving Plane as control, Firecrawl as retrieval/normalization, and Second Brain as execution truth.
+
+### v0.6.0 Target Features
+- create a separate `gsd_open_brain` schema or database instead of overloading Second Brain
+- add local embedding generation for normalized artifacts using a local-first provider
+- ingest selected Firecrawl-normalized artifacts into Open Brain for long-horizon recall
+- provide bounded semantic retrieval with scoring based on similarity, recency, reuse, and feedback
+- record recall outcomes so retrieval quality can improve over time without polluting execution-critical workflow state
+- keep Open Brain optional and non-breaking when unavailable
+
+</details>
+
+---
+*Last updated: 2026-03-27 after v0.6.0 milestone completion*
+
+<!-- GSD-AUTHORITY: 53-01-1:2a316a9a1c282c6f0430f2ea15e45c78b2605632d49856dc67ebd903082e8900 -->

@@ -233,14 +233,11 @@ const { error, output, safeFs } = require('./lib/core.cjs');
 const state = require('./lib/state.cjs');
 const phase = require('./lib/phase.cjs');
 const roadmap = require('./lib/roadmap.cjs');
-const verify = require('./lib/verify.cjs');
 const config = require('./lib/config.cjs');
 const template = require('./lib/template.cjs');
 const milestone = require('./lib/milestone.cjs');
-const commands = require('./lib/commands.cjs');
 const init = require('./lib/init.cjs');
 const frontmatter = require('./lib/frontmatter.cjs');
-const itl = require('./lib/itl.cjs');
 const audit = require('./lib/audit.cjs');
 const openboxPolicy = require('./lib/openbox-policy.cjs');
 const integrityLog = require('./lib/integrity-log.cjs');
@@ -249,11 +246,23 @@ const profileOutput = require('./lib/profile-output.cjs');
 const nextStep = require('./lib/next-step.cjs');
 const policy = require('./lib/policy.cjs');
 const gate = require('./lib/gate.cjs');
-const context = require('./lib/context.cjs');
-const firecrawlClient = require('./lib/firecrawl-client.cjs');
-const searxngClient = require('./lib/searxng-client.cjs');
 const schemaRegistry = require('./lib/schema-registry.cjs');
-const planeHealth = require('./lib/plane-health.cjs');
+
+function lazyRequire(modulePath) {
+  let cached = null;
+  return () => {
+    if (!cached) cached = require(modulePath);
+    return cached;
+  };
+}
+
+const getVerify = lazyRequire('./lib/verify.cjs');
+const getCommands = lazyRequire('./lib/commands.cjs');
+const getItl = lazyRequire('./lib/itl.cjs');
+const getContext = lazyRequire('./lib/context.cjs');
+const getPlaneHealth = lazyRequire('./lib/plane-health.cjs');
+const getFirecrawlClient = lazyRequire('./lib/firecrawl-client.cjs');
+const getSearxngClient = lazyRequire('./lib/searxng-client.cjs');
 
 // ─── CLI Router ───────────────────────────────────────────────────────────────
 
@@ -453,7 +462,7 @@ async function main() {
     }
 
     case 'resolve-model': {
-      commands.cmdResolveModel(cwd, args[1], raw);
+      getCommands().cmdResolveModel(cwd, args[1], raw);
       break;
     }
 
@@ -472,7 +481,7 @@ async function main() {
       const messageArgs = args.slice(1, endIndex).filter(a => !a.startsWith('--'));
       const message = messageArgs.join(' ') || undefined;
       const files = filesIndex !== -1 ? args.slice(filesIndex + 1).filter(a => !a.startsWith('--')) : [];
-      await commands.cmdCommit(cwd, message, files, raw, amend);
+      await getCommands().cmdCommit(cwd, message, files, raw, amend);
       break;
     }
 
@@ -505,7 +514,7 @@ async function main() {
       }
       const ctPrevHashIdx = args.indexOf('--prev-hash');
       const ctPrevHash = ctPrevHashIdx !== -1 ? args[ctPrevHashIdx + 1] : null;
-      commands.cmdCommitTask(cwd, ctMessage, ctFiles, ctScope, { phase: ctPhase, plan: ctPlan, task: ctTask, wave: ctWave, prev_hash: ctPrevHash }, raw);
+      getCommands().cmdCommitTask(cwd, ctMessage, ctFiles, ctScope, { phase: ctPhase, plan: ctPlan, task: ctTask, wave: ctWave, prev_hash: ctPrevHash }, raw);
       break;
     }
 
@@ -538,7 +547,7 @@ async function main() {
       }
       const cptPrevHashIdx = args.indexOf('--prev-hash');
       const cptPrevHash = cptPrevHashIdx !== -1 ? args[cptPrevHashIdx + 1] : null;
-      commands.cmdCompleteTask(cwd, cptMessage, cptFiles, cptScope, { phase: cptPhase, plan: cptPlan, task: cptTask, wave: cptWave, prev_hash: cptPrevHash, force_scope: cptForceScope }, raw);
+      getCommands().cmdCompleteTask(cwd, cptMessage, cptFiles, cptScope, { phase: cptPhase, plan: cptPlan, task: cptTask, wave: cptWave, prev_hash: cptPrevHash, force_scope: cptForceScope }, raw);
       break;
     }
 
@@ -549,9 +558,9 @@ async function main() {
       const tlPhase = tlPhaseIdx !== -1 ? args[tlPhaseIdx + 1] : null;
       const tlPlan = tlPlanIdx !== -1 ? args[tlPlanIdx + 1] : null;
       if (subcommand === 'read') {
-        commands.cmdTaskLogRead(cwd, tlPhase, tlPlan, raw);
+        getCommands().cmdTaskLogRead(cwd, tlPhase, tlPlan, raw);
       } else if (subcommand === 'reconstruct') {
-        commands.cmdTaskLogReconstruct(cwd, tlPhase, tlPlan, raw);
+        getCommands().cmdTaskLogReconstruct(cwd, tlPhase, tlPlan, raw);
       } else {
         error('Unknown task-log subcommand. Available: read, reconstruct');
       }
@@ -562,7 +571,7 @@ async function main() {
       const summaryPath = args[1];
       const countIndex = args.indexOf('--check-count');
       const checkCount = countIndex !== -1 ? parseInt(args[countIndex + 1], 10) : 2;
-      verify.cmdVerifySummary(cwd, summaryPath, checkCount, raw);
+      getVerify().cmdVerifySummary(cwd, summaryPath, checkCount, raw);
       break;
     }
 
@@ -617,41 +626,41 @@ async function main() {
     case 'verify': {
       const subcommand = args[1];
       if (subcommand === 'plan-structure') {
-        verify.cmdVerifyPlanStructure(cwd, args[2], raw);
+        getVerify().cmdVerifyPlanStructure(cwd, args[2], raw);
       } else if (subcommand === 'phase-completeness') {
-        verify.cmdVerifyPhaseCompleteness(cwd, args[2], raw);
+        getVerify().cmdVerifyPhaseCompleteness(cwd, args[2], raw);
       } else if (subcommand === 'references') {
-        verify.cmdVerifyReferences(cwd, args[2], raw);
+        getVerify().cmdVerifyReferences(cwd, args[2], raw);
       } else if (subcommand === 'commits') {
-        verify.cmdVerifyCommits(cwd, args.slice(2), raw);
+        getVerify().cmdVerifyCommits(cwd, args.slice(2), raw);
       } else if (subcommand === 'task-commit') {
         const scopeIdx = args.indexOf('--scope');
-        verify.cmdVerifyTaskCommit(cwd, args[2], {
+        getVerify().cmdVerifyTaskCommit(cwd, args[2], {
           scope: scopeIdx !== -1 ? args[scopeIdx + 1] : null,
         }, raw);
       } else if (subcommand === 'artifacts') {
-        verify.cmdVerifyArtifacts(cwd, args[2], raw);
+        getVerify().cmdVerifyArtifacts(cwd, args[2], raw);
       } else if (subcommand === 'key-links') {
-        verify.cmdVerifyKeyLinks(cwd, args[2], raw);
+        getVerify().cmdVerifyKeyLinks(cwd, args[2], raw);
       } else if (subcommand === 'context-contract') {
         const planIdx = args.indexOf('--plan');
-        verify.cmdVerifyContextContract(cwd, args[2], planIdx !== -1 ? args[planIdx + 1] : null, raw);
+        getVerify().cmdVerifyContextContract(cwd, args[2], planIdx !== -1 ? args[planIdx + 1] : null, raw);
       } else if (subcommand === 'research-contract') {
         const researchIdx = args.indexOf('--research');
-        verify.cmdVerifyResearchContract(cwd, args[2], researchIdx !== -1 ? args[researchIdx + 1] : null, raw);
+        getVerify().cmdVerifyResearchContract(cwd, args[2], researchIdx !== -1 ? args[researchIdx + 1] : null, raw);
       } else if (subcommand === 'checkpoint-response') {
-        verify.cmdVerifyCheckpointResponse(cwd, args[2], raw);
+        getVerify().cmdVerifyCheckpointResponse(cwd, args[2], raw);
       } else if (subcommand === 'cross-plan-data-contracts') {
-        verify.cmdVerifyCrossPlanDataContracts(cwd, args[2], raw);
+        getVerify().cmdVerifyCrossPlanDataContracts(cwd, args[2], raw);
       } else if (subcommand === 'requirement-coverage') {
-        verify.cmdVerifyRequirementCoverage(cwd, args[2], raw);
+        getVerify().cmdVerifyRequirementCoverage(cwd, args[2], raw);
       } else if (subcommand === 'dead-exports') {
-        verify.cmdVerifyDeadExports(cwd, args[2], raw);
+        getVerify().cmdVerifyDeadExports(cwd, args[2], raw);
       } else if (subcommand === 'orphaned-state') {
-        verify.cmdVerifyOrphanedState(cwd, args[2], raw);
+        getVerify().cmdVerifyOrphanedState(cwd, args[2], raw);
       } else if (subcommand === 'workflow-readiness') {
         const phaseIdx = args.indexOf('--phase');
-        verify.cmdVerifyWorkflowReadiness(cwd, args[2], {
+        getVerify().cmdVerifyWorkflowReadiness(cwd, args[2], {
           phase: phaseIdx !== -1 ? args[phaseIdx + 1] : null,
           skip_research: args.includes('--skip-research'),
           research: args.includes('--research'),
@@ -659,18 +668,18 @@ async function main() {
           gaps: args.includes('--gaps'),
         }, raw);
       } else if (subcommand === 'plan-quality') {
-        verify.cmdVerifyPlanQuality(cwd, args[2], raw);
+        getVerify().cmdVerifyPlanQuality(cwd, args[2], raw);
       } else if (subcommand === 'verify-work-cold-start') {
-        verify.cmdVerifyWorkColdStart(cwd, args[2], raw);
+        getVerify().cmdVerifyWorkColdStart(cwd, args[2], raw);
       } else if (subcommand === 'verify-bypass') {
-        verify.cmdVerifyBypass(cwd, args[2], raw);
+        getVerify().cmdVerifyBypass(cwd, args[2], raw);
       } else if (subcommand === 'checkpoint-coverage') {
         const cpPhaseIdx = args.indexOf('--phase');
-        verify.cmdVerifyCheckpointCoverage(cwd, args[2], cpPhaseIdx !== -1 ? args[cpPhaseIdx + 1] : null, raw);
+        getVerify().cmdVerifyCheckpointCoverage(cwd, args[2], cpPhaseIdx !== -1 ? args[cpPhaseIdx + 1] : null, raw);
       } else if (subcommand === 'integrity') {
         const intPhaseIdx = args.indexOf('--phase');
         const intPlanIdx = args.indexOf('--plan');
-        verify.cmdVerifyIntegrity(cwd, {
+        getVerify().cmdVerifyIntegrity(cwd, {
           phase: intPhaseIdx !== -1 ? args[intPhaseIdx + 1] : null,
           plan: intPlanIdx !== -1 ? args[intPlanIdx + 1] : null,
         }, raw);
@@ -762,7 +771,7 @@ async function main() {
         const cpTaskNameIdx = args.indexOf('--task-name');
         const cpChoicesIdx = args.indexOf('--choices');
         const cpResumeIdx = args.indexOf('--resume-condition');
-      await commands.cmdCheckpointWrite(cwd, cpPhase, {
+      await getCommands().cmdCheckpointWrite(cwd, cpPhase, {
           plan: cpPlan,
           type: cpTypeIdx !== -1 ? args[cpTypeIdx + 1] : null,
           why_blocked: cpWhyIdx !== -1 ? args[cpWhyIdx + 1] : null,
@@ -809,7 +818,7 @@ async function main() {
     case 'health': {
       const subcommand = args[1];
       if (subcommand === 'degraded-mode') {
-        commands.cmdHealthDegradedMode(cwd, raw);
+        getCommands().cmdHealthDegradedMode(cwd, raw);
       } else {
         error('Unknown health subcommand. Available: degraded-mode');
       }
@@ -898,17 +907,17 @@ async function main() {
     case 'firecrawl': {
       const subcommand = args[1];
       if (subcommand === 'check') {
-        const result = await firecrawlClient.check();
+        const result = await getFirecrawlClient().check();
         output(result, raw, result.available ? 'ok' : 'down');
       } else if (subcommand === 'scrape') {
         const urlIdx = args.indexOf('--url');
         if (urlIdx === -1) error('--url is required for scrape');
-        const result = await firecrawlClient.scrape(args[urlIdx + 1]);
+        const result = await getFirecrawlClient().scrape(args[urlIdx + 1]);
         output(result, raw);
       } else if (subcommand === 'search') {
         const queryIdx = args.indexOf('--query');
         if (queryIdx === -1) error('--query is required for search');
-        const result = await firecrawlClient.search(args[queryIdx + 1]);
+        const result = await getFirecrawlClient().search(args[queryIdx + 1]);
         output(result, raw);
       } else if (subcommand === 'extract') {
         const urlIdx = args.indexOf('--url');
@@ -921,12 +930,12 @@ async function main() {
         } catch {
           error('Invalid JSON for --schema');
         }
-        const result = await firecrawlClient.extract(args[urlIdx + 1], schema);
+        const result = await getFirecrawlClient().extract(args[urlIdx + 1], schema);
         output(result, raw);
       } else if (subcommand === 'map') {
         const urlIdx = args.indexOf('--url');
         if (urlIdx === -1) error('--url is required for map');
-        const result = await firecrawlClient.map(args[urlIdx + 1]);
+        const result = await getFirecrawlClient().map(args[urlIdx + 1]);
         output(result, raw);
       } else if (subcommand === 'audit') {
         // Check if subcommand is 'audit cleanup'
@@ -1059,7 +1068,7 @@ async function main() {
     case 'plane': {
       const subcommand = args[1];
       if (subcommand === 'status') {
-        const status = await planeHealth.getPlaneStatus();
+        const status = await getPlaneHealth().getPlaneStatus();
         output(status, raw);
       } else if (subcommand === 'audit') {
         const limitIdx = args.indexOf('--limit');
@@ -1075,12 +1084,12 @@ async function main() {
     case 'searxng': {
       const subcommand = args[1];
       if (subcommand === 'check') {
-        const result = await searxngClient.check();
+        const result = await getSearxngClient().check();
         output(result, raw, result.available ? 'ok' : 'down');
       } else if (subcommand === 'search') {
         const queryIdx = args.indexOf('--query');
         if (queryIdx === -1) error('--query is required for search');
-        const result = await searxngClient.search(args[queryIdx + 1]);
+        const result = await getSearxngClient().search(args[queryIdx + 1]);
         output(result, raw);
       } else {
         error('Unknown searxng subcommand. Available: check, search');
@@ -1089,22 +1098,22 @@ async function main() {
     }
 
     case 'generate-slug': {
-      commands.cmdGenerateSlug(args[1], raw);
+      getCommands().cmdGenerateSlug(args[1], raw);
       break;
     }
 
     case 'current-timestamp': {
-      commands.cmdCurrentTimestamp(args[1] || 'full', raw);
+      getCommands().cmdCurrentTimestamp(args[1] || 'full', raw);
       break;
     }
 
     case 'list-todos': {
-      commands.cmdListTodos(cwd, args[1], raw);
+      getCommands().cmdListTodos(cwd, args[1], raw);
       break;
     }
 
     case 'verify-path-exists': {
-      commands.cmdVerifyPathExists(cwd, args[1], raw);
+      getCommands().cmdVerifyPathExists(cwd, args[1], raw);
       break;
     }
 
@@ -1129,7 +1138,7 @@ async function main() {
     }
 
     case 'history-digest': {
-      commands.cmdHistoryDigest(cwd, raw);
+      getCommands().cmdHistoryDigest(cwd, raw);
       break;
     }
 
@@ -1248,10 +1257,10 @@ async function main() {
     case 'validate': {
       const subcommand = args[1];
       if (subcommand === 'consistency') {
-        verify.cmdValidateConsistency(cwd, raw);
+        getVerify().cmdValidateConsistency(cwd, raw);
       } else if (subcommand === 'health') {
         const repairFlag = args.includes('--repair');
-        verify.cmdValidateHealth(cwd, { repair: repairFlag }, raw);
+        getVerify().cmdValidateHealth(cwd, { repair: repairFlag }, raw);
       } else {
         error('Unknown validate subcommand. Available: consistency, health');
       }
@@ -1260,13 +1269,13 @@ async function main() {
 
     case 'progress': {
       const subcommand = args[1] || 'json';
-      commands.cmdProgressRender(cwd, subcommand, raw);
+      getCommands().cmdProgressRender(cwd, subcommand, raw);
       break;
     }
 
     case 'stats': {
       const subcommand = args[1] || 'json';
-      commands.cmdStats(cwd, subcommand, raw);
+      getCommands().cmdStats(cwd, subcommand, raw);
       break;
     }
 
@@ -1281,7 +1290,7 @@ async function main() {
           plan: planIdx !== -1 ? args[planIdx + 1] : null,
           wave: waveIdx !== -1 ? args[waveIdx + 1] : null,
         };
-        commands.cmdTodoComplete(cwd, args[2], todoOptions, raw);
+        getCommands().cmdTodoComplete(cwd, args[2], todoOptions, raw);
       } else {
         error('Unknown todo subcommand. Available: complete');
       }
@@ -1300,7 +1309,7 @@ async function main() {
         plan: planIdx !== -1 ? args[planIdx + 1] : null,
         wave: waveIdx !== -1 ? args[waveIdx + 1] : null,
       };
-      commands.cmdScaffold(cwd, scaffoldType, scaffoldOptions, raw);
+      getCommands().cmdScaffold(cwd, scaffoldType, scaffoldOptions, raw);
       break;
     }
 
@@ -1363,7 +1372,7 @@ async function main() {
       const summaryPath = args[1];
       const fieldsIndex = args.indexOf('--fields');
       const fields = fieldsIndex !== -1 ? args[fieldsIndex + 1].split(',') : null;
-      commands.cmdSummaryExtract(cwd, summaryPath, fields, raw);
+      getCommands().cmdSummaryExtract(cwd, summaryPath, fields, raw);
       break;
     }
 
@@ -1398,7 +1407,7 @@ async function main() {
         const text = textIndex !== -1
           ? args[textIndex + 1]
           : args.slice(2).filter(arg => !arg.startsWith('--')).join(' ');
-        itl.cmdItlInterpret(cwd, {
+        getItl().cmdItlInterpret(cwd, {
           text,
           provider,
           provider_response: providerResponse,
@@ -1411,7 +1420,7 @@ async function main() {
         const text = textIndex !== -1
           ? args[textIndex + 1]
           : args.slice(2).filter(arg => !arg.startsWith('--')).join(' ');
-        itl.cmdItlInitSeed(cwd, {
+        getItl().cmdItlInitSeed(cwd, {
           text,
           provider,
           provider_response: providerResponse,
@@ -1423,7 +1432,7 @@ async function main() {
         const text = textIndex !== -1
           ? args[textIndex + 1]
           : args.slice(2).filter(arg => !arg.startsWith('--')).join(' ');
-        itl.cmdItlDiscussSeed(cwd, {
+        getItl().cmdItlDiscussSeed(cwd, {
           text,
           provider,
           provider_response: providerResponse,
@@ -1435,7 +1444,7 @@ async function main() {
         const text = textIndex !== -1
           ? args[textIndex + 1]
           : args.slice(2).filter(arg => !arg.startsWith('--')).join(' ');
-        itl.cmdItlVerifySeed(cwd, {
+        getItl().cmdItlVerifySeed(cwd, {
           text,
           provider,
           provider_response: providerResponse,
@@ -1443,7 +1452,7 @@ async function main() {
           phase: phase,
         }, raw);
       } else if (subcommand === 'latest') {
-        itl.cmdItlLatest(cwd, raw);
+        getItl().cmdItlLatest(cwd, raw);
       } else {
         error('Unknown itl subcommand. Available: interpret, init-seed, discuss-seed, verify-seed, latest');
       }
@@ -1594,16 +1603,16 @@ async function main() {
         const phaseVal = phaseIdx !== -1 ? args[phaseIdx + 1] : null;
         const planIdx = args.indexOf('--plan');
         const planVal = planIdx !== -1 ? args[planIdx + 1] : null;
-        await context.cmdContextBuild(cwd, workflow, { phase: phaseVal, plan: planVal }, raw);
+        await getContext().cmdContextBuild(cwd, workflow, { phase: phaseVal, plan: planVal }, raw);
       } else if (sub === 'read') {
         const ids = args.slice(2).filter(a => !a.startsWith('--'));
-        context.cmdContextRead(cwd, ids, { raw });
+        getContext().cmdContextRead(cwd, ids, { raw });
       } else if (sub === 'normalize') {
         const sourceIdx = args.indexOf('--source');
         const fileIdx = args.indexOf('--file');
         const typeIdx = args.indexOf('--type');
         const producerIdx = args.indexOf('--producer');
-        context.cmdContextNormalize(cwd, sourceIdx !== -1 ? args[sourceIdx + 1] : null, fileIdx !== -1 ? args[fileIdx + 1] : null, {
+        getContext().cmdContextNormalize(cwd, sourceIdx !== -1 ? args[sourceIdx + 1] : null, fileIdx !== -1 ? args[fileIdx + 1] : null, {
           raw,
           type: typeIdx !== -1 ? args[typeIdx + 1] : null,
           producer: producerIdx !== -1 ? args[producerIdx + 1] : null,

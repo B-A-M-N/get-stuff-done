@@ -4,7 +4,8 @@
 
 - [x] **v0.2.0 Orchestration Integrity** - Phases 15-22 (shipped 2026-03-18)
 - [x] **v0.3.0 Trusted Context & Local Memory** - Phases 23-32 (Completed 2026-03-23)
-- [ ] **v0.5.0 Model-Facing Memory & Service Resilience** - Phases 53-54
+- [x] **v0.5.0 Model-Facing Memory & Service Resilience** - Phases 53-54 (Completed 2026-03-27)
+- [x] **v0.6.0 Open Brain Foundations** - Phase 55 (Completed 2026-03-27)
 
 ## Archived Milestones
 
@@ -21,6 +22,15 @@ See full archived roadmap: `.planning/milestones/v0.1.0-ROADMAP.md`
 <summary>v0.2.0 Orchestration Integrity (Phases 15-22) — SHIPPED 2026-03-18</summary>
 
 Delivered: Zod-validated execution artifacts, persistent checkpointing, mandatory runtime gates, pre-flight context enrichment, and full brownfield audit suite.
+
+</details>
+
+<details>
+<summary>v0.6.0 Open Brain Foundations (Phase 55) — SHIPPED 2026-03-27</summary>
+
+Delivered: separate `gsd_open_brain` sidecar schema, local-first embedding posture, curated ingestion, bounded semantic recall, feedback-driven reranking, workflow-context integration, and installed Codex `brain open-status` repair.
+
+See full archived roadmap: `.planning/milestones/v0.6.0-ROADMAP.md`
 
 </details>
 
@@ -324,7 +334,7 @@ Plans:
 **Goal:** Add monitoring, diagnostics, and multi-mode support for Plane-augmented deployments.
 **Requirements**: OBSERV-PLANE-01, OBSERV-PLANE-02
 **Depends on:** Phase 49
-**Status**: [Planned]
+**Status**: [Completed 2026-03-26]
 
 Plans:
 - [x] 50-01-PLAN.md — gsd:plane-status, structured logs, circuit breaker, metrics
@@ -357,24 +367,6 @@ Plans:
 Plans:
 - [x] 54-01-PLAN.md — MCP-backed memory access contract, degraded-mode enforcement, and planner/executor toolbox split
 - [x] 54-02-PLAN.md — workflow memory-pack integration, Firecrawl boundary verification, and executor lifecycle writeback
-
----
-
-## v0.6.0 Open Brain Foundations
-
-### Phase 55: Open Brain V1 Foundations
-
-**Goal:** Add a separate local-first Open Brain sidecar that ingests normalized artifacts, embeds them, retrieves bounded semantic recall, and records recall outcomes without changing Second Brain's role as the execution-truth store.
-**Requirements**: OPEN-BRAIN-01, OPEN-BRAIN-02, OPEN-BRAIN-03, OPEN-BRAIN-04, OPEN-BRAIN-05, OPEN-BRAIN-06
-**Depends on:** Phase 54
-**Status**: [Completed 2026-03-27]
-**Plans:** 4/4 plans complete
-
-Plans:
-- [x] 55-01-PLAN.md — Open Brain schema, pgvector foundation, local embeddings, and graph-ready relational links
-- [x] 55-02-PLAN.md — normalized artifact ingestion, semantic retrieval, bounded ranking, and curated recall API
-- [x] 55-03-PLAN.md — workflow integration, recall feedback, safe degradation, and end-to-end validation
-- [x] 55-04-PLAN.md — post-UAT operator-surface repair to restore the installed Codex `brain open-status` path, without changing the original Phase 55 sidecar success criteria
 
 ---
 

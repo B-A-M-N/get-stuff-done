@@ -1,9 +1,9 @@
 ---
 phase: 55
 slug: open-brain-v1-foundations
-status: planned
-nyquist_compliant: false
-wave_0_complete: false
+status: complete
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-03-27
 updated: 2026-03-27
 ---
@@ -39,18 +39,18 @@ updated: 2026-03-27
 
 | Task ID | Plan | Wave | Requirement | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|-----------|-------------------|-------------|--------|
-| 55-01-01 | 01 | 1 | OPEN-BRAIN-01, OPEN-BRAIN-02 | unit | `node --test tests/open-brain-schema.test.cjs` | ⬜ planned | ⬜ pending |
-| 55-01-02 | 01 | 1 | OPEN-BRAIN-01, OPEN-BRAIN-02, OPEN-BRAIN-06 | integration | `node --test tests/open-brain-schema.test.cjs tests/open-brain-degraded-mode.test.cjs` | ⬜ planned | ⬜ pending |
-| 55-01-03 | 01 | 1 | OPEN-BRAIN-01, OPEN-BRAIN-02 | regression | `node --check get-stuff-done/bin/lib/open-brain.cjs && node --check get-stuff-done/bin/lib/open-brain-embedder.cjs` | ⬜ planned | ⬜ pending |
-| 55-02-01 | 02 | 2 | OPEN-BRAIN-03 | integration | `node --test tests/open-brain-ingestion.test.cjs` | ⬜ planned | ⬜ pending |
-| 55-02-02 | 02 | 2 | OPEN-BRAIN-04, OPEN-BRAIN-05 | integration | `node --test tests/open-brain-retrieval.test.cjs tests/open-brain-feedback.test.cjs` | ⬜ planned | ⬜ pending |
-| 55-02-03 | 02 | 2 | OPEN-BRAIN-03, OPEN-BRAIN-04, OPEN-BRAIN-05 | regression | `node --check get-stuff-done/bin/lib/open-brain.cjs && node --check get-stuff-done/bin/lib/open-brain-ranker.cjs && node --test tests/open-brain-ingestion.test.cjs tests/open-brain-retrieval.test.cjs tests/open-brain-feedback.test.cjs` | ⬜ planned | ⬜ pending |
-| 55-03-01 | 03 | 3 | OPEN-BRAIN-04, OPEN-BRAIN-06 | integration | `node --test tests/open-brain-context-integration.test.cjs tests/open-brain-degraded-mode.test.cjs` | ⬜ planned | ⬜ pending |
-| 55-03-02 | 03 | 3 | OPEN-BRAIN-05, OPEN-BRAIN-06 | integration | `node --test tests/open-brain-feedback.test.cjs tests/open-brain-context-integration.test.cjs` | ⬜ planned | ⬜ pending |
-| 55-03-03 | 03 | 3 | OPEN-BRAIN-04, OPEN-BRAIN-05, OPEN-BRAIN-06 | regression | `node --check get-stuff-done/bin/lib/context.cjs && node --check get-stuff-done/bin/lib/open-brain.cjs && node --test tests/open-brain-context-integration.test.cjs tests/open-brain-feedback.test.cjs tests/open-brain-degraded-mode.test.cjs` | ⬜ planned | ⬜ pending |
-| 55-04-01 | 04 | 4 | OPEN-BRAIN-06 | integration | `node --test tests/install-isolation.test.cjs` | ⬜ planned | ⬜ pending |
-| 55-04-02 | 04 | 4 | OPEN-BRAIN-06 | integration | `node --test tests/install-isolation.test.cjs tests/open-brain-degraded-mode.test.cjs` | ⬜ planned | ⬜ pending |
-| 55-04-03 | 04 | 4 | OPEN-BRAIN-06 | regression | `node --check bin/install.js && node --check get-stuff-done/bin/gsd-tools.cjs && node --test tests/install-isolation.test.cjs tests/open-brain-degraded-mode.test.cjs && rg -n "get-shit-done/VERSION|dostuff/get-stuff-done/VERSION" get-stuff-done/workflows/update.md` | ⬜ planned | ⬜ pending |
+| 55-01-01 | 01 | 1 | OPEN-BRAIN-01, OPEN-BRAIN-02 | unit | `node --test tests/open-brain-schema.test.cjs` | ✅ present | ✅ green |
+| 55-01-02 | 01 | 1 | OPEN-BRAIN-01, OPEN-BRAIN-02, OPEN-BRAIN-06 | integration | `node --test tests/open-brain-schema.test.cjs tests/open-brain-degraded-mode.test.cjs` | ✅ present | ✅ green |
+| 55-01-03 | 01 | 1 | OPEN-BRAIN-01, OPEN-BRAIN-02 | regression | `node --check get-stuff-done/bin/lib/open-brain.cjs && node --check get-stuff-done/bin/lib/open-brain-embedder.cjs` | ✅ present | ✅ green |
+| 55-02-01 | 02 | 2 | OPEN-BRAIN-03 | integration | `node --test tests/open-brain-ingestion.test.cjs` | ✅ present | ✅ green |
+| 55-02-02 | 02 | 2 | OPEN-BRAIN-04, OPEN-BRAIN-05 | integration | `node --test tests/open-brain-retrieval.test.cjs tests/open-brain-feedback.test.cjs` | ✅ present | ✅ green |
+| 55-02-03 | 02 | 2 | OPEN-BRAIN-03, OPEN-BRAIN-04, OPEN-BRAIN-05 | regression | `node --check get-stuff-done/bin/lib/open-brain.cjs && node --check get-stuff-done/bin/lib/open-brain-ranker.cjs && node --test tests/open-brain-ingestion.test.cjs tests/open-brain-retrieval.test.cjs tests/open-brain-feedback.test.cjs` | ✅ present | ✅ green |
+| 55-03-01 | 03 | 3 | OPEN-BRAIN-04, OPEN-BRAIN-06 | integration | `node --test tests/open-brain-context-integration.test.cjs tests/open-brain-degraded-mode.test.cjs` | ✅ present | ✅ green |
+| 55-03-02 | 03 | 3 | OPEN-BRAIN-05, OPEN-BRAIN-06 | integration | `node --test tests/open-brain-feedback.test.cjs tests/open-brain-context-integration.test.cjs` | ✅ present | ✅ green |
+| 55-03-03 | 03 | 3 | OPEN-BRAIN-04, OPEN-BRAIN-05, OPEN-BRAIN-06 | regression | `node --check get-stuff-done/bin/lib/context.cjs && node --check get-stuff-done/bin/lib/open-brain.cjs && node --test tests/open-brain-context-integration.test.cjs tests/open-brain-feedback.test.cjs tests/open-brain-degraded-mode.test.cjs` | ✅ present | ✅ green |
+| 55-04-01 | 04 | 4 | OPEN-BRAIN-06 | integration | `node --test tests/install-isolation.test.cjs` | ✅ present | ✅ green |
+| 55-04-02 | 04 | 4 | OPEN-BRAIN-06 | integration | `node --test tests/install-isolation.test.cjs tests/open-brain-degraded-mode.test.cjs` | ✅ present | ✅ green |
+| 55-04-03 | 04 | 4 | OPEN-BRAIN-06 | regression | `node --check bin/install.js && node --check get-stuff-done/bin/gsd-tools.cjs && node --test tests/install-isolation.test.cjs tests/open-brain-degraded-mode.test.cjs && rg -n "get-shit-done/VERSION|dostuff/get-stuff-done/VERSION" get-stuff-done/workflows/update.md` | ✅ present | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -58,13 +58,13 @@ updated: 2026-03-27
 
 ## Wave 0 Requirements
 
-- [ ] `tests/open-brain-schema.test.cjs` — schema bootstrap, graph-ready tables, and vector extension posture
-- [ ] `tests/open-brain-degraded-mode.test.cjs` — unavailable embedding/store paths degrade safely
-- [ ] `tests/open-brain-ingestion.test.cjs` — normalized artifact ingestion and promotion path
-- [ ] `tests/open-brain-retrieval.test.cjs` — bounded ranked retrieval behavior
-- [ ] `tests/open-brain-feedback.test.cjs` — recall-event persistence and ranking feedback loop
-- [ ] `tests/open-brain-context-integration.test.cjs` — planner/executor context integration stays bounded and optional
-- [ ] `tests/install-isolation.test.cjs` — installed Codex operator path repair and `brain open-status --raw` shim smoke coverage
+- [x] `tests/open-brain-schema.test.cjs` — schema bootstrap, graph-ready tables, and vector extension posture
+- [x] `tests/open-brain-degraded-mode.test.cjs` — unavailable embedding/store paths degrade safely
+- [x] `tests/open-brain-ingestion.test.cjs` — normalized artifact ingestion and promotion path
+- [x] `tests/open-brain-retrieval.test.cjs` — bounded ranked retrieval behavior
+- [x] `tests/open-brain-feedback.test.cjs` — recall-event persistence and ranking feedback loop
+- [x] `tests/open-brain-context-integration.test.cjs` — planner/executor context integration stays bounded and optional
+- [x] `tests/install-isolation.test.cjs` — installed Codex operator path repair and `brain open-status --raw` shim smoke coverage
 
 **Wave 0 Note:** These tests are deliverables of Phase 55 execution and its additive gap closure. Planning is complete only when every planned behavior across Plans 55-01 through 55-04 has either automated coverage or an explicit manual review path.
 
@@ -89,4 +89,18 @@ updated: 2026-03-27
 - [x] Degraded-mode behavior is called out as required coverage
 - [x] Firecrawl and Second Brain boundary preservation is explicitly covered
 - [x] Gap-closure Plan 55-04 is covered by automated install-path and degraded-mode verification
-- [ ] `nyquist_compliant: true` to be set after the first green focused full-suite run
+- [x] `nyquist_compliant: true` set after the green focused full-suite run on 2026-03-27
+
+**Approval:** focused Phase 55 suite green on 2026-03-27
+
+## Validation Audit 2026-03-27
+
+| Metric | Count |
+|--------|-------|
+| Gaps found | 0 |
+| Resolved | 0 |
+| Escalated | 0 |
+
+Notes:
+- The full focused Phase 55 suite passed on 2026-03-27: `node --test tests/open-brain-schema.test.cjs tests/open-brain-ingestion.test.cjs tests/open-brain-retrieval.test.cjs tests/open-brain-feedback.test.cjs tests/open-brain-context-integration.test.cjs tests/open-brain-degraded-mode.test.cjs tests/install-isolation.test.cjs`
+- Validation is now aligned with the repaired installed Codex operator path and the green [55-UAT.md](/home/bamn/get-stuff-done/.planning/phases/55-open-brain-v1-foundations/55-UAT.md) artifact.

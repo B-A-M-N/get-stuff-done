@@ -6,7 +6,7 @@ source:
   - 55-02-SUMMARY.md
   - 55-03-SUMMARY.md
 started: 2026-03-27T08:52:00-05:00
-updated: 2026-03-27T08:59:00-05:00
+updated: 2026-03-27T10:58:06-05:00
 ---
 
 ## Current Test
@@ -18,9 +18,8 @@ updated: 2026-03-27T08:59:00-05:00
 
 ### 1. Open Brain readiness status is truthful and bounded
 expected: Running `node "/home/bamn/.codex/get-shit-done/bin/gsd-tools.cjs" brain open-status` should report Open Brain readiness or degraded/unavailable state clearly without claiming that Second Brain or the rest of the workflow is broken. The output should keep Open Brain separate from execution truth.
-result: issue
-reported: "bamn@pop-os:~/get-stuff-done$ node \"/home/bamn/.codex/get-shit-done/bin/gsd-tools.cjs\" brain open-status\nError: Unknown command: brain"
-severity: major
+result: pass
+notes: "Retested on 2026-03-27 after repairing the global Codex install with `node bin/install.js --codex --global`. `node \"/home/bamn/.codex/get-shit-done/bin/gsd-tools.cjs\" brain open-status --raw` exited 0 and returned bounded degraded truth including `schema: gsd_open_brain`, `sidecar_only: true`, `execution_truth_owner: second_brain`, and `blocked: false`."
 
 ### 2. Open Brain ingestion and retrieval stay curated
 expected: Promoting a normalized artifact into Open Brain and retrieving it should yield a bounded curated result set, not raw database rows or indiscriminate log ingestion. Archived or superseded memories should stay excluded by default.
@@ -37,19 +36,11 @@ result: pass
 ## Summary
 
 total: 4
-passed: 3
-issues: 1
+passed: 4
+issues: 0
 pending: 0
 skipped: 0
 
 ## Gaps
 
-- truth: "Running `node \"/home/bamn/.codex/get-shit-done/bin/gsd-tools.cjs\" brain open-status` reports Open Brain readiness or degraded status truthfully without conflating it with execution truth."
-  status: failed
-  reason: "User reported: bamn@pop-os:~/get-stuff-done$ node \"/home/bamn/.codex/get-shit-done/bin/gsd-tools.cjs\" brain open-status; Error: Unknown command: brain"
-  severity: major
-  test: 1
-  root_cause: ""
-  artifacts: []
-  missing: []
-  debug_session: ""
+none yet

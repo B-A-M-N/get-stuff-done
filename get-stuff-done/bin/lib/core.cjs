@@ -6,6 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
 const { MODEL_PROFILES } = require('./model-profiles.cjs');
+const { SafeLogger } = require('../../../packages/gsd-tools/src/logging/SafeLogger');
 
 // ─── Logging ────────────────────────────────────────────────────────────
 
@@ -39,13 +40,20 @@ function colorize(level, message) {
   return (colors[level] || '') + message + reset;
 }
 
+function shouldSanitizeFileWrite(filePath) {
+  const normalized = String(filePath || '').replace(/\\/g, '/').toLowerCase();
+  return normalized.endsWith('.log')
+    || normalized.includes('/logs/')
+    || normalized.includes('/log/');
+}
+
 function log(level, message, meta = {}) {
   if (LOG_LEVELS[level] < currentLogLevel) return;
   const timestamp = getTimestamp();
   const prefix = `[${timestamp}] [${level.toUpperCase()}]`;
-  const metaStr = Object.keys(meta).length ? ' ' + JSON.stringify(meta) : '';
+  const metaStr = Object.keys(meta).length ? ' ' + SafeLogger.sanitize(JSON.stringify(meta)) : '';
   const line = `${prefix} ${message}${metaStr}`;
-  const coloredLine = colorize(level, line);
+  const coloredLine = colorize(level, SafeLogger.sanitize(line));
   process.stderr.write(coloredLine + '\n');
 }
 
@@ -104,13 +112,21 @@ const safeFs = {
   existsSync: fs.existsSync,
   statSync: fs.statSync,
   readFileSync: fs.readFileSync,
-  writeFileSync: fs.writeFileSync,
+  writeFileSync: (filePath, content, ...args) => fs.writeFileSync(
+    filePath,
+    typeof content === 'string' && shouldSanitizeFileWrite(filePath) ? SafeLogger.sanitize(content) : content,
+    ...args
+  ),
   readdirSync: fs.readdirSync,
   mkdirSync: fs.mkdirSync,
   unlinkSync: fs.unlinkSync,
   rmSync: fs.rmSync,
   renameSync: fs.renameSync,
-  appendFileSync: fs.appendFileSync,
+  appendFileSync: (filePath, content, ...args) => fs.appendFileSync(
+    filePath,
+    typeof content === 'string' && shouldSanitizeFileWrite(filePath) ? SafeLogger.sanitize(content) : content,
+    ...args
+  ),
 };
 
 const safeGit = {
@@ -173,7 +189,9 @@ function safeWriteFile(filePath, content, options = {}) {
   }
 
   try {
-    let finalContent = content;
+    let finalContent = typeof content === 'string' && shouldSanitizeFileWrite(filePath)
+      ? SafeLogger.sanitize(content)
+      : content;
     if (options.phase && options.plan && options.wave) {
       // Lazy-require to avoid circular dependency
       const authority = require('./authority.cjs');
@@ -677,6 +695,74 @@ function stripShippedMilestones(content) {
   return content.replace(/<details>[\s\S]*?<\/details>/gi, '');
 }
 
+function compareMilestoneVersions(a, b) {
+  const left = String(a || '').replace(/^v/, '').split('.').map(n => Number.parseInt(n, 10) || 0);
+  const right = String(b || '').replace(/^v/, '').split('.').map(n => Number.parseInt(n, 10) || 0);
+  const length = Math.max(left.length, right.length);
+  for (let i = 0; i < length; i += 1) {
+    const diff = (left[i] || 0) - (right[i] || 0);
+    if (diff !== 0) return diff;
+  }
+  return 0;
+}
+
+function getLatestMilestoneListEntry(content) {
+  const cleaned = stripShippedMilestones(content || '');
+  const milestonesMatch = cleaned.match(/^##\s+Milestones\s*([\s\S]*?)(?:^##\s+|\Z)/m);
+  if (!milestonesMatch) return null;
+
+  const entries = [...milestonesMatch[1].matchAll(/^- \[[ x]\]\s+\*\*(v\d+\.\d+(?:\.\d+)?)\s+([^*]+)\*\*/gm)];
+  if (entries.length === 0) return null;
+
+  const latest = entries[entries.length - 1];
+  return {
+    version: latest[1],
+    name: latest[2].trim(),
+  };
+}
+
+function getCurrentMilestoneSection(content) {
+  const cleaned = stripShippedMilestones(content || '');
+  const latestListEntry = getLatestMilestoneListEntry(cleaned);
+  const headingPattern = /^##\s+v(\d+\.\d+(?:\.\d+)?)\s+([^\n]+)$/gm;
+  const headings = [];
+  let match;
+  while ((match = headingPattern.exec(cleaned)) !== null) {
+    headings.push({
+      index: match.index,
+      version: `v${match[1]}`,
+      name: match[2].trim(),
+    });
+  }
+  if (headings.length === 0) {
+    if (latestListEntry) {
+      return {
+        version: latestListEntry.version,
+        name: latestListEntry.name,
+        section: '',
+      };
+    }
+    return {
+      version: null,
+      name: null,
+      section: cleaned,
+    };
+  }
+  const current = headings[headings.length - 1];
+  if (latestListEntry && compareMilestoneVersions(latestListEntry.version, current.version) > 0) {
+    return {
+      version: latestListEntry.version,
+      name: latestListEntry.name,
+      section: '',
+    };
+  }
+  return {
+    version: current.version,
+    name: current.name,
+    section: cleaned.slice(current.index),
+  };
+}
+
 /**
  * Replace a pattern only in the current milestone section of ROADMAP.md
  * (everything after the last </details> close tag). Used for write operations
@@ -777,18 +863,18 @@ function getMilestoneInfo(cwd) {
       };
     }
 
-    // Second: heading-format roadmaps — strip shipped milestones in <details> blocks
-    const cleaned = stripShippedMilestones(roadmap);
-    // Extract version and name from the same ## heading for consistency
-    const headingMatch = cleaned.match(/## .*v(\d+\.\d+)[:\s]+([^\n(]+)/);
-    if (headingMatch) {
+    // Second: heading-format roadmaps — use the last milestone section outside archives.
+    const currentMilestone = getCurrentMilestoneSection(roadmap);
+    if (currentMilestone.version) {
       return {
-        version: 'v' + headingMatch[1],
-        name: headingMatch[2].trim(),
+        version: currentMilestone.version,
+        name: currentMilestone.name,
       };
     }
-    // Fallback: try bare version match
-    const versionMatch = cleaned.match(/v(\d+\.\d+)/);
+    // Fallback: try the last bare version match outside archived <details>.
+    const cleaned = stripShippedMilestones(roadmap);
+    const versionMatches = [...cleaned.matchAll(/v(\d+\.\d+(?:\.\d+)?)/g)];
+    const versionMatch = versionMatches.length > 0 ? versionMatches[versionMatches.length - 1] : null;
     return {
       version: versionMatch ? versionMatch[0] : 'v1.0',
       name: 'milestone',
@@ -805,19 +891,22 @@ function getMilestoneInfo(cwd) {
  */
 function getMilestonePhaseFilter(cwd) {
   const milestonePhaseNums = new Set();
+  let hasMilestoneScope = false;
   try {
-    const roadmap = stripShippedMilestones(fs.readFileSync(path.join(cwd, '.planning', 'ROADMAP.md'), 'utf-8'));
+    const roadmap = fs.readFileSync(path.join(cwd, '.planning', 'ROADMAP.md'), 'utf-8');
+    const { version, section } = getCurrentMilestoneSection(roadmap);
+    hasMilestoneScope = Boolean(version);
     const phasePattern = /#{2,4}\s*Phase\s+(\d+[A-Z]?(?:\.\d+)*)\s*:/gi;
     let m;
-    while ((m = phasePattern.exec(roadmap)) !== null) {
+    while ((m = phasePattern.exec(section)) !== null) {
       milestonePhaseNums.add(m[1]);
     }
   } catch {}
 
   if (milestonePhaseNums.size === 0) {
-    const passAll = () => true;
-    passAll.phaseCount = 0;
-    return passAll;
+    const noMatches = () => !hasMilestoneScope;
+    noMatches.phaseCount = 0;
+    return noMatches;
   }
 
   const normalized = new Set(
@@ -902,6 +991,7 @@ module.exports = {
   getMilestoneInfo,
   getMilestonePhaseFilter,
   stripShippedMilestones,
+  getCurrentMilestoneSection,
   replaceInCurrentMilestone,
   toPosixPath,
   safeFs,
