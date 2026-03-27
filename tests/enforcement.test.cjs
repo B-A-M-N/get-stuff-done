@@ -569,6 +569,33 @@ describe('enforcement: health degraded-mode', () => {
   });
 });
 
+describe('enforcement: governance narrowing preserves hard backstops', () => {
+  let tmpDir;
+
+  beforeEach(() => { tmpDir = createTempProject(); });
+  afterEach(() => { cleanup(tmpDir); });
+
+  test('warn-only state inspection does not weaken verify integrity blocking under unsafe posture', () => {
+    fs.mkdirSync(path.join(tmpDir, '.planning', 'drift'), { recursive: true });
+    fs.writeFileSync(path.join(tmpDir, '.planning', 'PROJECT.md'), '# Project\n');
+    fs.writeFileSync(path.join(tmpDir, '.planning', 'ROADMAP.md'), '# Roadmap\n');
+    fs.writeFileSync(path.join(tmpDir, '.planning', 'STATE.md'), '# State\n');
+
+    const stateView = runGsdTools(['state', 'json', '--raw'], tmpDir, {
+      env: { GSD_MEMORY_MODE: 'sqlite', NODE_NO_WARNINGS: '1' },
+    });
+    assert.strictEqual(stateView.success, true, stateView.error);
+
+    const integrity = runGsdTools(['verify', 'integrity', '--raw'], tmpDir, {
+      env: { GSD_MEMORY_MODE: 'sqlite', NODE_NO_WARNINGS: '1' },
+    });
+    assert.strictEqual(integrity.success, false, 'verify integrity must remain blocked under unsafe truth posture');
+    const out = JSON.parse(integrity.output);
+    assert.strictEqual(out.canonical_state, 'UNSAFE');
+    assert.ok(['drift_truth', 'reconciliation_truth'].includes(out.subsystem));
+  });
+});
+
 // ─────────────────────────────────────────────────────────────────────────────
 // 6. verify integrity — coherence audit
 // ─────────────────────────────────────────────────────────────────────────────
