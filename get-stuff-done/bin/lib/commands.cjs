@@ -1097,7 +1097,7 @@ function cmdScaffold(cwd, type, options, raw) {
     }
     case 'verification': {
       filePath = path.join(phaseDir, `${padded}-VERIFICATION.md`);
-      content = `---\nphase: "${padded}"\nname: "${name || phaseInfo?.phase_name || 'Unnamed'}"\ncreated: ${today}\nstatus: pending\n---\n\n# Phase ${phase}: ${name || phaseInfo?.phase_name || 'Unnamed'} — Verification\n\n## Goal-Backward Verification\n\n**Phase Goal:** [From ROADMAP.md]\n\n## Checks\n\n| # | Requirement | Status | Evidence |\n|---|------------|--------|----------|\n\n## Result\n\n_Pending verification_\n`;
+      content = `---\nphase: "${padded}"\nname: "${name || phaseInfo?.phase_name || 'Unnamed'}"\ncreated: ${today}\nverified: ${today}T00:00:00Z\nstatus: CONDITIONAL\nscore: 0/0 requirements verified\n---\n\n# Phase ${phase}: ${name || phaseInfo?.phase_name || 'Unnamed'} — Verification\n\n**Phase Goal:** [From ROADMAP.md]\n**Verified:** ${today}T00:00:00Z\n**Status:** CONDITIONAL\n\n## Observable Truths\n\n| # | Truth | Status | Evidence |\n|---|-------|--------|----------|\n| 1 | [Claimed truth] | CONDITIONAL | [Direct evidence ref] |\n\n## Requirement Coverage\n\n| Requirement | Status | Evidence | Gap |\n|-------------|--------|----------|-----|\n| [REQ-ID] | CONDITIONAL | [commit/file/test/runtime proof] | [missing_evidence if any] |\n\n## Anti-Pattern Scan\n\n| File | Pattern | Classification | Impact |\n|------|---------|----------------|--------|\n| None | - | - | - |\n\n## Drift Analysis\n\n\`\`\`json\n[\n  {\n    "type": "verification_drift",\n    "description": "Replace this placeholder with real drift classification or [] when none remain."\n  }\n]\n\`\`\`\n\n## Escalation\n\n\`\`\`json\n{\n  "required": false,\n  "type": null,\n  "reason": null,\n  "explanation": null,\n  "options": [],\n  "implications": []\n}\n\`\`\`\n\n## Human Check\n\n\`\`\`json\n{\n  "steps": [],\n  "observed_result": null,\n  "captured_artifact": null\n}\n\`\`\`\n\n## Final Status\n\n\`\`\`json\n{\n  "status": "CONDITIONAL",\n  "reason": "Pending evidence capture and validation."\n}\n\`\`\`\n`;
       break;
     }
     case 'phase-dir': {
@@ -1483,3 +1483,5 @@ module.exports = {
   writeCheckpointLifecycleMemory,
   writeSummaryLifecycleMemory,
 };
+
+// GSD-AUTHORITY: 72-01-1:5f3faf2cd908fbcfa49e94fd5efe21a9b8871b43a018ebafe86bd5482bc9455b

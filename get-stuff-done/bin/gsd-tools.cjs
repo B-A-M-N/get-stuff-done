@@ -717,6 +717,8 @@ async function main() {
         getVerify().cmdVerifyCrossPlanDataContracts(cwd, args[2], raw);
       } else if (subcommand === 'requirement-coverage') {
         getVerify().cmdVerifyRequirementCoverage(cwd, args[2], raw);
+      } else if (subcommand === 'verification-artifact') {
+        getVerify().cmdVerifyVerificationArtifact(cwd, args[2], raw);
       } else if (subcommand === 'dead-exports') {
         getVerify().cmdVerifyDeadExports(cwd, args[2], raw);
       } else if (subcommand === 'orphaned-state') {
@@ -747,7 +749,7 @@ async function main() {
           plan: intPlanIdx !== -1 ? args[intPlanIdx + 1] : null,
         }, raw);
       } else {
-        error('Unknown verify subcommand. Available: plan-structure, phase-completeness, references, commits, task-commit, artifacts, key-links, context-contract, research-contract, checkpoint-response, checkpoint-coverage, integrity, cross-plan-data-contracts, requirement-coverage, dead-exports, orphaned-state, workflow-readiness, plan-quality, verify-work-cold-start');
+        error('Unknown verify subcommand. Available: plan-structure, phase-completeness, references, commits, task-commit, artifacts, key-links, context-contract, research-contract, checkpoint-response, checkpoint-coverage, integrity, cross-plan-data-contracts, requirement-coverage, verification-artifact, dead-exports, orphaned-state, workflow-readiness, plan-quality, verify-work-cold-start');
       }
       break;
     }
@@ -1709,3 +1711,5 @@ async function main() {
 }
 
 main();
+
+// GSD-AUTHORITY: 72-01-1:3d695f700142909a9e47798a63b3863b44dce84fdcefdd1ed7ac7d3713af9a85

@@ -632,7 +632,11 @@ describe('scaffold command', () => {
       path.join(tmpDir, '.planning', 'phases', '03-api', '03-VERIFICATION.md'),
       'utf-8'
     );
-    assert.ok(content.includes('Goal-Backward Verification'), 'should have verification heading');
+    assert.ok(content.includes('## Observable Truths'), 'should include observable truths section');
+    assert.ok(content.includes('## Requirement Coverage'), 'should include requirement coverage section');
+    assert.ok(content.includes('## Drift Analysis'), 'should include drift analysis section');
+    assert.ok(content.includes('"status": "CONDITIONAL"'), 'should default to hardened conditional status');
+    assert.ok(!content.includes('Goal-Backward Verification'), 'should not use legacy verification scaffold');
   });
 
   test('scaffolds phase directory', () => {
@@ -1392,3 +1396,5 @@ describe('stats command', () => {
     assert.ok(parsed.rendered.includes('1/1 phases'), 'should report phase progress');
   });
 });
+
+// GSD-AUTHORITY: 72-01-1:469f4130447c679c0ca5ae27c20d23f50d17c4b78c77bd467c97d9e7f466ab26

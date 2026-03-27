@@ -114,6 +114,72 @@ function extractStructuredProofIndex(content) {
   }
 }
 
+function extractJsonBlockSection(content, heading) {
+  const section = extractMarkdownSection(content, heading);
+  if (section === null) {
+    return { sectionPresent: false, value: null, parse_error: null };
+  }
+
+  const blockMatch = section.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (!blockMatch) {
+    return { sectionPresent: true, value: null, parse_error: 'missing fenced JSON block' };
+  }
+
+  try {
+    return {
+      sectionPresent: true,
+      value: JSON.parse(blockMatch[1]),
+      parse_error: null,
+    };
+  } catch (err) {
+    return {
+      sectionPresent: true,
+      value: null,
+      parse_error: err.message,
+    };
+  }
+}
+
+function extractMarkdownTableRows(content, heading, expectedColumns) {
+  const section = extractMarkdownSection(content, heading);
+  if (section === null) {
+    return { sectionPresent: false, rows: [] };
+  }
+
+  const lines = section.split('\n').map(line => line.trim()).filter(Boolean);
+  const tableLines = lines.filter(line => line.startsWith('|'));
+  if (tableLines.length < 3) {
+    return { sectionPresent: true, rows: [] };
+  }
+
+  const rows = [];
+  for (const line of tableLines.slice(2)) {
+    const parts = line.split('|').slice(1, -1).map(part => part.trim());
+    if (parts.length < expectedColumns) continue;
+    rows.push(parts.slice(0, expectedColumns));
+  }
+  return { sectionPresent: true, rows };
+}
+
+function looksLikeDirectEvidence(cell) {
+  const text = String(cell || '').trim();
+  if (!text) return false;
+  if (/\b[0-9a-f]{7,40}\b/.test(text)) return true;
+  if (/`[^`]+`/.test(text)) return true;
+  if (/\b(node|npm|pnpm|yarn|pytest|go test|cargo test)\b/i.test(text)) return true;
+  if (/\b(exit code|stdout|stderr|runtime|output)\b/i.test(text)) return true;
+  if (/(^|[^A-Z])(\/|\.\/|[A-Za-z0-9_.-]+\/)[^\s]+/.test(text) && !/SUMMARY\.md/i.test(text)) return true;
+  return false;
+}
+
+function isSummaryOnlyEvidence(cell) {
+  const text = String(cell || '').trim();
+  return /SUMMARY\.md/i.test(text)
+    && !/\b[0-9a-f]{7,40}\b/.test(text)
+    && !/\b(node|npm|pnpm|yarn|pytest|go test|cargo test)\b/i.test(text)
+    && !/\b(runtime|output|exit code|stdout|stderr)\b/i.test(text);
+}
+
 function normalizeProofEntry(entry = {}) {
   return {
     task: entry.task != null ? Number(entry.task) : null,
@@ -125,6 +191,109 @@ function normalizeProofEntry(entry = {}) {
     runtime_required: Boolean(entry.runtime_required),
     runtime_proof: Array.isArray(entry.runtime_proof) ? entry.runtime_proof.map(String) : [],
   };
+}
+
+function cmdVerifyVerificationArtifact(cwd, filePath, raw) {
+  if (!filePath) {
+    error('verification artifact path required');
+  }
+
+  const fullPath = path.isAbsolute(filePath) ? filePath : path.join(cwd, filePath);
+  if (!fs.existsSync(fullPath)) {
+    output({ valid: false, error: 'Verification artifact not found', path: filePath }, raw, 'invalid');
+    return;
+  }
+
+  const content = fs.readFileSync(fullPath, 'utf-8');
+  const fm = extractFrontmatter(content);
+  const errors = [];
+  const warnings = [];
+  const allowedStatuses = new Set(['VALID', 'CONDITIONAL', 'INVALID']);
+  const requiredSections = [
+    'Observable Truths',
+    'Requirement Coverage',
+    'Anti-Pattern Scan',
+    'Drift Analysis',
+    'Final Status',
+  ];
+
+  if (!allowedStatuses.has(String(fm.status || '').trim())) {
+    errors.push('Frontmatter status must be one of VALID, CONDITIONAL, INVALID');
+  }
+
+  for (const heading of requiredSections) {
+    if (extractMarkdownSection(content, heading) === null) {
+      errors.push(`Missing required section: ${heading}`);
+    }
+  }
+
+  const reqCoverage = extractMarkdownTableRows(content, 'Requirement Coverage', 4);
+  if (!reqCoverage.sectionPresent || reqCoverage.rows.length === 0) {
+    errors.push('Requirement Coverage must contain at least one requirement row');
+  }
+
+  let hasInvalidRequirement = false;
+  let hasConditionalRequirement = false;
+  for (const row of reqCoverage.rows) {
+    const [requirement, status, evidence, gap] = row;
+    if (!allowedStatuses.has(status)) {
+      errors.push(`Requirement ${requirement} uses invalid status: ${status}`);
+      continue;
+    }
+    if (isSummaryOnlyEvidence(evidence)) {
+      errors.push(`Requirement ${requirement} cannot use summary-only evidence`);
+    } else if (!looksLikeDirectEvidence(evidence)) {
+      errors.push(`Requirement ${requirement} is missing direct evidence`);
+    }
+    if (status === 'CONDITIONAL') {
+      hasConditionalRequirement = true;
+      if (!String(gap || '').trim()) {
+        errors.push(`Requirement ${requirement} is CONDITIONAL but missing explicit gap details`);
+      }
+    }
+    if (status === 'INVALID') {
+      hasInvalidRequirement = true;
+    }
+  }
+
+  const escalation = extractJsonBlockSection(content, 'Escalation');
+  if (escalation.sectionPresent && escalation.parse_error) {
+    errors.push(`Escalation JSON invalid: ${escalation.parse_error}`);
+  }
+  if (escalation.sectionPresent && escalation.value && escalation.value.required === true) {
+    hasConditionalRequirement = true;
+    if (!escalation.value.explanation) {
+      errors.push('Escalation required=true must include explanation');
+    }
+  }
+
+  const drift = extractJsonBlockSection(content, 'Drift Analysis');
+  if (drift.sectionPresent && drift.parse_error) {
+    errors.push(`Drift Analysis JSON invalid: ${drift.parse_error}`);
+  }
+
+  const finalStatus = extractJsonBlockSection(content, 'Final Status');
+  if (!finalStatus.sectionPresent) {
+    errors.push('Missing required section: Final Status');
+  } else if (finalStatus.parse_error) {
+    errors.push(`Final Status JSON invalid: ${finalStatus.parse_error}`);
+  } else if (!allowedStatuses.has(String(finalStatus.value?.status || '').trim())) {
+    errors.push('Final Status JSON must include status = VALID, CONDITIONAL, or INVALID');
+  } else {
+    const expectedFinal = hasInvalidRequirement ? 'INVALID' : hasConditionalRequirement ? 'CONDITIONAL' : 'VALID';
+    if (finalStatus.value.status !== expectedFinal) {
+      errors.push(`Final Status must be ${expectedFinal} based on requirement and escalation state`);
+    }
+  }
+
+  const valid = errors.length === 0;
+  output({
+    valid,
+    path: path.relative(cwd, fullPath).replace(/\\/g, '/'),
+    requirement_rows: reqCoverage.rows.length,
+    errors,
+    warnings,
+  }, raw, valid ? 'valid' : 'invalid');
 }
 
 function cmdVerifySummary(cwd, summaryPath, checkFileCount, raw) {
@@ -3009,6 +3178,7 @@ module.exports = {
   cmdVerifyResearchContract,
   cmdVerifyCheckpointResponse,
   cmdVerifyRequirementCoverage,
+  cmdVerifyVerificationArtifact,
   cmdVerifyCrossPlanDataContracts,
   cmdVerifyDeadExports,
   cmdVerifyPlanQuality,
@@ -3021,3 +3191,5 @@ module.exports = {
   cmdValidateHealth,
   cmdVerifyBypass,
 };
+
+// GSD-AUTHORITY: 72-01-1:ed46b64324c417e4d1ff9d022ffe860ed599e0a1bedface017a44debb3e6eb5b
