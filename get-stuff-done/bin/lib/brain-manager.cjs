@@ -1,64 +1,109 @@
 const http = require('http');
-const path = require('path');
 const secondBrain = require('./second-brain.cjs');
 const broker = require('./broker.cjs');
 
-/**
- * Manages the lifecycle and health of the GSD Second Brain infrastructure.
- */
 class BrainManager {
   constructor() {
     this.planningPort = process.env.GSD_PLANNING_PORT || 3011;
   }
 
-  /**
-   * Checks the health of all Second Brain components.
-   * @returns {Promise<Object>} Health status of each component.
-   */
-  async checkHealth() {
-    const status = {
-      postgres: 'unknown',
-      rabbitmq: 'unknown',
-      planningServer: 'unknown',
-      allOk: false
+  getStatus() {
+    const backend = secondBrain.getBackendState();
+    return this._pickBackendState(backend);
+  }
+
+  async checkHealth(options = {}) {
+    const backend = secondBrain.getBackendState();
+    const health = {
+      ...this._pickBackendState(backend),
+      postgres: await this._checkPostgres(backend, options),
+      rabbitmq: await this._checkRabbitMq(),
+      planningServer: await this._checkPlanningServerDetailed(),
+      runbook: backend.degraded
+        ? 'Postgres is unavailable; SQLite fallback is active. Run `node get-stuff-done/bin/gsd-tools.cjs brain health --raw` for detailed diagnostics.'
+        : null,
+      allOk: false,
     };
 
-    // 1. Check Postgres
+    if (options.requirePostgres) {
+      try {
+        secondBrain.requirePostgres('brain health');
+      } catch (err) {
+        health.memory_critical_blocked = true;
+        health.postgres = {
+          status: 'blocked',
+          detail: err.message,
+        };
+      }
+    }
+
+    health.allOk =
+      health.postgres.status === 'ok' &&
+      health.rabbitmq.status === 'ok' &&
+      health.planningServer.status === 'ok' &&
+      health.memory_critical_blocked === false;
+
+    return health;
+  }
+
+  _pickBackendState(backend) {
+    return {
+      configured_backend: backend.configured_backend,
+      active_backend: backend.active_backend,
+      degraded: backend.degraded,
+      degraded_reason: backend.degraded_reason,
+      warning_emitted: backend.warning_emitted,
+      memory_critical_blocked: backend.memory_critical_blocked,
+    };
+  }
+
+  async _checkPostgres(backend, options = {}) {
+    if (options.requirePostgres) {
+      try {
+        secondBrain.requirePostgres('brain health');
+      } catch (err) {
+        return { status: 'blocked', detail: err.message };
+      }
+    }
+
+    if (backend.active_backend !== 'postgres') {
+      return {
+        status: 'degraded',
+        detail: backend.degraded_details?.message || backend.degraded_reason || 'sqlite fallback active',
+      };
+    }
+
     try {
       const client = await secondBrain.pool.connect();
       await client.query('SELECT 1');
       client.release();
-      status.postgres = 'ok';
+      return { status: 'ok', detail: null };
     } catch (err) {
-      status.postgres = `error: ${err.message}`;
+      return { status: 'error', detail: err.message };
     }
-
-    // 2. Check RabbitMQ
-    try {
-      // If already connected, great. If not, try connecting (broker handles retries internally)
-      if (!broker.isConnected) {
-        // We use a short timeout/retry for health check to avoid blocking too long
-        await broker.connect(1); 
-      }
-      status.rabbitmq = broker.isConnected ? 'ok' : 'disconnected';
-    } catch (err) {
-      status.rabbitmq = `error: ${err.message}`;
-    }
-
-    // 3. Check Planning Server
-    status.planningServer = await this._checkPlanningServer();
-
-    status.allOk = status.postgres === 'ok' && 
-                   status.rabbitmq === 'ok' && 
-                   status.planningServer === 'ok';
-
-    return status;
   }
 
-  /**
-   * Pings the planning server's health endpoint.
-   * @private
-   */
+  async _checkRabbitMq() {
+    try {
+      if (!broker.isConnected) {
+        await broker.connect(1);
+      }
+      return {
+        status: broker.isConnected ? 'ok' : 'disconnected',
+        detail: broker.isConnected ? null : 'broker disconnected',
+      };
+    } catch (err) {
+      return { status: 'error', detail: err.message };
+    }
+  }
+
+  async _checkPlanningServerDetailed() {
+    const status = await this._checkPlanningServer();
+    return status === 'ok'
+      ? { status: 'ok', detail: null }
+      : { status: 'error', detail: status };
+  }
+
   _checkPlanningServer() {
     return new Promise((resolve) => {
       const options = {
@@ -66,7 +111,7 @@ class BrainManager {
         port: this.planningPort,
         path: '/health',
         method: 'GET',
-        timeout: 2000
+        timeout: 2000,
       };
 
       const req = http.request(options, (res) => {

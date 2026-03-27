@@ -59,6 +59,8 @@
  *     [--choices "..."]                Decision options (for type=decision)
  *     [--resume-condition "..."]       What user response allows continuation
  *     [--no-allow-freeform]            Restrict user to listed choices only
+ *   plane-sync summary --phase N --plan M
+ *                                      Post NN-NN-SUMMARY.md details as a Plane issue comment
  *   firecrawl check                    Check if local Firecrawl instance is reachable.
  *   firecrawl scrape --url <url>      Scrape a URL and return markdown
  *   firecrawl search --query <q>      Search for structured results
@@ -90,7 +92,8 @@
  *                                    Mark a schema as approved (updates approved_by)
  *   searxng check                      Check if local SearXNG instance is reachable
  *   searxng search --query <q>         Perform an audit-logged web search
- *   brain health                       Check health of Postgres, RabbitMQ, and Planning Server.
+ *   brain status                       Show active backend truth for Second Brain.
+ *   brain health [--require-postgres]  Check health of Postgres, RabbitMQ, and Planning Server.
  *   verify-agent-connectivity          Verify if agents can connect to Local Planning Server.
  *   context build --workflow <name>    Build Zod-validated execution snapshot for a workflow
  *     [--phase N] [--plan M]           Workflows: execute-plan | verify-work | plan-phase
@@ -249,6 +252,7 @@ const context = require('./lib/context.cjs');
 const firecrawlClient = require('./lib/firecrawl-client.cjs');
 const searxngClient = require('./lib/searxng-client.cjs');
 const schemaRegistry = require('./lib/schema-registry.cjs');
+const planeHealth = require('./lib/plane-health.cjs');
 
 // ─── CLI Router ───────────────────────────────────────────────────────────────
 
@@ -774,6 +778,33 @@ async function main() {
       break;
     }
 
+    case 'plane-sync': {
+      const subcommand = args[1];
+      if (subcommand === 'summary') {
+        const phaseIdx = args.indexOf('--phase');
+        const planIdx = args.indexOf('--plan');
+        const phaseArg = phaseIdx !== -1 ? args[phaseIdx + 1] : null;
+        const planArg = planIdx !== -1 ? args[planIdx + 1] : null;
+
+        if (!phaseArg) {
+          error('plane-sync summary requires --phase');
+        }
+        if (!planArg) {
+          error('plane-sync summary requires --plan');
+        }
+        if (Number.isNaN(Number(phaseArg)) || Number.isNaN(Number(planArg))) {
+          error('--phase and --plan must be numeric');
+        }
+
+        const summaryPlaneSync = require('./lib/summary-plane-sync.cjs');
+        const result = await summaryPlaneSync.notifySummaryWrite(cwd, phaseArg, planArg);
+        output(result, raw, result.synced ? 'synced' : (result.skipped || 'skipped'));
+      } else {
+        error('Unknown plane-sync subcommand. Available: summary');
+      }
+      break;
+    }
+
     case 'health': {
       const subcommand = args[1];
       if (subcommand === 'degraded-mode') {
@@ -787,12 +818,17 @@ async function main() {
     case 'brain': {
       const brainManager = require('./lib/brain-manager.cjs');
       const subcommand = args[1];
-      if (subcommand === 'health') {
-        const status = await brainManager.checkHealth();
+      if (subcommand === 'status') {
+        const status = await brainManager.getStatus();
+        process.stdout.write(JSON.stringify(status, null, 2) + '\n');
+        process.exit(0);
+      } else if (subcommand === 'health') {
+        const requirePostgres = args.includes('--require-postgres');
+        const status = await brainManager.checkHealth({ requirePostgres });
         process.stdout.write(JSON.stringify(status, null, 2) + '\n');
         process.exit(status.allOk ? 0 : 1);
       } else {
-        error('Unknown brain subcommand. Available: health');
+        error('Unknown brain subcommand. Available: status, health');
       }
       break;
     }
@@ -991,6 +1027,22 @@ async function main() {
         }
       } else {
         error('Unknown firecrawl subcommand. Available: check, scrape, search, extract, map, audit, audit cleanup, health, sync, list, grants, grant, revoke, schemas');
+      }
+      break;
+    }
+
+    case 'plane': {
+      const subcommand = args[1];
+      if (subcommand === 'status') {
+        const status = await planeHealth.getPlaneStatus();
+        output(status, raw);
+      } else if (subcommand === 'audit') {
+        const limitIdx = args.indexOf('--limit');
+        const limit = limitIdx !== -1 ? parseInt(args[limitIdx + 1], 10) : 20;
+        const logs = await require('./lib/second-brain.cjs').getPlaneAudit(limit);
+        output(logs, raw);
+      } else {
+        error('Unknown plane subcommand. Available: status, audit');
       }
       break;
     }
