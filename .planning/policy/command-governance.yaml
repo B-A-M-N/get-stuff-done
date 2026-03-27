@@ -1,0 +1,63 @@
+{
+  "default_class": "warn_only",
+  "routes": [
+    { "command": "context", "subcommand": "build", "mode": "plan-phase", "class": "hard_gated_state_transition", "workflow": "context:plan-phase" },
+    { "command": "context", "subcommand": "build", "mode": "execute-plan", "class": "hard_gated_state_transition", "workflow": "context:execute-plan" },
+    { "command": "context", "subcommand": "build", "mode": "scratch", "class": "ungated_execution" },
+    { "command": "context", "subcommand": "read", "class": "warn_only" },
+    { "command": "context", "subcommand": "normalize", "class": "warn_only" },
+
+    { "command": "verify", "subcommand": "integrity", "class": "hard_gated_state_transition", "workflow": "verify:integrity" },
+    { "command": "verify", "subcommand": "workflow-readiness", "class": "hard_gated_state_transition", "workflow": "verify:workflow-readiness" },
+    { "command": "verify", "subcommand": "plan-structure", "class": "recovery_only" },
+    { "command": "verify", "subcommand": "phase-completeness", "class": "recovery_only" },
+    { "command": "verify", "subcommand": "references", "class": "recovery_only" },
+    { "command": "verify", "subcommand": "commits", "class": "recovery_only" },
+    { "command": "verify", "subcommand": "task-commit", "class": "recovery_only" },
+    { "command": "verify", "subcommand": "artifacts", "class": "recovery_only" },
+    { "command": "verify", "subcommand": "key-links", "class": "recovery_only" },
+    { "command": "verify", "subcommand": "context-contract", "class": "recovery_only" },
+    { "command": "verify", "subcommand": "research-contract", "class": "recovery_only" },
+    { "command": "verify", "subcommand": "checkpoint-response", "class": "recovery_only" },
+    { "command": "verify", "subcommand": "cross-plan-data-contracts", "class": "recovery_only" },
+    { "command": "verify", "subcommand": "requirement-coverage", "class": "recovery_only" },
+    { "command": "verify", "subcommand": "verification-artifact", "class": "recovery_only" },
+    { "command": "verify", "subcommand": "dead-exports", "class": "recovery_only" },
+    { "command": "verify", "subcommand": "orphaned-state", "class": "recovery_only" },
+    { "command": "verify", "subcommand": "plan-quality", "class": "recovery_only" },
+    { "command": "verify", "subcommand": "verify-bypass", "class": "recovery_only" },
+    { "command": "verify", "subcommand": "checkpoint-coverage", "class": "recovery_only" },
+    { "command": "verify", "subcommand": "verify-work-cold-start", "class": "recovery_only" },
+
+    { "command": "drift", "subcommand": "scan", "class": "recovery_only" },
+    { "command": "drift", "subcommand": "report", "class": "recovery_only" },
+    { "command": "drift", "subcommand": "status", "class": "recovery_only" },
+    { "command": "drift", "subcommand": "preview", "class": "recovery_only" },
+    { "command": "drift", "subcommand": "reconcile", "class": "hard_gated_state_transition" },
+    { "command": "health", "subcommand": "degraded-mode", "class": "recovery_only" },
+
+    { "command": "state", "subcommand": "json", "class": "warn_only" },
+    { "command": "state", "subcommand": "get", "class": "warn_only" },
+    { "command": "state", "subcommand": "update", "class": "hard_gated_state_transition" },
+    { "command": "state", "subcommand": "patch", "class": "hard_gated_state_transition" },
+    { "command": "state", "subcommand": "advance-plan", "class": "hard_gated_state_transition" },
+    { "command": "state", "subcommand": "record-metric", "class": "hard_gated_state_transition" },
+
+    { "command": "gate", "subcommand": "enforce", "class": "recovery_only" },
+    { "command": "gate", "subcommand": "release", "class": "recovery_only" },
+    { "command": "gate", "subcommand": "check", "class": "recovery_only" },
+    { "command": "gate", "subcommand": "check-path", "class": "recovery_only" },
+
+    { "command": "next-step", "subcommand": "get", "class": "warn_only" },
+    { "command": "next-step", "subcommand": "consume", "class": "warn_only" },
+    { "command": "next-step", "subcommand": "clear", "class": "warn_only" },
+    { "command": "next-step", "subcommand": "set", "class": "warn_only" },
+
+    { "command": "generate-slug", "class": "ungated_execution" },
+    { "command": "current-timestamp", "class": "ungated_execution" },
+    { "command": "list-todos", "class": "ungated_execution" },
+    { "command": "verify-summary", "class": "recovery_only" }
+  ]
+}
+
+# GSD-AUTHORITY: 77-01-1:ad1fbf045ac172d1ee8b5947dd771d8646ed1a162b8744b1bbf973fce9dad320
