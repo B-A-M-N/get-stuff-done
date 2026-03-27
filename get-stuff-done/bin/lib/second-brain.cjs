@@ -100,6 +100,18 @@ class SecondBrain {
     });
   }
 
+  _getSqlitePath() {
+    const explicitPath = process.env.GSD_SECOND_BRAIN_SQLITE_PATH;
+    if (typeof explicitPath === 'string' && explicitPath.length > 0) {
+      return explicitPath;
+    }
+
+    const fileName = process.env.NODE_TEST_CONTEXT
+      ? `second_brain.test.${process.pid}.db`
+      : 'second_brain.db';
+    return path.join(process.cwd(), '.gemini_security', fileName);
+  }
+
   getBackendState() {
     return {
       ...this.backendState,
@@ -278,7 +290,7 @@ class SecondBrain {
     }
 
     try {
-      const dbPath = path.join(process.cwd(), '.gemini_security', 'second_brain.db');
+      const dbPath = this._getSqlitePath();
       safeFs.mkdirSync(path.dirname(dbPath), { recursive: true });
       this.sqliteDb = new DatabaseSync(dbPath);
       

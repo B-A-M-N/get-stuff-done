@@ -1,17 +1,11 @@
-const { test, describe, beforeEach, afterEach } = require('node:test');
+const { test, describe, beforeEach, afterEach, after } = require('node:test');
 const assert = require('node:assert');
 const path = require('path');
-const { spawnSync } = require('node:child_process');
+const { spawnSync } = require('child_process');
 
-const SECOND_BRAIN_PATH = '../get-stuff-done/bin/lib/second-brain.cjs';
-const BRAIN_MANAGER_PATH = '../get-stuff-done/bin/lib/brain-manager.cjs';
-const BROKER_PATH = '../get-stuff-done/bin/lib/broker.cjs';
-
-function clearCaches() {
-  delete require.cache[require.resolve(SECOND_BRAIN_PATH)];
-  delete require.cache[require.resolve(BRAIN_MANAGER_PATH)];
-  delete require.cache[require.resolve(BROKER_PATH)];
-}
+const ROOT = path.resolve(__dirname, '..');
+const secondBrain = require('../get-stuff-done/bin/lib/second-brain.cjs');
+const brainManager = require('../get-stuff-done/bin/lib/brain-manager.cjs');
 
 function parseTrailingJson(text) {
   const match = String(text).match(/(\{[\s\S]*\})\s*$/);
@@ -21,62 +15,46 @@ function parseTrailingJson(text) {
   return JSON.parse(match[1]);
 }
 
-describe('second-brain status and health', () => {
-  let originalCheckPlanningServer;
-  let originalPoolConnect;
-  let originalGetBackendState;
-  let originalRequirePostgres;
-  let originalBrokerConnect;
-  let originalBrokerState;
+describe('second-brain status and health surfaces', () => {
+  let originalEnv;
 
-  beforeEach(() => {
-    clearCaches();
-    const secondBrain = require(SECOND_BRAIN_PATH);
-    const brainManager = require(BRAIN_MANAGER_PATH);
-    const broker = require(BROKER_PATH);
-
-    originalCheckPlanningServer = brainManager._checkPlanningServer;
-    originalPoolConnect = secondBrain.pool.connect;
-    originalGetBackendState = secondBrain.getBackendState;
-    originalRequirePostgres = secondBrain.requirePostgres;
-    originalBrokerConnect = broker.connect;
-    originalBrokerState = broker.isConnected;
-    broker.connect = async () => {
-      broker.isConnected = false;
+  beforeEach(async () => {
+    originalEnv = {
+      GSD_MEMORY_MODE: process.env.GSD_MEMORY_MODE,
+      PGHOST: process.env.PGHOST,
+      PGPORT: process.env.PGPORT,
+      PGDATABASE: process.env.PGDATABASE,
+      PGUSER: process.env.PGUSER,
+      PGPASSWORD: process.env.PGPASSWORD,
+      DATABASE_URL: process.env.DATABASE_URL,
     };
+
+    delete process.env.GSD_MEMORY_MODE;
+    delete process.env.PGHOST;
+    delete process.env.PGPORT;
+    delete process.env.PGDATABASE;
+    delete process.env.PGUSER;
+    delete process.env.PGPASSWORD;
+    delete process.env.DATABASE_URL;
+    await secondBrain.resetForTests();
   });
 
   afterEach(async () => {
-    const secondBrain = require(SECOND_BRAIN_PATH);
-    const brainManager = require(BRAIN_MANAGER_PATH);
-    const broker = require(BROKER_PATH);
-
-    secondBrain.pool.connect = originalPoolConnect;
-    secondBrain.getBackendState = originalGetBackendState;
-    secondBrain.requirePostgres = originalRequirePostgres;
-    brainManager._checkPlanningServer = originalCheckPlanningServer;
-    broker.connect = originalBrokerConnect;
-    broker.isConnected = originalBrokerState;
-    await broker.close();
-    await secondBrain.close();
-    clearCaches();
+    for (const [key, value] of Object.entries(originalEnv)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+    await secondBrain.resetForTests();
   });
 
-  test('manager status returns the authoritative backend-state keys', async () => {
-    const secondBrain = require(SECOND_BRAIN_PATH);
-    const brainManager = require(BRAIN_MANAGER_PATH);
+  after(async () => {
+    await secondBrain.close();
+  });
 
-    secondBrain.getBackendState = () => ({
-      configured_backend: 'postgres',
-      active_backend: 'sqlite',
-      degraded: true,
-      degraded_reason: 'postgres_connect_failed',
-      warning_emitted: true,
-      memory_critical_blocked: false,
-      degraded_details: { message: 'connect ECONNREFUSED' },
-    });
+  test('brainManager surfaces authoritative degraded backend state and runbook', async () => {
+    secondBrain.transitionToDegraded('postgres_connect_failed', { message: 'connect ECONNREFUSED' });
 
-    const status = await brainManager.getStatus();
+    const status = brainManager.getStatus();
     assert.deepStrictEqual(status, {
       configured_backend: 'postgres',
       active_backend: 'sqlite',
@@ -85,92 +63,74 @@ describe('second-brain status and health', () => {
       warning_emitted: true,
       memory_critical_blocked: false,
     });
-  });
-
-  test('manager health returns backend truth, diagnostics, and degraded runbook', async () => {
-    const secondBrain = require(SECOND_BRAIN_PATH);
-    const brainManager = require(BRAIN_MANAGER_PATH);
-
-    secondBrain.getBackendState = () => ({
-      configured_backend: 'postgres',
-      active_backend: 'sqlite',
-      degraded: true,
-      degraded_reason: 'postgres_auth_failed',
-      warning_emitted: true,
-      memory_critical_blocked: false,
-      degraded_details: { message: 'bad password' },
-    });
-    secondBrain.pool.connect = async () => {
-      throw new Error('should not probe postgres while degraded');
-    };
-    brainManager._checkPlanningServer = async () => 'ok';
 
     const health = await brainManager.checkHealth();
     assert.strictEqual(health.configured_backend, 'postgres');
     assert.strictEqual(health.active_backend, 'sqlite');
     assert.strictEqual(health.degraded, true);
-    assert.strictEqual(health.degraded_reason, 'postgres_auth_failed');
+    assert.strictEqual(health.degraded_reason, 'postgres_connect_failed');
     assert.strictEqual(health.warning_emitted, true);
     assert.strictEqual(health.memory_critical_blocked, false);
+    assert.strictEqual(health.postgres.status, 'degraded');
     assert.match(health.runbook, /brain health --raw/);
-    assert.match(health.postgres.detail, /bad password/);
-    assert.strictEqual(health.planningServer.status, 'ok');
   });
 
-  test('brain health require-postgres reports memory-critical blocking', async () => {
-    const secondBrain = require(SECOND_BRAIN_PATH);
-    const brainManager = require(BRAIN_MANAGER_PATH);
+  test('brain status CLI returns backend-state JSON in raw mode', () => {
+    const result = spawnSync(
+      process.execPath,
+      ['get-stuff-done/bin/gsd-tools.cjs', 'brain', 'status', '--raw'],
+      {
+        cwd: ROOT,
+        encoding: 'utf-8',
+        env: {
+          ...process.env,
+          GSD_MEMORY_MODE: 'sqlite',
+          PGHOST: '',
+          PGPORT: '',
+          PGDATABASE: '',
+          PGUSER: '',
+          PGPASSWORD: '',
+          DATABASE_URL: '',
+        },
+      }
+    );
 
-    secondBrain.getBackendState = () => ({
-      configured_backend: 'postgres',
-      active_backend: 'sqlite',
-      degraded: true,
-      degraded_reason: 'postgres_unavailable',
-      warning_emitted: true,
-      memory_critical_blocked: false,
-      degraded_details: { message: 'offline' },
-    });
-    secondBrain.requirePostgres = () => {
-      const error = new Error('Postgres is required for brain health');
-      error.code = 'SECOND_BRAIN_POSTGRES_REQUIRED';
-      throw error;
-    };
-    brainManager._checkPlanningServer = async () => 'ok';
-
-    const health = await brainManager.checkHealth({ requirePostgres: true });
-    assert.strictEqual(health.memory_critical_blocked, true);
-    assert.strictEqual(health.allOk, false);
-    assert.match(health.postgres.detail, /required/);
+    assert.strictEqual(result.status, 0, result.stderr);
+    const output = parseTrailingJson(result.stdout);
+    assert.deepStrictEqual(Object.keys(output).sort(), [
+      'active_backend',
+      'configured_backend',
+      'degraded',
+      'degraded_reason',
+      'memory_critical_blocked',
+      'warning_emitted',
+    ]);
   });
 
-  test('cli brain status and brain health require-postgres expose the JSON contract', () => {
-    const cwd = path.resolve(__dirname, '..');
-    const env = {
-      ...process.env,
-      GSD_MEMORY_MODE: 'sqlite',
-    };
+  test('brain health CLI blocks explicit Postgres-required checks', () => {
+    const result = spawnSync(
+      process.execPath,
+      ['get-stuff-done/bin/gsd-tools.cjs', 'brain', 'health', '--require-postgres', '--raw'],
+      {
+        cwd: ROOT,
+        encoding: 'utf-8',
+        env: {
+          ...process.env,
+          GSD_MEMORY_MODE: 'sqlite',
+          PGHOST: '',
+          PGPORT: '',
+          PGDATABASE: '',
+          PGUSER: '',
+          PGPASSWORD: '',
+          DATABASE_URL: '',
+        },
+      }
+    );
 
-    const statusResult = spawnSync('node', ['get-stuff-done/bin/gsd-tools.cjs', 'brain', 'status', '--raw'], {
-      cwd,
-      env,
-      encoding: 'utf8',
-    });
-    assert.strictEqual(statusResult.status, 0);
-    const statusJson = parseTrailingJson(statusResult.stdout);
-    for (const key of ['configured_backend', 'active_backend', 'degraded', 'degraded_reason', 'warning_emitted', 'memory_critical_blocked']) {
-      assert.ok(Object.prototype.hasOwnProperty.call(statusJson, key), `missing status key ${key}`);
-    }
-
-    const healthResult = spawnSync('node', ['get-stuff-done/bin/gsd-tools.cjs', 'brain', 'health', '--require-postgres', '--raw'], {
-      cwd,
-      env,
-      encoding: 'utf8',
-    });
-    assert.notStrictEqual(healthResult.status, 0);
-    const healthJson = parseTrailingJson(healthResult.stdout);
-    for (const key of ['configured_backend', 'active_backend', 'degraded', 'degraded_reason', 'warning_emitted', 'memory_critical_blocked']) {
-      assert.ok(Object.prototype.hasOwnProperty.call(healthJson, key), `missing health key ${key}`);
-    }
-    assert.strictEqual(healthJson.memory_critical_blocked, true);
+    assert.notStrictEqual(result.status, 0);
+    const output = parseTrailingJson(result.stdout);
+    assert.strictEqual(output.memory_critical_blocked, true);
+    assert.strictEqual(output.postgres.status, 'blocked');
+    assert.match(output.postgres.detail, /Postgres is required/);
   });
 });
