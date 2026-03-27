@@ -2,7 +2,10 @@ const { test, describe } = require('node:test');
 const assert = require('node:assert');
 
 const {
+  buildAffectedTruths,
+  buildPredictedEffect,
   classifyEntry,
+  classifyConfidence,
   classifyMemoryTrustBoundary,
   classifySeverity,
 } = require('../get-stuff-done/bin/lib/drift-classifier.cjs');
@@ -56,5 +59,30 @@ describe('drift-classifier', () => {
     });
 
     assert.strictEqual(boundary, 'disabled');
+  });
+
+  test('insufficient evidence is forced to low confidence', () => {
+    assert.strictEqual(classifyConfidence({ observation_status: 'insufficient_evidence' }), 'low');
+  });
+
+  test('critical active drift predicts invalidation without mutating state', () => {
+    assert.deepStrictEqual(
+      buildPredictedEffect({ severity: 'CRITICAL', activity_status: 'active' }),
+      {
+        verification_status: 'INVALID',
+        phase_status: 'INVALID',
+        roadmap_status: 'CONDITIONAL',
+        operator_health: 'DEGRADED',
+      }
+    );
+    assert.deepStrictEqual(
+      buildAffectedTruths({ severity: 'CRITICAL', activity_status: 'active' }),
+      {
+        verification: 'INVALID',
+        phase: 'INVALID',
+        roadmap: 'CONDITIONAL',
+        operator_health: 'DEGRADED',
+      }
+    );
   });
 });

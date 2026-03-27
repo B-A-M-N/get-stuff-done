@@ -40,6 +40,16 @@ function classifySeverity({ impact, exploitability, false_truth_perception = fal
   return 'MINOR';
 }
 
+function classifyConfidence(entry = {}) {
+  if (entry.confidence === 'high' || entry.confidence === 'medium' || entry.confidence === 'low') {
+    return entry.confidence;
+  }
+  if (entry.observation_status === 'insufficient_evidence') return 'low';
+  if (entry.observation_status === 'degraded_state') return 'medium';
+  if (entry.observed_drift === true) return 'high';
+  return 'medium';
+}
+
 function classifyActivity(entry) {
   if (entry.historical === true) return 'historical';
   if (entry.affects_current_truth === false) return 'historical';
@@ -100,6 +110,52 @@ function classifyCatalogEntries(entries) {
   return (entries || []).map(classifyEntry);
 }
 
+function buildPredictedEffect({ severity, activity_status = 'active' }) {
+  if (activity_status === 'historical' || activity_status === 'healthy') {
+    return {
+      verification_status: null,
+      phase_status: null,
+      roadmap_status: null,
+      operator_health: null,
+    };
+  }
+
+  if (severity === 'CRITICAL') {
+    return {
+      verification_status: 'INVALID',
+      phase_status: 'INVALID',
+      roadmap_status: 'CONDITIONAL',
+      operator_health: 'DEGRADED',
+    };
+  }
+
+  if (severity === 'MAJOR') {
+    return {
+      verification_status: 'CONDITIONAL',
+      phase_status: 'CONDITIONAL',
+      roadmap_status: 'CONDITIONAL',
+      operator_health: 'DEGRADED',
+    };
+  }
+
+  return {
+    verification_status: 'CONDITIONAL',
+    phase_status: 'CONDITIONAL',
+    roadmap_status: 'VALID',
+    operator_health: 'OK',
+  };
+}
+
+function buildAffectedTruths({ severity, activity_status = 'active' }) {
+  const predicted = buildPredictedEffect({ severity, activity_status });
+  return {
+    verification: predicted.verification_status,
+    phase: predicted.phase_status,
+    roadmap: predicted.roadmap_status,
+    operator_health: predicted.operator_health,
+  };
+}
+
 function groupEntries(entries) {
   const grouped = {
     active: [],
@@ -117,8 +173,11 @@ function groupEntries(entries) {
 }
 
 module.exports = {
+  buildAffectedTruths,
+  buildPredictedEffect,
   classifyActivity,
   classifyCatalogEntries,
+  classifyConfidence,
   classifyEntry,
   classifyMemoryTrustBoundary,
   classifySeverity,
