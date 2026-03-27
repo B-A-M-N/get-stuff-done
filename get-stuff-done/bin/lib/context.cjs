@@ -26,6 +26,7 @@ const schemaRegistry = require('./schema-registry.cjs');
 const secondBrain = require('./second-brain.cjs');
 const openBrain = require('./open-brain.cjs');
 const crypto = require('crypto');
+const degradedMode = require('./degraded-mode.cjs');
 
 // ─── Fragment schemas ─────────────────────────────────────────────────────────
 
@@ -776,6 +777,22 @@ async function cmdContextBuild(cwd, workflow, options, raw) {
 
   const schema = SCHEMAS[workflow];
   if (!schema) error(`Unknown workflow: "${workflow}". Known workflows: ${Object.keys(SCHEMAS).join(', ')}`);
+
+  const workflowKey = workflow === 'plan-phase'
+    ? 'context:plan-phase'
+    : workflow === 'execute-plan'
+      ? 'context:execute-plan'
+      : null;
+  if (workflowKey) {
+    const degradedSnapshot = degradedMode.readLatestDegradedState(cwd);
+    if (degradedSnapshot) {
+      const decision = degradedMode.evaluateWorkflow(degradedSnapshot, workflowKey);
+      if (!decision.allowed) {
+        process.stdout.write(JSON.stringify(decision, null, 2) + '\n');
+        process.exit(1);
+      }
+    }
+  }
 
   let snapshot;
   try {

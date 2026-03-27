@@ -9,6 +9,7 @@ const { safeReadFile, loadConfig, normalizePhaseName, execGit, findPhaseInternal
 const { extractFrontmatter, parseMustHavesBlock } = require('./frontmatter.cjs');
 const { writeStateMd } = require('./state.cjs');
 const { checkpointResponseSchema, executionSummarySchema } = require('./artifact-schema.cjs');
+const degradedMode = require('./degraded-mode.cjs');
 
 function extractSummaryReferencedPaths(content, frontmatter = {}) {
   const found = new Set();
@@ -2135,6 +2136,14 @@ function getWorkflowPhaseMarkers(markers, phaseNumber) {
 }
 
 function cmdVerifyWorkflowReadiness(cwd, workflow, options = {}, raw) {
+  const degradedSnapshot = degradedMode.readLatestDegradedState(cwd);
+  if (degradedSnapshot) {
+    const blocked = degradedMode.evaluateWorkflow(degradedSnapshot, 'verify:workflow-readiness');
+    if (!blocked.allowed) {
+      process.stdout.write(JSON.stringify(blocked, null, 2) + '\n');
+      process.exit(1);
+    }
+  }
   if (!workflow) error('workflow required');
   if (!['plan-phase', 'execute-phase'].includes(workflow)) {
     error('Unsupported workflow for workflow-readiness. Available: plan-phase, execute-phase');
@@ -3207,6 +3216,14 @@ function runVerifyIntegrity(cwd, options) {
 }
 
 function cmdVerifyIntegrity(cwd, options, raw) {
+  const degradedSnapshot = degradedMode.readLatestDegradedState(cwd);
+  if (degradedSnapshot) {
+    const blocked = degradedMode.evaluateWorkflow(degradedSnapshot, 'verify:integrity');
+    if (!blocked.allowed) {
+      process.stdout.write(JSON.stringify(blocked, null, 2) + '\n');
+      process.exit(1);
+    }
+  }
   const result = runVerifyIntegrity(cwd, options);
   output(result, raw, result.coherent ? 'coherent' : 'incoherent');
 }

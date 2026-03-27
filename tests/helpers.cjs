@@ -76,6 +76,7 @@ function createTempProject() {
 function createTempGitProject() {
   const tmpDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'gsd-test-'));
   fs.mkdirSync(path.join(tmpDir, '.planning', 'phases'), { recursive: true });
+  fs.mkdirSync(path.join(tmpDir, '.planning', 'drift'), { recursive: true });
 
   execSync('git init', { cwd: tmpDir, stdio: 'pipe' });
   execSync('git config user.email "test@test.com"', { cwd: tmpDir, stdio: 'pipe' });
@@ -84,6 +85,32 @@ function createTempGitProject() {
   fs.writeFileSync(
     path.join(tmpDir, '.planning', 'PROJECT.md'),
     '# Project\n\nTest project.\n'
+  );
+  fs.writeFileSync(
+    path.join(tmpDir, '.planning', 'ROADMAP.md'),
+    '# Roadmap\n\n## Milestones\n\n'
+  );
+  fs.writeFileSync(
+    path.join(tmpDir, '.planning', 'STATE.md'),
+    '# State\n'
+  );
+  fs.writeFileSync(
+    path.join(tmpDir, '.planning', 'drift', 'latest-report.json'),
+    JSON.stringify({
+      generated_at: new Date().toISOString(),
+      findings: [],
+      summary: { active: 0 },
+    }, null, 2)
+  );
+  fs.writeFileSync(
+    path.join(tmpDir, '.planning', 'drift', 'latest-reconciliation.json'),
+    JSON.stringify({
+      timestamp: new Date().toISOString(),
+      applied_changes: [],
+      unchanged: [],
+      reverification_required: [],
+      summary: { critical: 0, major: 0, minor: 0 },
+    }, null, 2)
   );
 
   execSync('git add -A', { cwd: tmpDir, stdio: 'pipe' });
