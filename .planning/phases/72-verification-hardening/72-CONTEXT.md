@@ -189,3 +189,5 @@ This phase does not yet implement the full drift severity engine or reconciliati
 
 *Phase: 72-verification-hardening*
 *Context gathered: 2026-03-27*
+
+<!-- GSD-AUTHORITY: 72-00-0:ca2fd9e345a75fc5283ab84131e57ccab6e73a2e2fef5bebb7870ef01a0e0b31 -->
