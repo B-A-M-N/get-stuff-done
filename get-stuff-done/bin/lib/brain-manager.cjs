@@ -9,13 +9,17 @@ class BrainManager {
 
   getStatus() {
     const backend = secondBrain.getBackendState();
-    return this._pickBackendState(backend);
+    return {
+      ...this._pickBackendState(backend),
+      model_facing_memory: this._getModelFacingMemoryStatus(backend),
+    };
   }
 
   async checkHealth(options = {}) {
     const backend = secondBrain.getBackendState();
     const health = {
       ...this._pickBackendState(backend),
+      model_facing_memory: this._getModelFacingMemoryStatus(backend),
       postgres: await this._checkPostgres(backend, options),
       rabbitmq: await this._checkRabbitMq(),
       planningServer: await this._checkPlanningServerDetailed(),
@@ -54,6 +58,22 @@ class BrainManager {
       degraded_reason: backend.degraded_reason,
       warning_emitted: backend.warning_emitted,
       memory_critical_blocked: backend.memory_critical_blocked,
+    };
+  }
+
+  _getModelFacingMemoryStatus(backend) {
+    if (backend.active_backend === 'postgres' && backend.degraded === false) {
+      return {
+        available: true,
+        status: 'ok',
+        detail: null,
+      };
+    }
+
+    return {
+      available: false,
+      status: 'blocked',
+      detail: 'Model-facing memory is unavailable while degraded. Postgres-backed memory required.',
     };
   }
 

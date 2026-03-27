@@ -643,6 +643,59 @@ class SecondBrain {
     return [];
   }
 
+  _blockedModelFacingMemoryResult(operationName, err) {
+    return {
+      available: false,
+      blocked: true,
+      reason: 'postgres_required',
+      operation: operationName,
+      message: err.message,
+      backend_state: err.backend_state || this.getBackendState(),
+    };
+  }
+
+  async readModelFacingMemory(filters = {}) {
+    try {
+      this.requirePostgres('model-facing memory read');
+      const items = await this.listWorkflowMemory(filters);
+      return {
+        available: true,
+        blocked: false,
+        items,
+        backend_state: this.getBackendState(),
+      };
+    } catch (err) {
+      if (err.code === 'SECOND_BRAIN_POSTGRES_REQUIRED') {
+        return this._blockedModelFacingMemoryResult('read', err);
+      }
+      throw err;
+    }
+  }
+
+  async writeModelFacingMemoryCheckpoint(entry = {}) {
+    const allowedKinds = new Set(['checkpoint', 'summary', 'decision', 'pitfall', 'resolution']);
+
+    try {
+      this.requirePostgres('model-facing memory write');
+      if (!allowedKinds.has(entry.memory_kind)) {
+        throw new Error(`model-facing memory writes only allow ${Array.from(allowedKinds).join(', ')}`);
+      }
+
+      const saved = await this.upsertWorkflowMemory(entry);
+      return {
+        available: true,
+        blocked: false,
+        item: saved,
+        backend_state: this.getBackendState(),
+      };
+    } catch (err) {
+      if (err.code === 'SECOND_BRAIN_POSTGRES_REQUIRED') {
+        return this._blockedModelFacingMemoryResult('write', err);
+      }
+      throw err;
+    }
+  }
+
   /**
    * Create a new access grant.
    */
