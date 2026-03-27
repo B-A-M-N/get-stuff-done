@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v0.6.0
 milestone_name: Open Brain Foundations
-current_plan: Phase 55-03 complete; ready for verification
+current_plan: Phase 55-04 complete; ready for verification
 status: active
-stopped_at: Completed 55-03-PLAN.md
-last_updated: "2026-03-27T13:46:51Z"
+stopped_at: Completed 55-04-PLAN.md
+last_updated: "2026-03-27T15:03:13Z"
 progress:
   total_phases: 17
   completed_phases: 12
-  total_plans: 32
-  completed_plans: 29
+  total_plans: 33
+  completed_plans: 30
 ---
 
 # Project State
@@ -20,20 +20,20 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-17)
 
 **Core value:** Runtime-bound orchestration integrity — enforcement that cannot be bypassed by following a different workflow path.
-**Current focus:** Phase 55 is complete; workflow context now carries bounded Open Brain recall with lifecycle feedback hooks while preserving Firecrawl and Second Brain boundaries.
+**Current focus:** Phase 55 is complete; the installed Codex `brain open-status` path is repaired while Open Brain remains a bounded sidecar separate from Second Brain execution truth.
 
 ## Current Position
 
 Phase: 55
-Plan: 03
-**Current Plan:** Phase 55-03 complete; ready for verification
-**Total Plans in Phase:** 3
+Plan: 04
+**Current Plan:** Phase 55-04 complete; ready for verification
+**Total Plans in Phase:** 4
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 29
+- Total plans completed: 30
 - Average duration: 15min
 - Total execution time: 414min
 
@@ -73,6 +73,7 @@ Plan: 03
 | Phase 55 P01 | 2min | 3 tasks | 6 files |
 | Phase 55 P02 | 5min | 3 tasks | 6 files |
 | Phase 55 P03 | 4min | 3 tasks | 8 files |
+| Phase 55 P04 | 6min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -176,6 +177,7 @@ Plan: 03
 - [Phase 55]: Recall ranking changes only through explicit helpful or harmful outcome recording, not from retrieval count alone.
 - [Phase 55]: Workflow snapshots expose a bounded `open_brain_recall` pack that stays separate from Firecrawl context and Second Brain execution truth.
 - [Phase 55]: Recall events are tracked under `.planning/open-brain` and resolved through summary/checkpoint lifecycle hooks instead of arbitrary prompt-time writes.
+- [Phase 55]: The legacy Codex `get-shit-done` path is now a repair-only compatibility shim that restores `brain open-status` without changing the canonical `dostuff/get-stuff-done` engine root.
 
 ### Blockers/Concerns
 
@@ -187,8 +189,8 @@ Plan: 03
 
 ## Session Continuity
 
-Last session: 2026-03-27T13:46:51Z
-Stopped at: Completed 55-03-PLAN.md
+Last session: 2026-03-27T15:03:13Z
+Stopped at: Completed 55-04-PLAN.md
 Resume file: None
 Checkpoint Status: None
 Checkpoint Path: None
