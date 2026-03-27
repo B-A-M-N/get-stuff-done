@@ -1,0 +1,119 @@
+{
+  "schema": "gsd_required_validators_v1",
+  "operations": [
+    {
+      "id": "context_plan_phase",
+      "surface": "context build --workflow plan-phase",
+      "type": "validator_bypass",
+      "severity": "CRITICAL",
+      "repro": "Invoke context build for plan-phase while degraded truth is unsafe and confirm the route still blocks.",
+      "required_in_files": {
+        "get-stuff-done/bin/gsd-tools.cjs": [
+          "enforceWorkflowOrBlock(cwd, 'context:plan-phase')"
+        ],
+        "get-stuff-done/bin/lib/context.cjs": [
+          "readLatestDegradedState",
+          "workflow === 'plan-phase'"
+        ]
+      }
+    },
+    {
+      "id": "context_execute_plan",
+      "surface": "context build --workflow execute-plan",
+      "type": "validator_bypass",
+      "severity": "CRITICAL",
+      "repro": "Invoke context build for execute-plan while degraded truth is unsafe and confirm the route still blocks.",
+      "required_in_files": {
+        "get-stuff-done/bin/gsd-tools.cjs": [
+          "enforceWorkflowOrBlock(cwd, 'context:execute-plan')"
+        ],
+        "get-stuff-done/bin/lib/context.cjs": [
+          "workflow === 'execute-plan'"
+        ]
+      }
+    },
+    {
+      "id": "verify_integrity_truth_claim",
+      "surface": "verify integrity",
+      "type": "truth_claim_bypass",
+      "severity": "CRITICAL",
+      "repro": "Invoke verify integrity while drift and reconciliation truth are missing and confirm the command blocks instead of claiming healthy truth.",
+      "required_in_files": {
+        "get-stuff-done/bin/gsd-tools.cjs": [
+          "enforceWorkflowOrBlock(cwd, 'verify:integrity')"
+        ],
+        "get-stuff-done/bin/lib/verify.cjs": [
+          "readLatestDegradedState",
+          "evaluateWorkflow(degradedSnapshot, 'verify:integrity')"
+        ]
+      }
+    },
+    {
+      "id": "verify_workflow_readiness",
+      "surface": "verify workflow-readiness",
+      "type": "validator_bypass",
+      "severity": "CRITICAL",
+      "repro": "Invoke verify workflow-readiness while current truth posture is unsafe and confirm the route blocks.",
+      "required_in_files": {
+        "get-stuff-done/bin/gsd-tools.cjs": [
+          "enforceWorkflowOrBlock(cwd, 'verify:workflow-readiness')"
+        ],
+        "get-stuff-done/bin/lib/verify.cjs": [
+          "evaluateWorkflow(degradedSnapshot, 'verify:workflow-readiness')"
+        ]
+      }
+    }
+  ],
+  "runtime_probes": [
+    {
+      "id": "context_plan_phase_guard",
+      "surface": "context build --workflow plan-phase",
+      "args": ["context", "build", "--workflow", "plan-phase", "--raw"],
+      "env": {
+        "GSD_MEMORY_MODE": "sqlite"
+      },
+      "fixture": {
+        "drift": true,
+        "reconciliation": false
+      },
+      "expect": {
+        "success": false,
+        "canonical_state": "UNSAFE"
+      }
+    },
+    {
+      "id": "verify_integrity_guard",
+      "surface": "verify integrity",
+      "args": ["verify", "integrity", "--raw"],
+      "env": {
+        "GSD_MEMORY_MODE": "sqlite"
+      },
+      "fixture": {
+        "drift": false,
+        "reconciliation": false
+      },
+      "expect": {
+        "success": false,
+        "canonical_state": "UNSAFE"
+      }
+    },
+    {
+      "id": "diagnostic_health_reader",
+      "surface": "health degraded-mode",
+      "args": ["health", "degraded-mode", "--raw"],
+      "env": {
+        "GSD_MEMORY_MODE": "sqlite"
+      },
+      "fixture": {
+        "drift": false,
+        "reconciliation": false
+      },
+      "expect": {
+        "success": true,
+        "degraded": true
+      }
+    }
+  ]
+}
+
+# GSD-AUTHORITY: 76-01-1:b696ef5ff19443e13ec37121de37aeb47bce1aa3f02ff037a5ac2f16cfbca564

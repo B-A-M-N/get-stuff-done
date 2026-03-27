@@ -47,6 +47,8 @@
  *                                      Output "Task N: hash" lines ready for readarray (--raw)
  *                                      or { found, lines, count } JSON
  *   verify-summary <path>              Verify a SUMMARY.md file
+ *   audit enforcement-boundary [--write]
+ *                                      Run the Phase 76 bypass audit and optionally persist artifacts
  *   generate-slug <text>               Convert text to URL-safe slug
  *   current-timestamp [format]         Get timestamp (full|date|filename)
  *   list-todos [area]                  Count and enumerate pending todos
@@ -251,6 +253,7 @@ const milestone = require('./lib/milestone.cjs');
 const init = require('./lib/init.cjs');
 const frontmatter = require('./lib/frontmatter.cjs');
 const audit = require('./lib/audit.cjs');
+const enforcementBoundaryAudit = require('./lib/enforcement-boundary-audit.cjs');
 const openboxPolicy = require('./lib/openbox-policy.cjs');
 const integrityLog = require('./lib/integrity-log.cjs');
 const profilePipeline = require('./lib/profile-pipeline.cjs');
@@ -1595,7 +1598,11 @@ async function main() {
 
     case 'audit': {
       const subcommand = args[1];
-      if (subcommand === 'log') {
+      if (subcommand === 'enforcement-boundary') {
+        const write = args.includes('--write');
+        const result = enforcementBoundaryAudit.runEnforcementBoundaryAudit(cwd, { write });
+        output(result, raw);
+      } else if (subcommand === 'log') {
         const phaseIdx = args.indexOf('--phase');
         const planIdx = args.indexOf('--plan');
         const taskIdx = args.indexOf('--task');
@@ -1628,7 +1635,7 @@ async function main() {
         const limit = limitIdx !== -1 ? parseInt(args[limitIdx + 1], 10) : 20;
         integrityLog.cmdIntegrityRead(cwd, limit, raw);
       } else {
-        error('Unknown audit subcommand. Available: log, read, analyze-impact, integrity');
+        error('Unknown audit subcommand. Available: enforcement-boundary, log, read, analyze-impact, integrity');
       }
       break;
     }
