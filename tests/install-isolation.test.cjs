@@ -5,6 +5,7 @@ const assert = require('node:assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const { spawnSync } = require('child_process');
 
 const { install, uninstall, finishInstall } = require('../bin/install.js');
 
@@ -113,5 +114,43 @@ describe('coexistence-safe install isolation', () => {
     assert.ok(remainingSessionStartCommands.includes('node .claude/hooks/gsd-check-update.js'));
     assert.strictEqual(remainingUserPromptSubmitCommands.length, 0);
     assert.strictEqual(afterUninstallSettings.statusLine.command, 'node .claude/hooks/gsd-statusline.js');
+  });
+
+  test('codex install creates canonical engine and legacy compatibility shim', () => {
+    install(false, 'codex');
+
+    assert.ok(fs.existsSync(path.join(tmpDir, '.codex', 'dostuff', 'get-stuff-done', 'bin', 'gsd-tools.cjs')));
+    assert.ok(fs.existsSync(path.join(tmpDir, '.codex', 'get-shit-done', 'bin', 'gsd-tools.cjs')));
+    assert.ok(fs.existsSync(path.join(tmpDir, '.codex', 'get-shit-done', 'VERSION')));
+  });
+
+  test('codex legacy shim executes brain open-status --raw with bounded truth fields', () => {
+    install(false, 'codex');
+
+    const result = spawnSync(
+      process.execPath,
+      ['.codex/get-shit-done/bin/gsd-tools.cjs', 'brain', 'open-status', '--raw'],
+      {
+        cwd: tmpDir,
+        encoding: 'utf-8',
+        env: {
+          ...process.env,
+          GSD_MEMORY_MODE: 'sqlite',
+          PGHOST: '',
+          PGPORT: '',
+          PGDATABASE: '',
+          PGUSER: '',
+          PGPASSWORD: '',
+          DATABASE_URL: '',
+        },
+      }
+    );
+
+    assert.strictEqual(result.status, 0, result.stderr);
+    const output = JSON.parse(result.stdout);
+    assert.strictEqual(output.schema, 'gsd_open_brain');
+    assert.strictEqual(output.sidecar_only, true);
+    assert.strictEqual(output.execution_truth_owner, 'second_brain');
+    assert.strictEqual(output.blocked, false);
   });
 });
