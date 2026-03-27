@@ -11,6 +11,7 @@ const authority = require('./authority.cjs');
 const checkpointPlaneSync = require('./checkpoint-plane-sync.cjs');
 const secondBrain = require('./second-brain.cjs');
 const openBrain = require('./open-brain.cjs');
+const degradedMode = require('./degraded-mode.cjs');
 
 function stripFrontmatter(content) {
   return String(content || '').replace(/^---\r?\n[\s\S]+?\r?\n---\r?\n?/, '');
@@ -1411,53 +1412,23 @@ async function cmdCheckpointWrite(cwd, phase, options, raw) {
  *
  * Returns: { degraded, warnings, fallbacks, gate_pending_keys }
  */
-function cmdHealthDegradedMode(cwd, raw) {
+async function cmdHealthDegradedMode(cwd, raw, options = {}) {
   const config = loadConfig(cwd);
-  const warnings = [];
-  const fallbacks = [];
-  const gatePendingKeys = [];
-
-  // Config degradation
-  if (config._load_error) {
-    warnings.push(`config.json unreadable: ${config._load_error}`);
-    fallbacks.push('All config values are defaults (mode=interactive, all gates=on)');
-  }
-
-  // Required planning files
-  const required = [
-    { file: '.planning/STATE.md', label: 'STATE.md' },
-    { file: '.planning/ROADMAP.md', label: 'ROADMAP.md' },
-    { file: '.planning/PROJECT.md', label: 'PROJECT.md' },
-  ];
-  for (const { file, label } of required) {
-    if (!fs.existsSync(path.join(cwd, file))) {
-      warnings.push(`${label} not found — project may not be initialized`);
-      fallbacks.push(`${label} missing: workflows that depend on it will fail`);
-    }
-  }
-
-  // Pending gates
-  const gatesDir = path.join(cwd, '.planning', 'gates');
-  if (fs.existsSync(gatesDir)) {
-    const pendingFiles = fs.readdirSync(gatesDir).filter(f => f.endsWith('-pending.json'));
-    for (const f of pendingFiles) {
-      // Convert filename back to key: gates_confirm_roadmap-pending.json → gates.confirm_roadmap
-      const key = f.replace('-pending.json', '').replace(/_/g, '.');
-      gatePendingKeys.push(key);
-      warnings.push(`Gate pending: ${key} — human acknowledgment required before continuing`);
-    }
-  }
-
-  const degraded = warnings.length > 0;
+  const snapshot = await degradedMode.buildDegradedState(cwd, { ...options, diagnosticOnly: true });
+  degradedMode.writeLatestDegradedState(cwd, snapshot);
 
   output({
-    degraded,
-    warnings,
-    fallbacks,
-    gate_pending_keys: gatePendingKeys,
+    degraded: snapshot.degraded,
+    canonical_state: snapshot.aggregate_state,
+    warnings: snapshot.warnings,
+    fallbacks: snapshot.fallbacks,
+    gate_pending_keys: snapshot.gate_pending_keys,
     config_mode: config.mode,
-    config_ok: !config._load_error,
-  }, raw, degraded ? 'degraded' : 'ok');
+    config_ok: snapshot.config_ok,
+    blocked_workflows: snapshot.blocked_workflows,
+    subsystems: snapshot.subsystems,
+    path: degradedMode.DEGRADED_STATE_PATH,
+  }, raw, snapshot.degraded ? 'degraded' : 'ok');
 }
 
 module.exports = {

@@ -44,6 +44,8 @@ describe('brain health drift integration', () => {
       assert.strictEqual(health.drift.status, 'degraded');
       assert.strictEqual(health.drift.highest_severity, 'CRITICAL');
       assert.strictEqual(health.drift.active_findings, 1);
+      assert.strictEqual(health.degraded_mode.aggregate_state, 'UNSAFE');
+      assert.ok(Array.isArray(health.degraded_mode.blocked_workflows));
     } finally {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }
@@ -59,6 +61,7 @@ describe('brain health drift integration', () => {
       const health = await brainManager.checkHealth({ cwd: tmpDir });
       assert.strictEqual(health.drift.status, 'missing');
       assert.match(health.drift.detail, /No drift report has been generated/);
+      assert.strictEqual(health.degraded_mode.subsystems.drift_truth.canonical_state, 'UNSAFE');
     } finally {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }

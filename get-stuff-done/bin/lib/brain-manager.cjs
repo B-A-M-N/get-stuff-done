@@ -2,6 +2,7 @@ const http = require('http');
 const secondBrain = require('./second-brain.cjs');
 const broker = require('./broker.cjs');
 const driftEngine = require('./drift-engine.cjs');
+const degradedMode = require('./degraded-mode.cjs');
 
 class BrainManager {
   constructor() {
@@ -48,11 +49,25 @@ class BrainManager {
       }
     }
 
+    const degradedSnapshot = await degradedMode.buildDegradedState(options.cwd || process.cwd(), {
+      now: options.now,
+      staleAfterMs: options.staleAfterMs,
+      diagnosticOnly: true,
+      backendState: refreshedBackend,
+      liveHealth: {
+        planningServer: health.planningServer,
+      },
+      driftState: health.drift && health.drift.status ? health.drift : undefined,
+    });
+    degradedMode.writeLatestDegradedState(options.cwd || process.cwd(), degradedSnapshot);
+    health.degraded_mode = degradedSnapshot;
+
     health.allOk =
       health.postgres.status === 'ok' &&
       health.rabbitmq.status === 'ok' &&
       health.planningServer.status === 'ok' &&
-      health.memory_critical_blocked === false;
+      health.memory_critical_blocked === false &&
+      degradedSnapshot.aggregate_state !== 'UNSAFE';
 
     return health;
   }

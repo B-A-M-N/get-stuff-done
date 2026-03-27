@@ -527,6 +527,7 @@ describe('enforcement: health degraded-mode', () => {
     // no pending gates
     assert.deepStrictEqual(out.gate_pending_keys, []);
     assert.ok(!out.warnings.some(w => w.includes('Gate pending')));
+    assert.ok(['HEALTHY', 'DEGRADED', 'UNSAFE'].includes(out.canonical_state));
   });
 
   test('reports degraded when config.json is malformed', () => {
@@ -538,6 +539,7 @@ describe('enforcement: health degraded-mode', () => {
     assert.strictEqual(out.config_ok, false);
     assert.ok(out.warnings.some(w => w.includes('config.json')));
     assert.ok(out.fallbacks.length > 0, 'fallbacks should describe what defaults are in use');
+    assert.strictEqual(out.subsystems.planning_truth.canonical_state, 'DEGRADED');
   });
 
   test('reports degraded when a gate is pending', () => {
@@ -550,6 +552,7 @@ describe('enforcement: health degraded-mode', () => {
     assert.strictEqual(out.degraded, true);
     assert.ok(out.gate_pending_keys.length > 0, 'pending gate key should be listed');
     assert.ok(out.warnings.some(w => w.includes('Gate pending')));
+    assert.strictEqual(out.subsystems.planning_truth.canonical_state, 'DEGRADED');
   });
 
   test('reports ok after gate is released', () => {
