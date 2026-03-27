@@ -6,6 +6,7 @@
 - [x] **v0.3.0 Trusted Context & Local Memory** - Phases 23-32 (Completed 2026-03-23)
 - [x] **v0.5.0 Model-Facing Memory & Service Resilience** - Phases 53-54 (Completed 2026-03-27)
 - [x] **v0.6.0 Open Brain Foundations** - Phase 55 (Completed 2026-03-27)
+- [ ] **v0.7.0 Truth Enforcement & Drift Elimination** - Phases 70-78
 
 ## Archived Milestones
 
@@ -371,3 +372,110 @@ Plans:
 ---
 
 <!-- GSD-AUTHORITY: 54-02-1:d4740e23039f501be1528082a93a6b7b76ca8f84015fe6752362e2363060bce1 -->
+
+## v0.7.0 Truth Enforcement & Drift Elimination
+
+**Goal:** Convert the system from workflow-following correctness into mechanically enforced truth, where claims, verification, degraded mode, and execution history are all provable through observable artifacts and enforced boundaries.
+
+### Phase 70: Drift Surface Mapping
+
+**Goal:** Identify and classify every location where roadmap, requirements, execution, verification, and memory truth can drift apart.
+**Requirements**: TRUTH-CLAIM-01, TRUTH-DRIFT-01
+**Depends on:** Phase 55
+**Status**: [Complete]
+
+Plans:
+- [ ] 70-01-PLAN.md — catalog drift vectors across roadmap, summaries, verification, and code reality
+- [ ] 70-02-PLAN.md — severity model, truth-surface inventory, and classification rules
+
+### Phase 71: Execution Proof Chain
+
+**Goal:** Require every completed task and plan artifact to map cleanly to commits, changed files, and execution evidence.
+**Requirements**: TRUTH-EXEC-01, TRUTH-CLAIM-01
+**Depends on:** Phase 70
+**Status**: [Planned]
+
+Plans:
+- [ ] 71-01-PLAN.md — task-to-commit proof schema and summary linkage contract
+- [ ] 71-02-PLAN.md — commit-presence validator and artifact proof formatting
+
+### Phase 72: Verification Hardening
+
+**Goal:** Replace narrative verification with a strict evidence-first verification contract and validator.
+**Requirements**: TRUTH-VERIFY-01, TRUTH-VERIFY-02
+**Depends on:** Phase 71
+**Status**: [Planned]
+
+Plans:
+- [x] 72-01-PLAN.md — strict VERIFICATION template and requirement coverage contract
+- [x] 72-02-PLAN.md — anti-pattern scanner and verification validator
+
+### Phase 73: Drift Detection Engine
+
+**Goal:** Detect spec, implementation, verification, and execution drift automatically and surface it through a dedicated CLI path.
+**Requirements**: TRUTH-DRIFT-01, TRUTH-DRIFT-02, TRUTH-OPS-01
+**Depends on:** Phase 72
+**Status**: [Planned]
+
+Plans:
+- [ ] 73-01-PLAN.md — drift scanner core and inconsistency detection rules
+- [ ] 73-02-PLAN.md — operator CLI surface for drift status and machine-readable reports
+
+### Phase 74: State Reconciliation Layer
+
+**Goal:** Reconcile detected inconsistencies deterministically by downgrading truth status, marking conditional validity, and requiring re-verification where needed.
+**Requirements**: TRUTH-DRIFT-02, TRUTH-CLAIM-01
+**Depends on:** Phase 73
+**Status**: [Planned]
+
+Plans:
+- [ ] 74-01-PLAN.md — reconciliation rules for validity downgrade and re-verification triggers
+
+### Phase 75: Degraded Mode Enforcement
+
+**Goal:** Make degraded systems explicit, behaviorally meaningful, and non-silent across truth-bearing workflows.
+**Requirements**: TRUTH-DEGRADE-01, TRUTH-MEMORY-01, TRUTH-OPS-01
+**Depends on:** Phase 74
+**Status**: [Planned]
+
+Plans:
+- [ ] 75-01-PLAN.md — explicit degraded-state model and operator health truth surfaces
+- [ ] 75-02-PLAN.md — fail-closed behavior for unsafe or partially trusted memory paths
+
+### Phase 76: Enforcement Boundary Audit
+
+**Goal:** Prove that critical truth-bearing flows cannot bypass required validators, artifact writers, and sanctioned execution interfaces.
+**Requirements**: TRUTH-BYPASS-01, TRUTH-CLAIM-01
+**Depends on:** Phase 75
+**Status**: [Planned]
+
+Plans:
+- [ ] 76-01-PLAN.md — CLI, file-write, and validator boundary audit with bypass classification
+
+### Phase 77: Phase Truth Contracts
+
+**Goal:** Standardize phase-level truth artifacts so every phase reports claimed outcomes, observable evidence, gaps, and final validity status.
+**Requirements**: TRUTH-PHASE-01, TRUTH-VERIFY-01
+**Depends on:** Phase 76
+**Status**: [Planned]
+
+Plans:
+- [ ] 77-01-PLAN.md — phase truth artifact contract and generation/update workflow
+
+### Phase 78: End-to-End Integrity Gauntlet
+
+**Goal:** Validate the entire truth-enforcement stack under adversarial failure conditions before milestone closeout.
+**Requirements**: TRUTH-GAUNTLET-01, TRUTH-DRIFT-02, TRUTH-DEGRADE-01, TRUTH-BYPASS-01
+**Depends on:** Phase 77
+**Status**: [Planned]
+
+Plans:
+- [ ] 78-01-PLAN.md — adversarial gauntlet suite for fake verification, missing commits, partial execution, degraded subsystems, and drift exposure
+
+---
+
+<!-- GSD-AUTHORITY: 70-00-0:7c911fbf94919c37259bd9a0e5fbc54b842a98675e570dfb7f26b36d471e3daf -->
+<!-- GSD-AUTHORITY: 72-02-1:57a2811dcafec0fda58a231bad017f4fcc19dab224287b3996d93c504c98e5fa -->
+<!-- GSD-AUTHORITY: 72-01-1:80f7712e527b8e9280cfe989695a9386dbe0d8685e0201a21ebd1757785f347d -->
+
+<!-- GSD-AUTHORITY: 72-00-0:97da5ec86fb4fef1e489f34a7f0b2bf3bf02e8a1e3ca6876deae070b19598553 -->

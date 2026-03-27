@@ -1,13 +1,13 @@
 ---
 gsd_state_version: 1.0
-milestone: null
-milestone_name: null
-current_plan: v0.6.0 archived; waiting for next milestone definition
+milestone: v0.7.0
+milestone_name: Truth Enforcement & Drift Elimination
+current_plan: Phase 72 verification hardening complete; Phase 73 drift detection engine ready for discussion/planning
 status: active
-stopped_at: v0.6.0 milestone closeout complete
-last_updated: "2026-03-27T16:22:55Z"
+stopped_at: Phase 72 Nyquist audit and close-out completed
+last_updated: "2026-03-27T19:26:07Z"
 progress:
-  total_phases: 17
+  total_phases: 26
   completed_phases: 12
   total_plans: 33
   completed_plans: 30
@@ -20,14 +20,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-17)
 
 **Core value:** Runtime-bound orchestration integrity — enforcement that cannot be bypassed by following a different workflow path.
-**Current focus:** No active milestone is defined. `v0.6.0` is archived, and the codebase is ready for the next milestone-definition pass.
+**Current focus:** `v0.7.0` is now defined around truth enforcement, drift detection, verification hardening, and non-silent degraded behavior.
 
 ## Current Position
 
-Phase: None
+Phase: 73
 Plan: None
-**Current Plan:** v0.6.0 archived; waiting for next milestone definition
-**Total Plans in Phase:** 0
+**Current Plan:** Phase 72 verification hardening complete; Phase 73 drift detection engine ready for discussion/planning
+**Total Plans in Phase:** 2
 
 ## Performance Metrics
 
@@ -195,4 +195,4 @@ Resume file: None
 Checkpoint Status: None
 Checkpoint Path: None
 
-<!-- GSD-AUTHORITY: 54-02-1:3141a6f1c2bd3d0cebfac5743033997baec8e5df523e420c8dc65f11bb3eec65 -->
+<!-- GSD-AUTHORITY: 72-00-0:0a4744219946426bd6c8497782954f6493aba5c193c6ac065abb0bcbe7d7051f -->
