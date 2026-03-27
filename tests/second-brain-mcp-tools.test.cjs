@@ -15,6 +15,13 @@ const TOOLBOX_CONFIG_PATH = path.join(
   'tools.yaml'
 );
 
+function extractToolsetBlock(yaml, toolsetName) {
+  const match = yaml.match(
+    new RegExp(`${toolsetName}:\\n([ \\t].*\\n?)+`, 'm')
+  );
+  return match ? match[0] : null;
+}
+
 describe('Phase 54 MCP toolbox contract', () => {
   beforeEach(async () => {
     await secondBrain.resetForTests();
@@ -81,15 +88,15 @@ describe('Phase 54 MCP toolbox contract', () => {
   test('planner toolset stays read-only while executor toolset gets bounded writeback', () => {
     const yaml = fs.readFileSync(TOOLBOX_CONFIG_PATH, 'utf8');
 
-    const plannerSection = yaml.match(/planner_memory_readonly:[\s\S]*?(?=\n\S|\n[A-Za-z0-9_-]+:|$)/);
-    const executorSection = yaml.match(/executor_memory_rw:[\s\S]*?(?=\n\S|\n[A-Za-z0-9_-]+:|$)/);
+    const plannerSection = extractToolsetBlock(yaml, 'planner_memory_readonly');
+    const executorSection = extractToolsetBlock(yaml, 'executor_memory_rw');
 
     assert.ok(plannerSection, 'planner_memory_readonly toolset missing');
     assert.ok(executorSection, 'executor_memory_rw toolset missing');
-    assert.match(plannerSection[0], /memory_search/);
-    assert.doesNotMatch(plannerSection[0], /memory_write_checkpoint/);
-    assert.doesNotMatch(plannerSection[0], /execute_sql/);
-    assert.match(executorSection[0], /memory_search/);
-    assert.match(executorSection[0], /memory_write_checkpoint/);
+    assert.match(plannerSection, /memory_search/);
+    assert.doesNotMatch(plannerSection, /memory_write_checkpoint/);
+    assert.doesNotMatch(plannerSection, /execute_sql/);
+    assert.match(executorSection, /memory_search/);
+    assert.match(executorSection, /memory_write_checkpoint/);
   });
 });

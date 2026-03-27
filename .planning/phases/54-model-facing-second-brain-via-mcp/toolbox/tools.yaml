@@ -1,0 +1,59 @@
+# Phase 54 sanctioned MCP Toolbox contract
+# Target toolbox checkout: /home/bamn/FireCageMCPGateway/genai-toolbox
+
+sources:
+  second_brain_postgres:
+    kind: postgres
+    database: gsd_local_brain
+    schema: gsd_local_brain
+    description: Curated workflow memory source for planner/executor model-facing memory.
+
+tools:
+  memory_search:
+    source: second_brain_postgres
+    description: Read curated workflow memory by project, phase, plan, and memory kind.
+    mode: read
+    table: gsd_local_brain.workflow_memory
+    filters:
+      - project_id
+      - phase
+      - plan
+      - memory_kind
+    order_by: created_at desc
+    limit:
+      default: 10
+      max: 25
+
+  memory_write_checkpoint:
+    source: second_brain_postgres
+    description: Append curated checkpoint, summary, decision, pitfall, or resolution memory only.
+    mode: append
+    table: gsd_local_brain.workflow_memory
+    allowed_memory_kinds:
+      - checkpoint
+      - summary
+      - decision
+      - pitfall
+      - resolution
+    writable_fields:
+      - project_id
+      - phase
+      - plan
+      - memory_kind
+      - title
+      - body_markdown
+      - source_ref
+      - created_by
+      - importance
+
+toolsets:
+  planner_memory_readonly:
+    description: Read-only planner surface for curated internal execution memory.
+    tools:
+      - memory_search
+
+  executor_memory_rw:
+    description: Executor surface with read access plus bounded append-only writeback.
+    tools:
+      - memory_search
+      - memory_write_checkpoint

@@ -207,6 +207,7 @@ class SecondBrain {
         try {
           await this._ensureAuditIndexes();
           await this._initializeProjectIsolation();
+          await this._ensureWorkflowMemoryTable();
         } catch (err) {
           console.warn('[SecondBrain] Failed to initialize project isolation:', err.message);
           this.projectIsolationInitialized = false;
@@ -351,6 +352,19 @@ class SecondBrain {
           project_root TEXT NOT NULL,
           initialized_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
+        CREATE TABLE IF NOT EXISTS workflow_memory (
+          id TEXT PRIMARY KEY,
+          project_id TEXT NOT NULL,
+          phase TEXT,
+          plan TEXT,
+          memory_kind TEXT NOT NULL,
+          title TEXT NOT NULL,
+          body_markdown TEXT NOT NULL,
+          source_ref TEXT,
+          created_by TEXT NOT NULL,
+          importance INTEGER DEFAULT 3,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
         CREATE INDEX IF NOT EXISTS idx_symbols_name ON symbols(name);
         CREATE INDEX IF NOT EXISTS idx_symbols_artifact ON symbols(artifact_id);
         CREATE INDEX IF NOT EXISTS idx_firecrawl_audit_ts ON firecrawl_audit(timestamp);
@@ -358,6 +372,7 @@ class SecondBrain {
         CREATE INDEX IF NOT EXISTS idx_firecrawl_audit_status ON firecrawl_audit(status);
         CREATE INDEX IF NOT EXISTS idx_firecrawl_audit_action ON firecrawl_audit(action);
         CREATE INDEX IF NOT EXISTS idx_schema_registry_domain ON context_schema_registry(domain_pattern);
+        CREATE INDEX IF NOT EXISTS idx_workflow_memory_project ON workflow_memory(project_id, phase, plan, memory_kind, created_at);
       `);
       
       this.useSqlite = true;
@@ -413,6 +428,219 @@ class SecondBrain {
         console.error('[SecondBrain] Failed to record Firecrawl audit in SQLite:', err.message);
       }
     }
+  }
+
+  async _ensureWorkflowMemoryTable() {
+    if (this.offlineMode || this.useSqlite) {
+      return;
+    }
+
+    try {
+      await this.pool.query(`
+        CREATE TABLE IF NOT EXISTS gsd_local_brain.workflow_memory (
+          id TEXT PRIMARY KEY,
+          project_id TEXT NOT NULL,
+          phase TEXT,
+          plan TEXT,
+          memory_kind TEXT NOT NULL,
+          title TEXT NOT NULL,
+          body_markdown TEXT NOT NULL,
+          source_ref TEXT,
+          created_by TEXT NOT NULL,
+          importance INTEGER DEFAULT 3,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      await this.pool.query(`
+        CREATE INDEX IF NOT EXISTS idx_workflow_memory_project
+        ON gsd_local_brain.workflow_memory (project_id, phase, plan, memory_kind, created_at DESC)
+      `);
+    } catch (err) {
+      this._handlePostgresFailure(err, '_ensureWorkflowMemoryTable');
+    }
+  }
+
+  _normalizeWorkflowMemoryEntry(entry = {}) {
+    const now = new Date().toISOString();
+    return {
+      id: entry.id || crypto.randomUUID(),
+      project_id: entry.project_id || this.projectId,
+      phase: entry.phase || null,
+      plan: entry.plan || null,
+      memory_kind: entry.memory_kind,
+      title: entry.title,
+      body_markdown: entry.body_markdown,
+      source_ref: entry.source_ref || null,
+      created_by: entry.created_by || 'unknown',
+      importance: Number.isFinite(Number(entry.importance)) ? Number(entry.importance) : 3,
+      created_at: entry.created_at || now,
+    };
+  }
+
+  async upsertWorkflowMemory(entry) {
+    if (this.offlineMode) {
+      throw new Error('Second Brain is offline');
+    }
+    await this._ensureInitialized();
+
+    const normalized = this._normalizeWorkflowMemoryEntry(entry);
+
+    if (!normalized.memory_kind || !normalized.title || !normalized.body_markdown) {
+      throw new Error('workflow memory entry requires memory_kind, title, and body_markdown');
+    }
+
+    if (!this.useSqlite) {
+      try {
+        await this._ensureWorkflowMemoryTable();
+        await this.pool.query(
+          `INSERT INTO gsd_local_brain.workflow_memory
+             (id, project_id, phase, plan, memory_kind, title, body_markdown, source_ref, created_by, importance, created_at)
+           VALUES
+             ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+           ON CONFLICT (id) DO UPDATE SET
+             project_id = EXCLUDED.project_id,
+             phase = EXCLUDED.phase,
+             plan = EXCLUDED.plan,
+             memory_kind = EXCLUDED.memory_kind,
+             title = EXCLUDED.title,
+             body_markdown = EXCLUDED.body_markdown,
+             source_ref = EXCLUDED.source_ref,
+             created_by = EXCLUDED.created_by,
+             importance = EXCLUDED.importance,
+             created_at = EXCLUDED.created_at`,
+          [
+            normalized.id,
+            normalized.project_id,
+            normalized.phase,
+            normalized.plan,
+            normalized.memory_kind,
+            normalized.title,
+            normalized.body_markdown,
+            normalized.source_ref,
+            normalized.created_by,
+            normalized.importance,
+            normalized.created_at,
+          ]
+        );
+        return normalized;
+      } catch (err) {
+        this._handlePostgresFailure(err, 'upsertWorkflowMemory');
+      }
+    }
+
+    if (this.useSqlite && this.sqliteDb) {
+      this.sqliteDb.prepare(`
+        INSERT INTO workflow_memory
+          (id, project_id, phase, plan, memory_kind, title, body_markdown, source_ref, created_by, importance, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          project_id = excluded.project_id,
+          phase = excluded.phase,
+          plan = excluded.plan,
+          memory_kind = excluded.memory_kind,
+          title = excluded.title,
+          body_markdown = excluded.body_markdown,
+          source_ref = excluded.source_ref,
+          created_by = excluded.created_by,
+          importance = excluded.importance,
+          created_at = excluded.created_at
+      `).run(
+        normalized.id,
+        normalized.project_id,
+        normalized.phase,
+        normalized.plan,
+        normalized.memory_kind,
+        normalized.title,
+        normalized.body_markdown,
+        normalized.source_ref,
+        normalized.created_by,
+        normalized.importance,
+        normalized.created_at
+      );
+      return normalized;
+    }
+
+    throw new Error('workflow memory storage is unavailable');
+  }
+
+  async listWorkflowMemory(filters = {}) {
+    if (this.offlineMode) {
+      return [];
+    }
+    await this._ensureInitialized();
+
+    const normalizedFilters = {
+      project_id: filters.project_id || this.projectId,
+      phase: filters.phase || null,
+      plan: filters.plan || null,
+      memory_kind: filters.memory_kind || null,
+      limit: Number.isFinite(Number(filters.limit)) ? Number(filters.limit) : 20,
+    };
+
+    const selectColumns = 'id, project_id, phase, plan, memory_kind, title, body_markdown, source_ref, created_by, importance, created_at';
+
+    if (!this.useSqlite) {
+      const conditions = ['project_id = $1'];
+      const params = [normalizedFilters.project_id];
+
+      if (normalizedFilters.phase) {
+        params.push(normalizedFilters.phase);
+        conditions.push(`phase = $${params.length}`);
+      }
+      if (normalizedFilters.plan) {
+        params.push(normalizedFilters.plan);
+        conditions.push(`plan = $${params.length}`);
+      }
+      if (normalizedFilters.memory_kind) {
+        params.push(normalizedFilters.memory_kind);
+        conditions.push(`memory_kind = $${params.length}`);
+      }
+      params.push(normalizedFilters.limit);
+
+      try {
+        await this._ensureWorkflowMemoryTable();
+        const result = await this.pool.query(
+          `SELECT ${selectColumns}
+           FROM gsd_local_brain.workflow_memory
+           WHERE ${conditions.join(' AND ')}
+           ORDER BY created_at DESC
+           LIMIT $${params.length}`,
+          params
+        );
+        return result.rows;
+      } catch (err) {
+        this._handlePostgresFailure(err, 'listWorkflowMemory');
+      }
+    }
+
+    if (this.useSqlite && this.sqliteDb) {
+      const conditions = ['project_id = ?'];
+      const params = [normalizedFilters.project_id];
+
+      if (normalizedFilters.phase) {
+        conditions.push('phase = ?');
+        params.push(normalizedFilters.phase);
+      }
+      if (normalizedFilters.plan) {
+        conditions.push('plan = ?');
+        params.push(normalizedFilters.plan);
+      }
+      if (normalizedFilters.memory_kind) {
+        conditions.push('memory_kind = ?');
+        params.push(normalizedFilters.memory_kind);
+      }
+      params.push(normalizedFilters.limit);
+
+      return this.sqliteDb.prepare(
+        `SELECT ${selectColumns}
+         FROM workflow_memory
+         WHERE ${conditions.join(' AND ')}
+         ORDER BY created_at DESC
+         LIMIT ?`
+      ).all(...params);
+    }
+
+    return [];
   }
 
   /**
