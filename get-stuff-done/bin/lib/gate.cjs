@@ -66,7 +66,10 @@ function cmdGateCheckPath(cwd, targetPath, raw) {
  *     # Present banner, wait for human, then call gate release
  *   fi
  */
-function cmdGateEnforce(cwd, key, raw) {
+function cmdGateEnforce(cwd, key, options, raw) {
+  if (typeof options === 'boolean' || options == null) {
+    raw = options;
+  }
   if (!key) {
     error('policy key required (e.g. gates.confirm_roadmap)');
   }
@@ -111,7 +114,10 @@ function cmdGateEnforce(cwd, key, raw) {
  * Removes the pending file, writes a released artifact.
  * Safe to call even if no pending file exists (idempotent).
  */
-function cmdGateRelease(cwd, key, raw) {
+function cmdGateRelease(cwd, key, options, raw) {
+  if (typeof options === 'boolean' || options == null) {
+    raw = options;
+  }
   if (!key) {
     error('policy key required');
   }

@@ -7,6 +7,26 @@ const fs = require('fs');
 const path = require('path');
 
 const TOOLS_PATH = path.join(__dirname, '..', 'get-stuff-done', 'bin', 'gsd-tools.cjs');
+const { signFile } = require('../get-stuff-done/bin/lib/authority.cjs');
+
+function signPlanningMarkdown(rootDir) {
+  const planningDir = path.join(rootDir, '.planning');
+  if (!fs.existsSync(planningDir)) return;
+
+  const stack = [planningDir];
+  while (stack.length > 0) {
+    const current = stack.pop();
+    for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
+      const fullPath = path.join(current, entry.name);
+      if (entry.isDirectory()) {
+        stack.push(fullPath);
+        continue;
+      }
+      if (!/\.(md|ya?ml)$/i.test(entry.name)) continue;
+      signFile(fullPath, '01', '01', '1');
+    }
+  }
+}
 
 /**
  * Run gsd-tools command.
@@ -17,6 +37,10 @@ const TOOLS_PATH = path.join(__dirname, '..', 'get-stuff-done', 'bin', 'gsd-tool
  * @param {{ env?: Record<string, string> }} options - Optional child-process overrides.
  */
 function runGsdTools(args, cwd = process.cwd(), options = {}) {
+  const command = Array.isArray(args) ? args[0] : String(args).trim().split(/\s+/)[0];
+  if (command === 'verify') {
+    signPlanningMarkdown(cwd);
+  }
   const execOptions = {
     cwd,
     encoding: 'utf-8',

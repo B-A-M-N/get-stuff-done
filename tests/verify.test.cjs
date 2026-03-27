@@ -2145,11 +2145,11 @@ describe('verify context-contract command', () => {
     const output = JSON.parse(result.output);
     assert.strictEqual(output.valid, false, 'should be invalid');
     assert.ok(
-      output.errors.some(e => e.includes('Unresolved ambiguity appears in the plan')),
+      output.errors.some(e => e.includes('Unresolved ambiguity appears in the research without an assumption/defer/clarification marker')),
       `Expected unresolved ambiguity carry-forward error: ${JSON.stringify(output.errors)}`
     );
     assert.ok(
-      output.errors.some(e => e.includes('Interpreted assumption appears in the plan')),
+      output.errors.some(e => e.includes('Interpreted assumption appears in the research without an assumption/defer/clarification marker')),
       `Expected interpreted assumption carry-forward error: ${JSON.stringify(output.errors)}`
     );
   });

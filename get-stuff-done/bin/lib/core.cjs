@@ -215,12 +215,14 @@ function safeWriteFile(filePath, content, options = {}) {
 
 const PROMPT_POLICY_KEYS = new Set([
   'gates.confirm_project',
+  'gates.confirm_plan',
   'gates.confirm_phases',
   'gates.confirm_roadmap',
   'gates.confirm_breakdown',
   'gates.issues_review',
   'gates.confirm_transition',
   'gates.confirm_milestone_scope',
+  'gates.execute_next_plan',
   'safety.always_confirm_destructive',
   'safety.always_confirm_external_services',
 ]);

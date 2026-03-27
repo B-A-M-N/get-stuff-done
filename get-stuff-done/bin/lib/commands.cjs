@@ -611,7 +611,8 @@ function cmdCommitTask(cwd, message, files, scope, options, raw) {
 
     const commitResult = execGit(cwd, ['commit', '-m', message]);
     if (commitResult.exitCode !== 0) {
-      if (commitResult.stdout.includes('nothing to commit') || commitResult.stderr.includes('nothing to commit')) {
+      const commitOutput = `${commitResult.stdout}\n${commitResult.stderr}`;
+      if (/nothing to commit|nothing added to commit|no changes added to commit/i.test(commitOutput)) {
         process.stdout.write(JSON.stringify({ committed: false, verified: false, hash: null, subject: null, scope, scope_matches: false, errors: ['nothing to commit'] }, null, 2));
         process.exit(1);
       }
