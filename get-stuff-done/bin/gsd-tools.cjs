@@ -97,6 +97,9 @@
  *   firecrawl schemas approve --pattern <p>
  *                                    Mark a schema as approved (updates approved_by)
  *   drift catalog [--write]           Generate or print the Phase 70 drift catalog.
+ *   drift scan [--json] [--full]      Run the Phase 73 drift scan and persist latest-report.json
+ *   drift report [--json]             Return the latest drift report or explicit missing/stale state
+ *   drift status [--json] [--full]    Render canonical operator drift status from the latest report
  *   searxng check                      Check if local SearXNG instance is reachable
  *   searxng search --query <q>         Perform an audit-logged web search
  *   brain status                       Show active backend truth for Second Brain.
@@ -255,6 +258,7 @@ const policy = require('./lib/policy.cjs');
 const gate = require('./lib/gate.cjs');
 const schemaRegistry = require('./lib/schema-registry.cjs');
 const driftCatalog = require('./lib/drift-catalog.cjs');
+const driftEngine = require('./lib/drift-engine.cjs');
 
 function lazyRequire(modulePath) {
   let cached = null;
@@ -901,8 +905,42 @@ async function main() {
           const catalog = driftCatalog.buildCatalog(cwd);
           output(catalog, raw, driftCatalog.renderCatalogYaml(catalog));
         }
+      } else if (subcommand === 'scan') {
+        const jsonFlag = args.includes('--json');
+        const report = driftEngine.scanDrift(cwd);
+        const persisted = driftEngine.writeLatestReport(cwd, report);
+        const payload = { ...persisted, summary: report.summary };
+        if (raw || jsonFlag) {
+          process.stdout.write(JSON.stringify(payload, null, 2) + '\n');
+        } else {
+          process.stdout.write(driftEngine.renderStatus(report));
+        }
+        process.exit(driftEngine.hasBlockingDrift(report) ? 1 : 0);
+      } else if (subcommand === 'report') {
+        const jsonFlag = args.includes('--json');
+        const latest = driftEngine.getLatestReportState(cwd);
+        const payload = latest.report
+          ? { status: latest.status, path: latest.path, age_ms: latest.age_ms, report: latest.report }
+          : latest;
+        process.stdout.write(JSON.stringify(payload, null, 2) + '\n');
+        process.exit(0);
+      } else if (subcommand === 'status') {
+        const jsonFlag = args.includes('--json');
+        const full = args.includes('--full');
+        const latest = driftEngine.getLatestReportState(cwd);
+        if (raw || jsonFlag) {
+          const payload = latest.report
+            ? { status: latest.status, path: latest.path, age_ms: latest.age_ms, report: latest.report }
+            : latest;
+          process.stdout.write(JSON.stringify(payload, null, 2) + '\n');
+        } else if (latest.report) {
+          process.stdout.write(driftEngine.renderStatus(latest.report, { full }));
+        } else {
+          process.stdout.write(driftEngine.renderStatus(latest));
+        }
+        process.exit(0);
       } else {
-        error('Unknown drift subcommand. Available: catalog');
+        error('Unknown drift subcommand. Available: catalog, scan, report, status');
       }
       break;
     }
@@ -917,7 +955,7 @@ async function main() {
         process.exit(0);
       } else if (subcommand === 'health') {
         const requirePostgres = args.includes('--require-postgres');
-        const status = await brainManager.checkHealth({ requirePostgres });
+        const status = await brainManager.checkHealth({ requirePostgres, cwd });
         process.stdout.write(JSON.stringify(status, null, 2) + '\n');
         process.exit(status.allOk ? 0 : 1);
       } else if (subcommand === 'open-status') {

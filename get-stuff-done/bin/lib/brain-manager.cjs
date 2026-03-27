@@ -1,6 +1,7 @@
 const http = require('http');
 const secondBrain = require('./second-brain.cjs');
 const broker = require('./broker.cjs');
+const driftEngine = require('./drift-engine.cjs');
 
 class BrainManager {
   constructor() {
@@ -26,17 +27,23 @@ class BrainManager {
       runbook: backend.degraded
         ? 'Postgres is unavailable; SQLite fallback is active. Run `node get-stuff-done/bin/gsd-tools.cjs brain health --raw` for detailed diagnostics.'
         : null,
+      drift: driftEngine.getHealthSnapshot(options.cwd || process.cwd(), options),
       allOk: false,
     };
 
+    const refreshedBackend = secondBrain.getBackendState();
+    Object.assign(health, this._pickBackendState(refreshedBackend));
+    health.model_facing_memory = this._getModelFacingMemoryStatus(refreshedBackend);
+    health.runbook = refreshedBackend.degraded
+      ? 'Postgres is unavailable; SQLite fallback is active. Run `node get-stuff-done/bin/gsd-tools.cjs brain health --raw` for detailed diagnostics.'
+      : null;
+
     if (options.requirePostgres) {
-      try {
-        secondBrain.requirePostgres('brain health');
-      } catch (err) {
+      if (health.postgres.status !== 'ok') {
         health.memory_critical_blocked = true;
         health.postgres = {
           status: 'blocked',
-          detail: err.message,
+          detail: health.postgres.detail || 'Postgres is required for brain health',
         };
       }
     }
@@ -62,7 +69,7 @@ class BrainManager {
   }
 
   _getModelFacingMemoryStatus(backend) {
-    if (backend.active_backend === 'postgres' && backend.degraded === false) {
+    if (backend.active_backend === 'postgres' && !backend.degraded) {
       return {
         available: true,
         status: 'ok',
@@ -99,15 +106,16 @@ class BrainManager {
       client.release();
       return { status: 'ok', detail: null };
     } catch (err) {
+      secondBrain.transitionToDegraded(secondBrain.classifyPostgresFailure(err), {
+        message: err.message,
+        source: 'brain_health_probe',
+      });
       return { status: 'error', detail: err.message };
     }
   }
 
   async _checkRabbitMq() {
     try {
-      if (!broker.isConnected) {
-        await broker.connect(1);
-      }
       return {
         status: broker.isConnected ? 'ok' : 'disconnected',
         detail: broker.isConnected ? null : 'broker disconnected',
