@@ -90,6 +90,7 @@
  *                                    List schemas not used in N days (default 30)
  *   firecrawl schemas approve --pattern <p>
  *                                    Mark a schema as approved (updates approved_by)
+ *   drift catalog [--write]           Generate or print the Phase 70 drift catalog.
  *   searxng check                      Check if local SearXNG instance is reachable
  *   searxng search --query <q>         Perform an audit-logged web search
  *   brain status                       Show active backend truth for Second Brain.
@@ -247,6 +248,7 @@ const nextStep = require('./lib/next-step.cjs');
 const policy = require('./lib/policy.cjs');
 const gate = require('./lib/gate.cjs');
 const schemaRegistry = require('./lib/schema-registry.cjs');
+const driftCatalog = require('./lib/drift-catalog.cjs');
 
 function lazyRequire(modulePath) {
   let cached = null;
@@ -821,6 +823,23 @@ async function main() {
         getCommands().cmdHealthDegradedMode(cwd, raw);
       } else {
         error('Unknown health subcommand. Available: degraded-mode');
+      }
+      break;
+    }
+
+    case 'drift': {
+      const subcommand = args[1];
+      if (subcommand === 'catalog') {
+        const shouldWrite = args.includes('--write');
+        if (shouldWrite) {
+          const result = driftCatalog.writeCatalog(cwd);
+          output(result, raw, result.path);
+        } else {
+          const catalog = driftCatalog.buildCatalog(cwd);
+          output(catalog, raw, driftCatalog.renderCatalogYaml(catalog));
+        }
+      } else {
+        error('Unknown drift subcommand. Available: catalog');
       }
       break;
     }

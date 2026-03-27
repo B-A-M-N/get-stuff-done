@@ -1,0 +1,343 @@
+schema: gsd_drift_catalog
+phase: 70
+source_of_truth: .planning/phases/70-drift-surface-mapping/drift_catalog.yaml
+generated_from_head: 52859e96f46283286502c9d5edeabc0945133e0f
+coverage:
+  scope: full_truth_surface
+  hierarchy:
+    - evidence
+    - code
+    - verification
+    - roadmap
+  historical_window: recent_plus_structural_history
+entry_count: 7
+counts:
+  active: 2
+  historical: 1
+  healthy: 4
+entries:
+  - id: phase70-planning-truth-surface
+    requirement_id: TRUTH-CLAIM-01
+    surface_category: planning_artifact
+    claim: "Active planning artifacts must remain internally consistent and realizable from observable repo state."
+    implementation:
+      paths:
+        - .planning/ROADMAP.md
+        - .planning/REQUIREMENTS.md
+        - .planning/STATE.md
+        - .planning/phases/70-drift-surface-mapping/70-CONTEXT.md
+        - .planning/phases/70-drift-surface-mapping/70-01-PLAN.md
+        - .planning/phases/70-drift-surface-mapping/70-02-PLAN.md
+    evidence:
+      - type: command
+        ref: "node get-stuff-done/bin/gsd-tools.cjs validate consistency --raw"
+        exit_code: 0
+        observed: passed
+      - type: command
+        ref: "node get-stuff-done/bin/gsd-tools.cjs state verify --raw"
+        exit_code: 0
+        observed: passed
+      - type: command
+        ref: "node get-stuff-done/bin/gsd-tools.cjs init milestone-op --raw"
+        exit_code: 0
+        observed:
+          commit_docs: true
+          milestone_version: v0.7.0
+          milestone_name: "Truth Enforcement & Drift Elimination"
+          milestone_slug: truth-enforcement-drift-elimination
+          clarification_status: none
+          phase_count: 1
+          completed_phases: 1
+          all_phases_complete: true
+          archived_milestones: []
+          archive_count: 0
+          project_exists: true
+          roadmap_exists: true
+          state_exists: true
+          archive_exists: false
+          phases_dir_exists: true
+    observed_drift: false
+    impact: high
+    exploitability: high
+    false_truth_perception: false
+    affects_current_truth: true
+    historical: false
+    notes: "Healthy when roadmap, state, and phase inventory resolve consistently from current repo state."
+    drift_type: spec_drift
+    activity_status: healthy
+    severity: MINOR
+    blocking: false
+    memory_boundary_state: null
+  - id: phase70-installed-milestone-resolution
+    requirement_id: TRUTH-DRIFT-01
+    surface_category: installed_runtime
+    claim: "Repo-local and installed CLI milestone resolution must agree on the current milestone truth surface."
+    implementation:
+      paths:
+        - get-stuff-done/bin/lib/init.cjs
+        - /home/bamn/.codex/get-shit-done/bin/gsd-tools.cjs
+    evidence:
+      - type: command
+        ref: "node get-stuff-done/bin/gsd-tools.cjs init milestone-op --raw"
+        exit_code: 0
+        observed:
+          commit_docs: true
+          milestone_version: v0.7.0
+          milestone_name: "Truth Enforcement & Drift Elimination"
+          milestone_slug: truth-enforcement-drift-elimination
+          clarification_status: none
+          phase_count: 1
+          completed_phases: 1
+          all_phases_complete: true
+          archived_milestones: []
+          archive_count: 0
+          project_exists: true
+          roadmap_exists: true
+          state_exists: true
+          archive_exists: false
+          phases_dir_exists: true
+      - type: command
+        ref: "node /home/bamn/.codex/get-shit-done/bin/gsd-tools.cjs init milestone-op --raw"
+        exit_code: 0
+        observed:
+          commit_docs: true
+          milestone_version: v0.7.0
+          milestone_name: "Truth Enforcement & Drift Elimination"
+          milestone_slug: truth-enforcement-drift-elimination
+          clarification_status: none
+          phase_count: 1
+          completed_phases: 1
+          all_phases_complete: true
+          archived_milestones: []
+          archive_count: 0
+          project_exists: true
+          roadmap_exists: true
+          state_exists: true
+          archive_exists: false
+          phases_dir_exists: true
+    observed_drift: false
+    impact: high
+    exploitability: high
+    false_truth_perception: false
+    affects_current_truth: true
+    historical: false
+    notes: "This captures installed-runtime truth separately from repo-local truth because closeout drift previously hid there."
+    drift_type: execution_drift
+    activity_status: healthy
+    severity: MINOR
+    blocking: false
+    memory_boundary_state: null
+  - id: phase70-open-brain-runtime-split
+    requirement_id: TRUTH-DRIFT-01
+    surface_category: runtime_surface
+    claim: "Repo-local and installed runtime Open Brain status surfaces must agree when reporting current backend truth."
+    implementation:
+      paths:
+        - get-stuff-done/bin/lib/open-brain.cjs
+        - get-stuff-done/bin/lib/brain-manager.cjs
+        - /home/bamn/.codex/get-shit-done/bin/gsd-tools.cjs
+    evidence:
+      - type: command
+        ref: "node get-stuff-done/bin/gsd-tools.cjs brain open-status --raw"
+        exit_code: 0
+        observed:
+          available: false
+          degraded: true
+          blocked: false
+          reason: postgres_unavailable
+          detail: "Open Brain storage unavailable; continuing without semantic recall."
+          status: degraded
+          storage_ready: false
+          embedding_ready: false
+          schema: gsd_open_brain
+          sidecar_only: true
+          execution_truth_owner: second_brain
+          backend_state:
+            configured_backend: sqlite
+            active_backend: sqlite
+            degraded: false
+            degraded_reason: null
+            warning_emitted: false
+            memory_critical_blocked: false
+            degraded_details: null
+      - type: command
+        ref: "node /home/bamn/.codex/get-shit-done/bin/gsd-tools.cjs brain open-status --raw"
+        exit_code: 0
+        observed:
+          available: false
+          degraded: true
+          blocked: false
+          reason: embedding_unavailable
+          detail: "Open Brain embeddings unavailable; continuing without semantic recall."
+          status: degraded
+          storage_ready: false
+          embedding_ready: false
+          schema: gsd_open_brain
+          sidecar_only: true
+          execution_truth_owner: second_brain
+          backend_state:
+            configured_backend: postgres
+            active_backend: postgres
+            degraded: true
+            degraded_reason: embedding_unavailable
+            warning_emitted: false
+            memory_critical_blocked: false
+    observed_drift: true
+    impact: high
+    exploitability: high
+    false_truth_perception: true
+    affects_current_truth: true
+    historical: false
+    notes: "This is the live runtime/operator split surfaced during the v0.6.0 closeout repair path."
+    drift_type: execution_drift
+    activity_status: active
+    severity: CRITICAL
+    blocking: true
+    memory_boundary_state: null
+  - id: phase70-planning-degraded-mode-surface
+    requirement_id: TRUTH-CLAIM-01
+    surface_category: degraded_mode
+    claim: "Planning degraded-mode checks must make fallback assumptions explicit rather than silently passing."
+    implementation:
+      paths:
+        - get-stuff-done/bin/lib/commands.cjs
+        - .planning/STATE.md
+        - .planning/ROADMAP.md
+        - .planning/PROJECT.md
+    evidence:
+      - type: command
+        ref: "node get-stuff-done/bin/gsd-tools.cjs health degraded-mode --raw"
+        exit_code: 0
+        observed: ok
+    observed_drift: false
+    impact: high
+    exploitability: low
+    false_truth_perception: false
+    affects_current_truth: true
+    historical: false
+    notes: "This remains healthy when planning fallbacks are surfaced accurately and no pending gates exist."
+    drift_type: execution_drift
+    activity_status: healthy
+    severity: MINOR
+    blocking: false
+    memory_boundary_state: null
+  - id: phase70-planning-server-integrity-claims
+    requirement_id: TRUTH-CLAIM-01
+    surface_category: verification_surface
+    claim: "Planning Server integrity fields must not report coherence or narrative-drift values without live proof."
+    implementation:
+      paths:
+        - get-stuff-done/bin/lib/planning-server.cjs
+        - get-stuff-done/bin/lib/context.cjs
+    evidence:
+      - type: code-scan
+        ref: get-stuff-done/bin/lib/planning-server.cjs
+        observed:
+          static_integrity_claim_count: 23
+          pattern: "narrative_drift_score: 1.0, coherence_check_passed: true"
+    observed_drift: true
+    impact: high
+    exploitability: high
+    false_truth_perception: true
+    affects_current_truth: true
+    historical: false
+    notes: "Static optimism in integrity-bearing responses is an active truth risk until later phases replace it with evidence-backed values."
+    drift_type: verification_drift
+    activity_status: active
+    severity: CRITICAL
+    blocking: true
+    memory_boundary_state: null
+  - id: phase70-memory-fail-closed-boundary
+    requirement_id: TRUTH-CLAIM-01
+    surface_category: memory_boundary
+    claim: "Model-facing memory must fail closed when trusted backend conditions are unavailable."
+    implementation:
+      paths:
+        - get-stuff-done/bin/lib/brain-manager.cjs
+        - get-stuff-done/bin/lib/open-brain.cjs
+    evidence:
+      - type: command
+        ref: "node get-stuff-done/bin/gsd-tools.cjs brain status --raw"
+        exit_code: 0
+        observed:
+          configured_backend: sqlite
+          active_backend: sqlite
+          degraded: false
+          degraded_reason: null
+          warning_emitted: false
+          memory_critical_blocked: false
+          model_facing_memory:
+            available: false
+            status: blocked
+            detail: "Model-facing memory is unavailable while degraded. Postgres-backed memory required."
+      - type: command
+        ref: "node get-stuff-done/bin/gsd-tools.cjs brain open-status --raw"
+        exit_code: 0
+        observed:
+          available: false
+          degraded: true
+          blocked: false
+          reason: postgres_unavailable
+          detail: "Open Brain storage unavailable; continuing without semantic recall."
+          status: degraded
+          storage_ready: false
+          embedding_ready: false
+          schema: gsd_open_brain
+          sidecar_only: true
+          execution_truth_owner: second_brain
+          backend_state:
+            configured_backend: sqlite
+            active_backend: sqlite
+            degraded: false
+            degraded_reason: null
+            warning_emitted: false
+            memory_critical_blocked: false
+            degraded_details: null
+    observed_drift: false
+    impact: low
+    exploitability: low
+    false_truth_perception: false
+    affects_current_truth: true
+    historical: false
+    memory_boundary_state: disabled
+    notes: "Phase 70 inventories only the trust boundary here, not embedding quality or recall quality."
+    drift_type: implementation_drift
+    activity_status: healthy
+    severity: MINOR
+    blocking: false
+  - id: phase70-recent-structural-history-50-55
+    requirement_id: TRUTH-DRIFT-01
+    surface_category: historical_structural
+    claim: "Recent high-impact structural history that previously blocked milestone closeout must remain cataloged as non-blocking historical drift."
+    implementation:
+      paths:
+        - .planning/v0.6.0-MILESTONE-AUDIT.md
+        - .planning/phases/50-plane-integration-observability/50-VERIFICATION.md
+        - .planning/phases/53-second-brain-connection-fallback-hardening/53-VERIFICATION.md
+        - .planning/phases/54-model-facing-second-brain-via-mcp/54-VERIFICATION.md
+        - .planning/phases/55-open-brain-v1-foundations/55-VERIFICATION.md
+    evidence:
+      - type: file
+        ref: .planning/v0.6.0-MILESTONE-AUDIT.md
+      - type: file
+        ref: .planning/phases/50-plane-integration-observability/50-VERIFICATION.md
+      - type: file
+        ref: .planning/phases/53-second-brain-connection-fallback-hardening/53-VERIFICATION.md
+      - type: file
+        ref: .planning/phases/54-model-facing-second-brain-via-mcp/54-VERIFICATION.md
+      - type: file
+        ref: .planning/phases/55-open-brain-v1-foundations/55-VERIFICATION.md
+    observed_drift: true
+    impact: high
+    exploitability: high
+    false_truth_perception: true
+    affects_current_truth: false
+    historical: true
+    notes: "This preserves the repaired 50-55 verification/closeout drift as visible structural history without re-blocking the current milestone."
+    drift_type: verification_drift
+    activity_status: historical
+    severity: CRITICAL
+    blocking: false
+    memory_boundary_state: null
+catalog_hash: 18a58ae1e5ab1f698cc16172f1582cfaaa88603d071699f3ee138017eebd5994
+# GSD-AUTHORITY: 70-02-2:894ce6095cde860e7d5900dbcc373f9c84a649a3603fec2d79ac0a169f427da9

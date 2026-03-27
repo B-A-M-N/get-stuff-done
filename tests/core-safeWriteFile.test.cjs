@@ -115,6 +115,24 @@ describe('safeWriteFile', () => {
     assert.strictEqual(authCheck.wave, '1');
   });
 
+  test('signed write: adds envelope with .yaml extension (hash comment format)', () => {
+    const testFile = path.join(tmpDir, 'signed.yaml');
+    const content = 'schema: drift_catalog\nentries: []';
+    const result = safeWriteFile(testFile, content, { phase: '39', plan: '02', wave: '1' });
+
+    assert.strictEqual(result, true);
+    const written = fs.readFileSync(testFile, 'utf-8');
+    const lines = written.trimEnd().split('\n');
+    const lastLine = lines[lines.length - 1];
+    assert.ok(lastLine.startsWith('# GSD-AUTHORITY:'), 'Envelope should be YAML hash comment');
+
+    const authCheck = verifySignature(written);
+    assert.strictEqual(authCheck.valid, true);
+    assert.strictEqual(authCheck.phase, '39');
+    assert.strictEqual(authCheck.plan, '02');
+    assert.strictEqual(authCheck.wave, '1');
+  });
+
   test('signed write: accepts string format options "phase:39,plan:02,wave:1"', () => {
     const testFile = path.join(tmpDir, 'signed-str.md');
     const content = 'Content with string options';

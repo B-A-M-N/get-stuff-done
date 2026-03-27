@@ -8,8 +8,10 @@ async function runTests() {
   console.log('Running authority tests...');
 
   const tempFile = path.join(__dirname, 'temp-authority-test.txt');
+  const tempYamlFile = path.join(__dirname, 'temp-authority-test.yaml');
   const content = 'Hello, GSD!\n';
   fs.writeFileSync(tempFile, content, 'utf-8');
+  fs.writeFileSync(tempYamlFile, 'schema: test\nentries: []\n', 'utf-8');
 
   try {
     // Test 1: Generate signature
@@ -46,9 +48,22 @@ async function runTests() {
     assert.strictEqual(verificationNoEnvelope.reason, 'No authority envelope found');
     console.log('✓ Test 5: Verify signature (no envelope) passed');
 
+    // Test 6: Sign yaml file with hash comment envelope
+    const yamlSigned = authority.signFile(tempYamlFile, '70', '01', '1');
+    assert.strictEqual(yamlSigned, true);
+    const yamlContent = fs.readFileSync(tempYamlFile, 'utf-8');
+    assert.ok(yamlContent.includes('# GSD-AUTHORITY: 70-01-1:'));
+    const yamlVerification = authority.verifySignature(yamlContent);
+    assert.strictEqual(yamlVerification.valid, true);
+    assert.strictEqual(yamlVerification.phase, '70');
+    console.log('✓ Test 6: YAML signing passed');
+
   } finally {
     if (fs.existsSync(tempFile)) {
       fs.unlinkSync(tempFile);
+    }
+    if (fs.existsSync(tempYamlFile)) {
+      fs.unlinkSync(tempYamlFile);
     }
   }
 

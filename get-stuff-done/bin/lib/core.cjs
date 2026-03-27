@@ -196,10 +196,13 @@ function safeWriteFile(filePath, content, options = {}) {
       // Lazy-require to avoid circular dependency
       const authority = require('./authority.cjs');
       const signature = authority.generateSignature(content, options.phase, options.plan, options.wave);
-      const ext = path.extname(filePath).toLowerCase();
-      const envelope = ext === '.md'
-        ? `<!-- GSD-AUTHORITY: ${options.phase}-${options.plan}-${options.wave}:${signature} -->`
-        : `// GSD-AUTHORITY: ${options.phase}-${options.plan}-${options.wave}:${signature}`;
+      const envelope = authority.formatEnvelope(
+        filePath,
+        options.phase,
+        options.plan,
+        options.wave,
+        signature,
+      );
       finalContent = content.trimEnd() + '\n' + envelope + '\n';
     }
     safeFs.writeFileSync(filePath, finalContent, 'utf-8');
