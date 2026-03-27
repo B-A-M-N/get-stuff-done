@@ -100,6 +100,8 @@
  *   drift scan [--json] [--full]      Run the Phase 73 drift scan and persist latest-report.json
  *   drift report [--json]             Return the latest drift report or explicit missing/stale state
  *   drift status [--json] [--full]    Render canonical operator drift status from the latest report
+ *   drift preview [--json]            Show the Phase 74 reconciliation dry run
+ *   drift reconcile [--json]          Apply the Phase 74 reconciliation result
  *   searxng check                      Check if local SearXNG instance is reachable
  *   searxng search --query <q>         Perform an audit-logged web search
  *   brain status                       Show active backend truth for Second Brain.
@@ -259,6 +261,7 @@ const gate = require('./lib/gate.cjs');
 const schemaRegistry = require('./lib/schema-registry.cjs');
 const driftCatalog = require('./lib/drift-catalog.cjs');
 const driftEngine = require('./lib/drift-engine.cjs');
+const driftReconcile = require('./lib/drift-reconcile.cjs');
 
 function lazyRequire(modulePath) {
   let cached = null;
@@ -349,15 +352,8 @@ async function main() {
         }
         state.cmdStatePatch(cwd, patches, raw);
       } else if (subcommand === 'advance-plan') {
-        const phaseIdx = args.indexOf('--phase');
-        const planIdx = args.indexOf('--plan');
-        const taskIdx = args.indexOf('--task');
-        state.cmdStateAdvancePlan(cwd, {
-          phase: phaseIdx !== -1 ? args[phaseIdx + 1] : null,
-          plan: planIdx !== -1 ? args[planIdx + 1] : null,
-          wave: taskIdx !== -1 ? args[taskIdx + 1] : '1',
-        }, raw);
-} else if (subcommand === 'record-metric') {
+        state.cmdStateAdvancePlan(cwd, raw);
+      } else if (subcommand === 'record-metric') {
         const phaseIdx = args.indexOf('--phase');
         const planIdx = args.indexOf('--plan');
         const durationIdx = args.indexOf('--duration');
@@ -371,15 +367,8 @@ async function main() {
           files: filesIdx !== -1 ? args[filesIdx + 1] : null,
         }, raw);
       } else if (subcommand === 'update-progress') {
-        const phaseIdx = args.indexOf('--phase');
-        const planIdx = args.indexOf('--plan');
-        const taskIdx = args.indexOf('--task');
-        state.cmdStateUpdateProgress(cwd, {
-          phase: phaseIdx !== -1 ? args[phaseIdx + 1] : null,
-          plan: planIdx !== -1 ? args[planIdx + 1] : null,
-          wave: taskIdx !== -1 ? args[taskIdx + 1] : '1',
-        }, raw);
-} else if (subcommand === 'get-metrics') {
+        state.cmdStateUpdateProgress(cwd, raw);
+      } else if (subcommand === 'get-metrics') {
         const phaseIdx = args.indexOf('--phase');
         const planIdx = args.indexOf('--plan');
         state.cmdStateGetMetrics(cwd, {
@@ -939,8 +928,19 @@ async function main() {
           process.stdout.write(driftEngine.renderStatus(latest));
         }
         process.exit(0);
+      } else if (subcommand === 'preview') {
+        const jsonFlag = args.includes('--json');
+        const decision = driftReconcile.previewReconciliation(cwd);
+        process.stdout.write(JSON.stringify(decision, null, 2) + '\n');
+        process.exit(0);
+      } else if (subcommand === 'reconcile') {
+        const jsonFlag = args.includes('--json');
+        const decision = driftReconcile.previewReconciliation(cwd);
+        const result = driftReconcile.applyReconciliation(cwd, decision);
+        process.stdout.write(JSON.stringify(result, null, 2) + '\n');
+        process.exit(0);
       } else {
-        error('Unknown drift subcommand. Available: catalog, scan, report, status');
+        error('Unknown drift subcommand. Available: catalog, scan, report, status, preview, reconcile');
       }
       break;
     }

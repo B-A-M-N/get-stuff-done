@@ -3,14 +3,16 @@ gsd_state_version: 1.0
 milestone: v0.7.0
 milestone_name: Truth Enforcement & Drift Elimination
 current_plan: Phase 72 verification hardening complete; Phase 73 drift detection engine ready for discussion/planning
-status: active
-stopped_at: Phase 72 Nyquist audit and close-out completed
-last_updated: "2026-03-27T19:26:07Z"
+status: unknown
+stopped_at: Archived milestone v0.6.0
+checkpoint_status: None
+checkpoint_path: None
+last_updated: "2026-03-27T20:46:18.151Z"
 progress:
-  total_phases: 26
-  completed_phases: 12
-  total_plans: 33
-  completed_plans: 30
+  total_phases: 9
+  completed_phases: 4
+  total_plans: 9
+  completed_plans: 9
 ---
 
 # Project State
@@ -196,3 +198,16 @@ Checkpoint Status: None
 Checkpoint Path: None
 
 <!-- GSD-AUTHORITY: 72-00-0:0a4744219946426bd6c8497782954f6493aba5c193c6ac065abb0bcbe7d7051f -->
+
+## Reconciliation Status
+
+**Drift Present:** true
+**Highest Drift Severity:** CRITICAL
+**Verification Status:** INVALID
+**Phase Status:** INVALID
+**Roadmap Status:** BLOCKED
+**Operator Health:** UNHEALTHY
+**Requires Reverification:** true
+**Reverification Reason:** execution_drift invalidated or downgraded trusted truth; verification_drift invalidated or downgraded trusted truth
+**Source Report:** .planning/drift/latest-report.json
+**Reconciled At:** 2026-03-27T20:46:18.146Z

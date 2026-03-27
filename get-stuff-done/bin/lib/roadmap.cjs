@@ -346,7 +346,55 @@ function cmdRoadmapUpdatePlanProgress(cwd, phaseNum, options, raw) {
   }, raw, `${summaryCount}/${planCount} ${status}`);
 }
 
+function applyPhaseReconciliationStatus(cwd, phaseNum, status, options = {}) {
+  const roadmapPath = path.join(cwd, '.planning', 'ROADMAP.md');
+  if (!safeFs.existsSync(roadmapPath)) {
+    throw new Error('ROADMAP.md not found');
+  }
+
+  let roadmapContent = safeFs.readFileSync(roadmapPath, 'utf-8');
+  const phaseEscaped = escapeRegex(phaseNum);
+  const sectionPattern = new RegExp(`(#{2,4}\\s*Phase\\s+${phaseEscaped}:\\s*[^\\n]+\\n)([\\s\\S]*?)(?=\\n#{2,4}\\s*Phase\\s+\\d|$)`, 'i');
+  const match = roadmapContent.match(sectionPattern);
+  if (!match) {
+    return {
+      updated: false,
+      path: '.planning/ROADMAP.md',
+      phase: phaseNum,
+      status,
+      reason: 'phase_not_found',
+    };
+  }
+
+  const header = match[1];
+  let body = match[2];
+  const statusLine = `**Reconciliation Status:** ${status}`;
+  if (/\*\*Reconciliation Status:\*\*/i.test(body)) {
+    body = body.replace(/(\*\*Reconciliation Status:\*\*\s*)([^\n]+)/i, `$1${status}`);
+  } else if (/\*\*Plans:\*\*/i.test(body)) {
+    body = body.replace(/(\*\*Plans:\*\*[^\n]*\n)/i, `$1${statusLine}\n`);
+  } else {
+    body = `${statusLine}\n` + body;
+  }
+
+  const replacement = `${header}${body}`;
+  roadmapContent = roadmapContent.replace(sectionPattern, replacement);
+  safeWriteFile(roadmapPath, roadmapContent, {
+    phase: String(phaseNum),
+    plan: options.plan || '01',
+    wave: options.wave || '1',
+  });
+
+  return {
+    updated: true,
+    path: '.planning/ROADMAP.md',
+    phase: phaseNum,
+    status,
+  };
+}
+
 module.exports = {
+  applyPhaseReconciliationStatus,
   parseRoadmap,
   cmdRoadmapGetPhase,
   cmdRoadmapAnalyze,

@@ -329,6 +329,108 @@ None
   });
 });
 
+describe('drift reconciliation mutations', () => {
+  let tmpDir;
+
+  beforeEach(() => {
+    tmpDir = createTempProject();
+    fs.writeFileSync(
+      path.join(tmpDir, '.planning', 'STATE.md'),
+      `# Project State
+
+**Current Phase:** 72
+**Current Phase Name:** Verification Hardening
+**Status:** In progress
+`
+    );
+    fs.writeFileSync(
+      path.join(tmpDir, '.planning', 'ROADMAP.md'),
+      `## v0.7.0 Truth Enforcement & Drift Elimination
+
+| Phase | Plans | Status | Completed |
+|------|------|--------|-----------|
+| 72 Verification Hardening | 2/2 | Complete | 2026-03-27 |
+
+- [x] **Phase 72: Verification Hardening**
+
+### Phase 72: Verification Hardening
+**Goal:** Hold evidence-first verification truth.
+**Plans:** 2/2 plans complete
+`
+    );
+    fs.mkdirSync(path.join(tmpDir, '.planning', 'drift'), { recursive: true });
+  });
+
+  afterEach(() => {
+    cleanup(tmpDir);
+  });
+
+  test('drift preview is dry-run only', () => {
+    fs.writeFileSync(
+      path.join(tmpDir, '.planning', 'drift', 'latest-report.json'),
+      JSON.stringify({
+        schema: 'gsd_drift_report',
+        generated_at: new Date().toISOString(),
+        summary: { critical: 1, major: 0, minor: 0 },
+        findings: [
+          {
+            id: 'phase72-proof-drift',
+            severity: 'CRITICAL',
+            drift_type: 'execution_drift',
+            activity_status: 'active',
+            affected: {},
+            predicted_effect: {},
+            evidence: [{ ref: 'commit:abc123' }],
+          },
+        ],
+      }, null, 2),
+      'utf-8'
+    );
+
+    const result = runGsdTools(['drift', 'preview', '--raw'], tmpDir);
+    assert.ok(result.success, result.error);
+    const decision = JSON.parse(result.output);
+    assert.strictEqual(decision.applied_changes.length, 4);
+    assert.strictEqual(fs.existsSync(path.join(tmpDir, '.planning', 'drift', 'latest-reconciliation.json')), false);
+  });
+
+  test('drift reconcile writes audit artifact and sanctioned state mutations', () => {
+    fs.writeFileSync(
+      path.join(tmpDir, '.planning', 'drift', 'latest-report.json'),
+      JSON.stringify({
+        schema: 'gsd_drift_report',
+        generated_at: new Date().toISOString(),
+        summary: { critical: 1, major: 0, minor: 0 },
+        findings: [
+          {
+            id: 'phase72-proof-drift',
+            severity: 'CRITICAL',
+            drift_type: 'execution_drift',
+            activity_status: 'active',
+            affected: {},
+            predicted_effect: {},
+            evidence: [{ ref: 'commit:abc123' }],
+          },
+        ],
+      }, null, 2),
+      'utf-8'
+    );
+
+    const result = runGsdTools(['drift', 'reconcile', '--raw'], tmpDir);
+    assert.ok(result.success, result.error);
+
+    const reconciliation = JSON.parse(fs.readFileSync(path.join(tmpDir, '.planning', 'drift', 'latest-reconciliation.json'), 'utf-8'));
+    assert.strictEqual(reconciliation.applied_changes.length, 4);
+
+    const stateContent = fs.readFileSync(path.join(tmpDir, '.planning', 'STATE.md'), 'utf-8');
+    assert.match(stateContent, /\*\*Verification Status:\*\*\s*INVALID/);
+    assert.match(stateContent, /\*\*Operator Health:\*\*\s*UNHEALTHY/);
+
+    const roadmapContent = fs.readFileSync(path.join(tmpDir, '.planning', 'ROADMAP.md'), 'utf-8');
+    assert.match(roadmapContent, /\*\*Reconciliation Status:\*\*\s*BLOCKED/);
+  });
+});
+
 // ─────────────────────────────────────────────────────────────────────────────
 // state json command (machine-readable STATE.md frontmatter)
 // ─────────────────────────────────────────────────────────────────────────────

@@ -13,7 +13,7 @@ function cmdStateLoad(cwd, raw) {
   const planningDir = path.join(cwd, '.planning');
 
   const statePath = path.join(planningDir, 'STATE.md');
-  const stateRaw = safeReadFile(statePath) || '';
+  const stateRaw = fs.existsSync(statePath) ? fs.readFileSync(statePath, 'utf-8') : '';
 
   const configExists = fs.existsSync(path.join(planningDir, 'config.json'));
   const roadmapExists = fs.existsSync(path.join(planningDir, 'ROADMAP.md'));
@@ -56,10 +56,10 @@ function cmdStateLoad(cwd, raw) {
 function cmdStateGet(cwd, section, raw) {
   const statePath = path.join(cwd, '.planning', 'STATE.md');
   try {
-    const content = safeReadFile(statePath);
-    if (content === null) {
+    if (!fs.existsSync(statePath)) {
       error('STATE.md not found or access denied');
     }
+    const content = fs.readFileSync(statePath, 'utf-8');
 
     if (!section) {
       output({ content }, raw, content);
@@ -1130,6 +1130,43 @@ function writeStateMd(statePath, content, cwd) {
   fs.writeFileSync(statePath, normalizeMd(synced), 'utf-8');
 }
 
+function upsertSection(content, heading, body) {
+  const sectionPattern = new RegExp(`\\n##\\s*${heading}\\s*\\n[\\s\\S]*?(?=\\n##|$)`, 'i');
+  const sectionText = `\n## ${heading}\n\n${body.trim()}\n`;
+  if (sectionPattern.test(content)) {
+    return content.replace(sectionPattern, sectionText);
+  }
+  return content.replace(/\s*$/, '') + '\n' + sectionText;
+}
+
+function applyReconciliationState(cwd, markers = {}) {
+  const statePath = path.join(cwd, '.planning', 'STATE.md');
+  if (!fs.existsSync(statePath)) {
+    throw new Error('STATE.md not found');
+  }
+
+  const content = fs.readFileSync(statePath, 'utf-8');
+  const lines = [
+    `**Drift Present:** ${markers.drift_present ? 'true' : 'false'}`,
+    `**Highest Drift Severity:** ${markers.highest_severity || 'NONE'}`,
+    `**Verification Status:** ${markers.verification_status || 'UNKNOWN'}`,
+    `**Phase Status:** ${markers.phase_status || 'UNKNOWN'}`,
+    `**Roadmap Status:** ${markers.roadmap_status || 'UNKNOWN'}`,
+    `**Operator Health:** ${markers.operator_health || 'UNKNOWN'}`,
+    `**Requires Reverification:** ${markers.requires_reverification ? 'true' : 'false'}`,
+    `**Reverification Reason:** ${markers.reverification_reason || 'none'}`,
+    `**Source Report:** ${markers.source_report || 'unknown'}`,
+    `**Reconciled At:** ${markers.timestamp || new Date().toISOString()}`,
+  ];
+  const next = upsertSection(content, 'Reconciliation Status', lines.join('\n'));
+  writeStateMd(statePath, next, cwd);
+  return {
+    updated: true,
+    path: '.planning/STATE.md',
+    markers,
+  };
+}
+
 function cmdStateJson(cwd, raw) {
   const statePath = path.join(cwd, '.planning', 'STATE.md');
   if (!fs.existsSync(statePath)) {
@@ -1533,4 +1570,5 @@ module.exports = {
   cmdStateHarvestContext,
   parseStateSnapshot,
   buildStateFrontmatter,
+  applyReconciliationState,
 };
