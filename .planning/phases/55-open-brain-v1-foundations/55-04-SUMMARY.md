@@ -55,7 +55,10 @@ completed: 2026-03-27
 
 ## Task Commits
 
-No task commits were created in this worktree. The repository already contained extensive unrelated in-progress changes, so this gap closure was verified with targeted tests and artifact checks instead of partial execution commits.
+Each task was captured in scoped commits:
+
+1. **Task 1-2: Repair the legacy Codex operator path and prove installed-path status truth** - `6e8ea29` (fix)
+2. **Plan metadata:** `5a78085` (docs)
 
 ## Files Created/Modified
 
@@ -109,6 +112,8 @@ None - no external service configuration required.
 
 - FOUND: `.planning/phases/55-open-brain-v1-foundations/55-04-SUMMARY.md`
 - PASSED: `node --test tests/install-isolation.test.cjs tests/open-brain-degraded-mode.test.cjs`
+- FOUND: `6e8ea29`
+- FOUND: `5a78085`
 - FOUND: `bin/install.js`
 - FOUND: `get-stuff-done/workflows/update.md`
 
