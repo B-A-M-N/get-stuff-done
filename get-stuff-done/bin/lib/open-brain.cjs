@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const secondBrain = require('./second-brain.cjs');
 const openBrainEmbedder = require('./open-brain-embedder.cjs');
+const openBrainRanker = require('./open-brain-ranker.cjs');
 const { isPromotableOpenBrainArtifact } = require('./internal-normalizer.cjs');
 
 const OPEN_BRAIN_SCHEMA = 'gsd_open_brain';
@@ -197,6 +198,41 @@ function getStorage(options = {}) {
   return options.storage || null;
 }
 
+function sanitizeMemory(memory) {
+  const sanitized = { ...memory };
+  delete sanitized.embedding;
+  delete sanitized.embedding_metadata;
+  delete sanitized.internal_row_id;
+  return sanitized;
+}
+
+async function loadSearchCandidates(options = {}) {
+  const storage = getStorage(options);
+  if (!storage || typeof storage.searchMemories !== 'function') {
+    throw new Error('Open Brain search requires a storage.searchMemories adapter.');
+  }
+
+  const found = await storage.searchMemories({
+    query: options.query,
+    project_scope: options.project_scope || options.projectScope || null,
+    limit: options.limit ?? 5,
+  });
+
+  return Array.isArray(found) ? found : [];
+}
+
+function filterCandidates(candidates, options = {}) {
+  const includeArchived = options.includeArchived === true;
+  const includeSuperseded = options.includeSuperseded === true;
+
+  return candidates.filter((candidate) => {
+    if (!candidate || typeof candidate !== 'object') return false;
+    if (!includeArchived && candidate.status === 'archived') return false;
+    if (!includeSuperseded && candidate.superseded_by) return false;
+    return true;
+  });
+}
+
 async function ingestNormalizedArtifact(artifact, options = {}) {
   validateNormalizedArtifact(artifact);
 
@@ -237,6 +273,84 @@ async function promoteMemoryCandidate(artifact, options = {}) {
   return ingestNormalizedArtifact(artifact, options);
 }
 
+async function searchOpenBrain(options = {}) {
+  if (typeof options.query !== 'string' || options.query.trim().length === 0) {
+    throw new TypeError('Open Brain search requires a non-empty query.');
+  }
+
+  const embedding = await resolveEmbedding(
+    {
+      title: options.query,
+      content_markdown: options.query,
+      source_uri: options.query,
+    },
+    options
+  );
+
+  const candidates = filterCandidates(await loadSearchCandidates(options), options);
+  const ranked = openBrainRanker.rankOpenBrainCandidates(candidates, {
+    queryEmbedding: embedding.available ? embedding.vector : null,
+    projectScope: options.project_scope || options.projectScope || null,
+    limit: options.limit ?? 5,
+    now: options.now || Date.now(),
+  });
+
+  return {
+    available: true,
+    degraded: false,
+    blocked: false,
+    query: options.query,
+    limit: options.limit ?? 5,
+    total_candidates: candidates.length,
+    selected: ranked.map((candidate) => sanitizeMemory(candidate)),
+  };
+}
+
+async function recallForWorkflow(options = {}) {
+  const result = await searchOpenBrain(options);
+  const storage = getStorage(options);
+  let recallEvent = null;
+
+  if (storage && typeof storage.writeRecallEvent === 'function') {
+    recallEvent = await storage.writeRecallEvent({
+      workflow: options.workflow || null,
+      phase: options.phase || null,
+      plan: options.plan || null,
+      query_text: options.query,
+      retrieved_ids: result.selected.map((item) => item.id),
+      selected_ids: result.selected.map((item) => item.id),
+      outcome: null,
+      created_at: new Date().toISOString(),
+    });
+  }
+
+  return {
+    ...result,
+    recall_event: recallEvent,
+  };
+}
+
+async function recordRecallOutcome(options = {}) {
+  const storage = getStorage(options);
+  if (!storage || typeof storage.updateRecallOutcome !== 'function') {
+    throw new Error('Open Brain feedback requires a storage.updateRecallOutcome adapter.');
+  }
+
+  if (typeof options.recallEventId !== 'string' || options.recallEventId.trim().length === 0) {
+    throw new TypeError('Open Brain feedback requires recallEventId.');
+  }
+
+  if (!['helpful', 'neutral', 'harmful', 'unused'].includes(options.outcome)) {
+    throw new TypeError('Open Brain feedback requires a supported outcome.');
+  }
+
+  return storage.updateRecallOutcome({
+    recallEventId: options.recallEventId,
+    outcome: options.outcome,
+    selected_ids: Array.isArray(options.selected_ids) ? options.selected_ids : undefined,
+  });
+}
+
 module.exports = {
   OPEN_BRAIN_SCHEMA,
   REQUIRED_TABLES,
@@ -246,5 +360,9 @@ module.exports = {
   checkAvailability,
   ingestNormalizedArtifact,
   promoteMemoryCandidate,
+  recallForWorkflow,
+  recordRecallOutcome,
+  searchOpenBrain,
+  sanitizeMemory,
   validateNormalizedArtifact,
 };
