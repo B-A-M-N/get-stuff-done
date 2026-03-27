@@ -199,6 +199,65 @@ describe('enforcement: typed proof and runtime proof', () => {
   });
 });
 
+describe('enforcement: hardened verification artifact validation', () => {
+  let tmpDir;
+
+  beforeEach(() => { tmpDir = createTempProject(); });
+  afterEach(() => { cleanup(tmpDir); });
+
+  test('verification-artifact rejects blocker anti-patterns that claim CONDITIONAL instead of INVALID', () => {
+    const phaseDir = path.join(tmpDir, '.planning', 'phases', '72-verification');
+    fs.mkdirSync(phaseDir, { recursive: true });
+    const verificationPath = path.join(phaseDir, '72-VERIFICATION.md');
+
+    fs.writeFileSync(verificationPath, [
+      '---',
+      'phase: 72-verification',
+      'verified: 2026-03-27T19:30:00Z',
+      'status: CONDITIONAL',
+      'score: 1/1 requirements verified',
+      '---',
+      '# Phase 72 Verification',
+      '',
+      '## Observable Truths',
+      '',
+      '| # | Truth | Status | Evidence |',
+      '|---|-------|--------|----------|',
+      '| 1 | Runtime verification is enforced | VALID | `get-stuff-done/bin/lib/verify.cjs` |',
+      '',
+      '## Requirement Coverage',
+      '',
+      '| Requirement | Status | Evidence | Gap |',
+      '|-------------|--------|----------|-----|',
+      '| TRUTH-VERIFY-01 | VALID | `get-stuff-done/bin/lib/verify.cjs`, `node --check get-stuff-done/bin/lib/verify.cjs` | - |',
+      '',
+      '## Anti-Pattern Scan',
+      '',
+      '| File | Pattern | Classification | Impact |',
+      '|------|---------|----------------|--------|',
+      '| src/live-path.js | `return mockResponse` | blocker | Mocked logic presented as real |',
+      '',
+      '## Drift Analysis',
+      '',
+      '```json',
+      '[{"type":"verification_drift","description":"Blocker anti-pattern remains active"}]',
+      '```',
+      '',
+      '## Final Status',
+      '',
+      '```json',
+      '{"status":"CONDITIONAL","reason":"Incorrect downgrade for blocker."}',
+      '```',
+    ].join('\n'));
+
+    const r = runGsdTools(['verify', 'verification-artifact', '.planning/phases/72-verification/72-VERIFICATION.md'], tmpDir);
+    assert.strictEqual(r.success, true, 'validator should return structured JSON even when artifact is invalid');
+    const out = JSON.parse(r.output);
+    assert.strictEqual(out.valid, false);
+    assert.ok(out.errors.some(err => err.includes('Final Status must be INVALID')));
+  });
+});
+
 // ─────────────────────────────────────────────────────────────────────────────
 // 2. Missing checkpoint artifact blocks completion
 // ─────────────────────────────────────────────────────────────────────────────
@@ -862,3 +921,5 @@ describe('enforcement: verify integrity — extended', () => {
     assert.ok(out.errors.some(e => /absent from SUMMARY/i.test(e)));
   });
 });
+
+// GSD-AUTHORITY: 72-02-1:38111b036d39d9d1b4de0d3b1bfb2a26185eb1a586ed6a38b21e1115984eb47c

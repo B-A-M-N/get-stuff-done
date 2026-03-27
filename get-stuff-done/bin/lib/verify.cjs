@@ -180,6 +180,10 @@ function isSummaryOnlyEvidence(cell) {
     && !/\b(runtime|output|exit code|stdout|stderr)\b/i.test(text);
 }
 
+function normalizeClassification(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
 function normalizeProofEntry(entry = {}) {
   return {
     task: entry.task != null ? Number(entry.task) : null,
@@ -234,6 +238,9 @@ function cmdVerifyVerificationArtifact(cwd, filePath, raw) {
 
   let hasInvalidRequirement = false;
   let hasConditionalRequirement = false;
+  let hasBlockingAntiPattern = false;
+  let hasDegradingAntiPattern = false;
+  let hasHistoricalOnlyAntiPattern = false;
   for (const row of reqCoverage.rows) {
     const [requirement, status, evidence, gap] = row;
     if (!allowedStatuses.has(status)) {
@@ -272,6 +279,61 @@ function cmdVerifyVerificationArtifact(cwd, filePath, raw) {
     errors.push(`Drift Analysis JSON invalid: ${drift.parse_error}`);
   }
 
+  const antiPatterns = extractMarkdownTableRows(content, 'Anti-Pattern Scan', 4);
+  if (!antiPatterns.sectionPresent) {
+    errors.push('Missing required section: Anti-Pattern Scan');
+  } else {
+    for (const row of antiPatterns.rows) {
+      const [file, pattern, classification] = row;
+      const normalized = normalizeClassification(classification);
+      const isNoneRow = normalizeClassification(file) === 'none' || normalizeClassification(pattern) === '-';
+      if (isNoneRow || !normalized || normalized === '-') {
+        continue;
+      }
+      if (normalized === 'blocker') {
+        hasBlockingAntiPattern = true;
+      } else if (normalized === 'degrader') {
+        hasDegradingAntiPattern = true;
+      } else if (normalized === 'historical_drift' || normalized === 'historical') {
+        hasHistoricalOnlyAntiPattern = true;
+      } else {
+        errors.push(`Unknown anti-pattern classification: ${classification}`);
+      }
+    }
+  }
+
+  const allowedDriftTypes = new Set([
+    'spec_drift',
+    'implementation_drift',
+    'verification_drift',
+    'execution_drift',
+  ]);
+  let driftEntries = [];
+  if (drift.sectionPresent && drift.value != null) {
+    if (!Array.isArray(drift.value)) {
+      errors.push('Drift Analysis must be a JSON array');
+    } else {
+      driftEntries = drift.value;
+      for (const [index, entry] of driftEntries.entries()) {
+        const driftType = String(entry?.type || '').trim();
+        if (!allowedDriftTypes.has(driftType)) {
+          errors.push(`Drift Analysis entry ${index + 1} must use one of: ${Array.from(allowedDriftTypes).join(', ')}`);
+        }
+        if (!String(entry?.description || '').trim()) {
+          errors.push(`Drift Analysis entry ${index + 1} must include description`);
+        }
+      }
+    }
+  }
+
+  const inconsistencyPresent = hasInvalidRequirement
+    || hasConditionalRequirement
+    || hasBlockingAntiPattern
+    || hasDegradingAntiPattern;
+  if (inconsistencyPresent && driftEntries.length === 0) {
+    errors.push('Drift Analysis must classify inconsistencies when requirements, escalation, or anti-pattern findings are not fully valid');
+  }
+
   const finalStatus = extractJsonBlockSection(content, 'Final Status');
   if (!finalStatus.sectionPresent) {
     errors.push('Missing required section: Final Status');
@@ -280,7 +342,11 @@ function cmdVerifyVerificationArtifact(cwd, filePath, raw) {
   } else if (!allowedStatuses.has(String(finalStatus.value?.status || '').trim())) {
     errors.push('Final Status JSON must include status = VALID, CONDITIONAL, or INVALID');
   } else {
-    const expectedFinal = hasInvalidRequirement ? 'INVALID' : hasConditionalRequirement ? 'CONDITIONAL' : 'VALID';
+    const expectedFinal = hasInvalidRequirement || hasBlockingAntiPattern
+      ? 'INVALID'
+      : hasConditionalRequirement || hasDegradingAntiPattern
+        ? 'CONDITIONAL'
+        : 'VALID';
     if (finalStatus.value.status !== expectedFinal) {
       errors.push(`Final Status must be ${expectedFinal} based on requirement and escalation state`);
     }
@@ -291,6 +357,13 @@ function cmdVerifyVerificationArtifact(cwd, filePath, raw) {
     valid,
     path: path.relative(cwd, fullPath).replace(/\\/g, '/'),
     requirement_rows: reqCoverage.rows.length,
+    anti_pattern_rows: antiPatterns.rows.length,
+    anti_pattern_summary: {
+      blockers: hasBlockingAntiPattern,
+      degraders: hasDegradingAntiPattern,
+      historical_only: hasHistoricalOnlyAntiPattern,
+    },
+    drift_entries: driftEntries.length,
     errors,
     warnings,
   }, raw, valid ? 'valid' : 'invalid');
@@ -3192,4 +3265,4 @@ module.exports = {
   cmdVerifyBypass,
 };
 
-// GSD-AUTHORITY: 72-01-1:ed46b64324c417e4d1ff9d022ffe860ed599e0a1bedface017a44debb3e6eb5b
+// GSD-AUTHORITY: 72-02-1:eae17e327e7bd8f3428fcc2098b5d0424ba77aa959a3c2c50dcb0cb27c6e371c
