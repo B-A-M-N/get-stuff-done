@@ -351,12 +351,12 @@ Plans:
 **Goal:** Make Second Brain directly usable by planner and executor workflows through the GenAI toolkit MCP without bypassing Firecrawl's external-context boundary.
 **Requirements**: MEMORY-MCP-01, MEMORY-MCP-02
 **Depends on:** Phase 53
-**Status**: [In Progress]
-**Plans:** 1/2 plans complete
+**Status**: [Complete]
+**Plans:** 2/2 plans complete
 
 Plans:
 - [x] 54-01-PLAN.md — MCP-backed memory access contract, degraded-mode enforcement, and planner/executor toolbox split
-- [ ] 54-02-PLAN.md — workflow memory-pack integration, Firecrawl boundary verification, and executor lifecycle writeback
+- [x] 54-02-PLAN.md — workflow memory-pack integration, Firecrawl boundary verification, and executor lifecycle writeback
 
 ---
 
