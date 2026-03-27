@@ -374,7 +374,7 @@ Plans:
 - [x] 55-01-PLAN.md — Open Brain schema, pgvector foundation, local embeddings, and graph-ready relational links
 - [x] 55-02-PLAN.md — normalized artifact ingestion, semantic retrieval, bounded ranking, and curated recall API
 - [x] 55-03-PLAN.md — workflow integration, recall feedback, safe degradation, and end-to-end validation
-- [ ] 55-04-PLAN.md — repair the installed Codex `brain open-status` operator path and legacy update/install detection
+- [ ] 55-04-PLAN.md — post-UAT operator-surface repair to restore the installed Codex `brain open-status` path, without changing the original Phase 55 sidecar success criteria
 
 ---
 
