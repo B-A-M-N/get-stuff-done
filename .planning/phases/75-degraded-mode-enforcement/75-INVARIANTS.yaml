@@ -1,52 +1,64 @@
-phase: "75"
-title: "Degraded Mode Enforcement"
-enforcement_area: "Model-Facing Memory Truth Closure"
-updated_at: "2026-03-28T05:56:00Z"
-closure_rule: "No requirement-level truth may close while any phase-level truth artifact for the same enforcement area remains non-VALID."
-artifacts:
-  verification: ".planning/phases/75-degraded-mode-enforcement/75-VERIFICATION.md"
-  truth: ".planning/phases/75-degraded-mode-enforcement/75-TRUTH.yaml"
-invariants:
-  - name: "memory_blocking"
-    affects_truth: true
-    description: "Model-facing memory must fail closed when canonical Postgres-backed trusted memory is unavailable."
-    expected_outcome: "VALID"
-    evidence_surfaces:
-      - "tests/brain-mcp-degraded-mode.test.cjs"
-      - "tests/second-brain-status.test.cjs"
-      - "tests/brain-health.test.cjs"
-      - "node get-stuff-done/bin/gsd-tools.cjs brain health --raw"
-      - "node get-stuff-done/bin/gsd-tools.cjs brain status --raw"
-  - name: "planning_memory_blocking"
-    affects_truth: true
-    description: "Authoritative planning workflows must block model-facing memory use explicitly when canonical trusted memory is unavailable."
-    expected_outcome: "VALID"
-    evidence_surfaces:
-      - "node get-stuff-done/bin/gsd-tools.cjs context build --workflow plan-phase --raw"
-      - "node get-stuff-done/bin/gsd-tools.cjs context build --workflow execute-plan --raw"
-      - ".planning/health/latest-degraded-state.json"
-  - name: "degraded_state_signaling"
-    affects_truth: true
-    description: "Degraded state must be surfaced explicitly and machine-readably for the same memory-truth enforcement area."
-    expected_outcome: "VALID"
-    evidence_surfaces:
-      - ".planning/health/latest-degraded-state.json"
-      - "node get-stuff-done/bin/gsd-tools.cjs brain health --raw"
-      - "node get-stuff-done/bin/gsd-tools.cjs brain status --raw"
-  - name: "drift_input_validity"
-    affects_truth: true
-    description: "Any drift input consumed by Phase 75 truth for this enforcement area must be present, fresh, and machine-readable."
-    expected_outcome: "VALID"
-    evidence_surfaces:
-      - ".planning/drift/latest-report.json"
-      - ".planning/drift/latest-reconciliation.json"
-      - "node get-stuff-done/bin/gsd-tools.cjs brain health --raw"
-  - name: "verification_integrity"
-    affects_truth: true
-    description: "Verification must remain evidence-first and must not preserve a conditional verdict for this enforcement area once the same-area invariants are satisfied."
-    expected_outcome: "VALID"
-    evidence_surfaces:
-      - ".planning/phases/75-degraded-mode-enforcement/75-VERIFICATION.md"
-      - "node get-stuff-done/bin/gsd-tools.cjs verify verification-artifact .planning/phases/75-degraded-mode-enforcement/75-VERIFICATION.md"
-
-# GSD-AUTHORITY: 80.1-01-2:019b6e5cd849f06abc7de1a7f74b7fd027425b13e64681f65e68cf6aa003b3e0
+{
+  "phase": "75",
+  "title": "Degraded Mode Enforcement",
+  "enforcement_area": "Model-Facing Memory Truth Closure",
+  "updated_at": "2026-03-28T06:03:00Z",
+  "closure_rule": "No requirement-level truth may close while any phase-level truth artifact for the same enforcement area remains non-VALID.",
+  "artifacts": {
+    "verification": ".planning/phases/75-degraded-mode-enforcement/75-VERIFICATION.md",
+    "truth": ".planning/phases/75-degraded-mode-enforcement/75-TRUTH.yaml"
+  },
+  "invariants": [
+    {
+      "name": "memory_blocking",
+      "description": "Model-facing memory must fail closed when canonical Postgres-backed trusted memory is unavailable.",
+      "affects_final_truth_synthesis": true,
+      "expected_evidence_surfaces": [
+        "tests/brain-mcp-degraded-mode.test.cjs",
+        "tests/second-brain-status.test.cjs",
+        "tests/brain-health.test.cjs",
+        "node get-stuff-done/bin/gsd-tools.cjs brain health --raw",
+        "node get-stuff-done/bin/gsd-tools.cjs brain status --raw"
+      ]
+    },
+    {
+      "name": "planning_memory_blocking",
+      "description": "Authoritative planning workflows must block model-facing memory use explicitly when canonical trusted memory is unavailable.",
+      "affects_final_truth_synthesis": true,
+      "expected_evidence_surfaces": [
+        "node get-stuff-done/bin/gsd-tools.cjs context build --workflow plan-phase --raw",
+        "node get-stuff-done/bin/gsd-tools.cjs context build --workflow execute-plan --raw",
+        ".planning/health/latest-degraded-state.json"
+      ]
+    },
+    {
+      "name": "degraded_state_signaling",
+      "description": "Degraded state must be surfaced explicitly and machine-readably for the same memory-truth enforcement area.",
+      "affects_final_truth_synthesis": true,
+      "expected_evidence_surfaces": [
+        ".planning/health/latest-degraded-state.json",
+        "node get-stuff-done/bin/gsd-tools.cjs brain health --raw",
+        "node get-stuff-done/bin/gsd-tools.cjs brain status --raw"
+      ]
+    },
+    {
+      "name": "drift_input_validity",
+      "description": "Any drift input consumed by Phase 75 truth for this enforcement area must be present, fresh, and machine-readable.",
+      "affects_final_truth_synthesis": true,
+      "expected_evidence_surfaces": [
+        ".planning/drift/latest-report.json",
+        ".planning/drift/latest-reconciliation.json",
+        "node get-stuff-done/bin/gsd-tools.cjs brain health --raw"
+      ]
+    },
+    {
+      "name": "verification_integrity",
+      "description": "Verification must remain evidence-first and must not preserve a conditional verdict for this enforcement area once the same-area invariants are satisfied.",
+      "affects_final_truth_synthesis": true,
+      "expected_evidence_surfaces": [
+        ".planning/phases/75-degraded-mode-enforcement/75-VERIFICATION.md",
+        "node get-stuff-done/bin/gsd-tools.cjs verify verification-artifact .planning/phases/75-degraded-mode-enforcement/75-VERIFICATION.md"
+      ]
+    }
+  ]
+}

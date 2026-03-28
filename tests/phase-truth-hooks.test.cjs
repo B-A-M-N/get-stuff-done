@@ -48,6 +48,55 @@ function setupHookProject(tmpDir) {
   writeFile(tmpDir, '.planning/health/latest-degraded-state.json', JSON.stringify({ aggregate_state: 'HEALTHY', blocked_workflows: [] }, null, 2));
 }
 
+function setupInvariantClosureProject(tmpDir) {
+  writeFile(tmpDir, '.planning/ROADMAP.md', `## Milestones\n- [ ] **v0.7.0 Truth**\n\n## v0.7.0 Truth\n\n- [ ] **Phase 75: Degraded Mode Enforcement**\n\n### Phase 75: Degraded Mode Enforcement\n\n**Goal:** Enforce degraded mode truth for model-facing memory.\n**Requirements**: TRUTH-DEGRADE-01, TRUTH-MEMORY-01\n**Depends on:** Phase 74\n**Status**: [Planned]\n\nPlans:\n- [ ] 75-01-PLAN.md — degraded policy\n- [ ] 75-02-PLAN.md — fail-closed enforcement\n`);
+  writeFile(tmpDir, '.planning/REQUIREMENTS.md', `TRUTH-DEGRADE-01: Degraded behavior must be explicit and fail closed. | source: test\nTRUTH-MEMORY-01: Model-facing memory must fail closed under canonical memory loss. | source: test\n`);
+  writeFile(tmpDir, '.planning/STATE.md', `---\ncurrent_phase: 75\n---\n# State\n`);
+  writeFile(tmpDir, '.planning/phases/75-degraded-mode-enforcement/75-01-PLAN.md', '# Plan\n');
+  writeFile(tmpDir, '.planning/phases/75-degraded-mode-enforcement/75-02-PLAN.md', '# Plan\n');
+  writeFile(tmpDir, '.planning/phases/75-degraded-mode-enforcement/75-01-SUMMARY.md', `---\nphase: 75\nplan: 01\nprovides:\n  - canonical degraded-policy evaluator and artifact\n---\n\n# Summary\n`);
+  writeFile(tmpDir, '.planning/phases/75-degraded-mode-enforcement/75-02-SUMMARY.md', `---\nphase: 75\nplan: 02\nprovides:\n  - top-level CLI blocking for unsafe truth-bearing workflows\n---\n\n# Summary\n`);
+  writeFile(tmpDir, '.planning/phases/75-degraded-mode-enforcement/75-VERIFICATION.md', `---\nphase: "75"\nverified: 2026-03-28T00:00:00Z\nstatus: VALID\nscore: 2/2 requirements verified\n---\n\n# Verification\n\n## Observable Truths\n\n| # | Truth | Status | Evidence |\n|---|---|---|---|\n| 1 | Model-facing memory fails closed under canonical memory loss. | VALID | \`tests/brain-mcp-degraded-mode.test.cjs\` |\n\n## Requirement Coverage\n\n| Requirement | Status | Evidence | Gap |\n|---|---|---|---|\n| TRUTH-DEGRADE-01 | VALID | \`tests/brain-health.test.cjs\` | - |\n| TRUTH-MEMORY-01 | VALID | \`tests/brain-mcp-degraded-mode.test.cjs\` | - |\n\n## Anti-Pattern Scan\n\n| File | Pattern | Classification | Impact |\n|---|---|---|---|\n| None | - | - | - |\n\n## Drift Analysis\n\n\`\`\`json\n[]\n\`\`\`\n\n## Final Status\n\n\`\`\`json\n{\"status\":\"VALID\",\"reason\":\"All same-area invariants are satisfied.\"}\n\`\`\`\n`);
+  writeFile(tmpDir, '.planning/phases/75-degraded-mode-enforcement/75-INVARIANTS.yaml', JSON.stringify({
+    phase: '75',
+    enforcement_area: 'Model-Facing Memory Truth Closure',
+    invariants: [
+      { name: 'memory_blocking', affects_final_truth_synthesis: true, expected_evidence_surfaces: [] },
+      { name: 'planning_memory_blocking', affects_final_truth_synthesis: true, expected_evidence_surfaces: [] },
+      { name: 'degraded_state_signaling', affects_final_truth_synthesis: true, expected_evidence_surfaces: [] },
+      { name: 'drift_input_validity', affects_final_truth_synthesis: true, expected_evidence_surfaces: [] },
+      { name: 'verification_integrity', affects_final_truth_synthesis: true, expected_evidence_surfaces: [] }
+    ]
+  }, null, 2));
+  writeFile(tmpDir, '.planning/drift/latest-report.json', JSON.stringify({
+    generated_at: '2026-03-28T00:00:00Z',
+    path: '.planning/drift/latest-report.json',
+    status: 'fresh',
+    findings: [],
+    surfaces: [],
+    summary: { active: 0, critical: 0, major: 0, minor: 0 }
+  }, null, 2));
+  writeFile(tmpDir, '.planning/drift/latest-reconciliation.json', JSON.stringify({
+    timestamp: new Date().toISOString(),
+    applied_changes: [],
+    unchanged: [],
+    reverification_required: [],
+    summary: { critical: 0, major: 0, minor: 0 }
+  }, null, 2));
+  writeFile(tmpDir, '.planning/health/latest-degraded-state.json', JSON.stringify({
+    aggregate_state: 'UNSAFE',
+    subsystems: {
+      model_facing_memory: { canonical_state: 'UNSAFE', reason: 'canonical_postgres_memory_unavailable' },
+      drift_truth: { canonical_state: 'HEALTHY', reason: 'drift_truth_fresh' },
+      reconciliation_truth: { canonical_state: 'HEALTHY', reason: 'reconciliation_truth_fresh' }
+    },
+    blocked_workflows: [
+      { workflow: 'context:plan-phase', subsystem: 'model_facing_memory', reason: 'canonical_postgres_memory_unavailable' },
+      { workflow: 'context:execute-plan', subsystem: 'model_facing_memory', reason: 'canonical_postgres_memory_unavailable' }
+    ]
+  }, null, 2));
+}
+
 describe('phase truth regeneration hooks', () => {
   let tmpDir;
 
@@ -98,5 +147,20 @@ describe('phase truth regeneration hooks', () => {
     const output = JSON.parse(result.output);
     assert.strictEqual(output.phase_truth.generated, true);
     assert.ok(fs.existsSync(path.join(tmpDir, '.planning/phases/78-phase-truth-contracts/78-TRUTH.md')));
+  });
+
+  test('phase truth uses invariant closure for expected fail-closed memory posture', () => {
+    cleanup(tmpDir);
+    tmpDir = createTempProject();
+    setupInvariantClosureProject(tmpDir);
+
+    const result = runGsdTools(['phase-truth', 'generate', '75', '--raw'], tmpDir);
+    assert.ok(result.success, result.error);
+    assert.match(result.output, /75-TRUTH\.yaml$/);
+
+    const rawTruth = fs.readFileSync(path.join(tmpDir, '.planning/phases/75-degraded-mode-enforcement/75-TRUTH.yaml'), 'utf-8');
+    assert.match(rawTruth, /final_status: "VALID"/);
+    assert.doesNotMatch(rawTruth, /Current degraded truth posture is UNSAFE/);
+    assert.doesNotMatch(rawTruth, /context:plan-phase blocked by model_facing_memory/);
   });
 });
