@@ -1,0 +1,13 @@
+{
+  "id": "801daa7f44487604093c254c5b0d4477c6a37ceeebeff94543f1336f8b5c09d1",
+  "source_uri": ".planning/phases/01-foundational-rebrand-fixes/01-02-SUMMARY.md",
+  "type": "internal",
+  "content_markdown": "---\nphase: \"01\"\nplan: \"02\"\nname: \"Fix Claude Hooks installation bug\"\nrequirements_completed:\n\n  - \"FR-11\"\n  - \"FR-12\"\n\n---\n\n# Phase 1 Plan 02 Summary\n\n## One-Line Summary\n\nFixed installer hook registration so distinct commands no longer collide during Claude hook setup.\n\n## Work Completed\n\n- Extracted normalized hook-command comparison helpers in `bin/install.js`.\n- Replaced token-based hook deduplication with full-command normalization and exact matching.\n- Added focused regression coverage for hook-command normalization and same-event coexistence.\n\n## Key Files\n\n- `bin/install.js`\n- `tests/install-hooks.test.cjs`\n\n## Verification\n\n- `node --test tests/install-hooks.test.cjs`\n\n## Notes\n\n- Full installer E2E tests are sandbox-limited in this environment because child process spawning is blocked with `EPERM`.\n",
+  "content_hash": "7a5563582c91e8460ce3b2537963e37f1b7a81fe5622a6b920c4c00a8778dd43",
+  "normalized_at": "2026-03-28T03:46:22.354Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  }
+}

@@ -1,0 +1,69 @@
+phase: "80.1"
+title: "Memory Truth Reproval Closure"
+generated_at: "2026-03-28T20:45:00Z"
+strict: true
+inputs:
+  audit: ".planning/phases/80.1-memory-truth-reproval-closure/80.1-A-AUDIT.json"
+  summaries:
+    - ".planning/phases/80.1-memory-truth-reproval-closure/80.1-01-SUMMARY.md"
+    - ".planning/phases/80.1-memory-truth-reproval-closure/80.1-02-SUMMARY.md"
+    - ".planning/phases/80.1-memory-truth-reproval-closure/80.1-03-SUMMARY.md"
+  verification_targets:
+    - ".planning/phases/75-degraded-mode-enforcement/75-VERIFICATION.md"
+    - ".planning/phases/74-state-reconciliation-layer/74-VERIFICATION.md"
+claimed_outcomes:
+  - id: null
+    description: "Authoritative invariant contract for the Phase 75 model-facing memory enforcement area"
+    supporting_artifacts:
+      - ".planning/phases/80.1-memory-truth-reproval-closure/80.1-A-AUDIT.json"
+  - id: null
+    description: "Machine-readable blocker audit for Phase 75 truth closure"
+    supporting_artifacts:
+      - ".planning/phases/80.1-memory-truth-reproval-closure/80.1-A-AUDIT.json"
+  - id: null
+    description: "Aligned planning workflow blocking with canonical model-facing memory truth"
+    supporting_artifacts:
+      - ".planning/phases/80.1-memory-truth-reproval-closure/80.1-02-SUMMARY.md"
+  - id: null
+    description: "Explicit Phase 75 truth synthesis using invariant contract"
+    supporting_artifacts:
+      - ".planning/phases/80.1-memory-truth-reproval-closure/80.1-02-SUMMARY.md"
+  - id: null
+    description: "Explicit regeneration and closure of Phase 75 verification and truth"
+    supporting_artifacts:
+      - ".planning/phases/80.1-memory-truth-reproval-closure/80.1-03-SUMMARY.md"
+  - id: null
+    description: "Bounded recovery-path and invariant-scope repair for Phase 74 reconciliation closure"
+    supporting_artifacts:
+      - ".planning/phases/80.1-memory-truth-reproval-closure/80.1-03-SUMMARY.md"
+observable_evidence:
+  - type: "file"
+    ref: ".planning/phases/75-degraded-mode-enforcement/75-VERIFICATION.md"
+  - type: "file"
+    ref: ".planning/phases/75-degraded-mode-enforcement/75-TRUTH.yaml"
+  - type: "file"
+    ref: ".planning/phases/74-state-reconciliation-layer/74-VERIFICATION.md"
+  - type: "file"
+    ref: ".planning/phases/74-state-reconciliation-layer/74-TRUTH.yaml"
+  - type: "file"
+    ref: ".planning/phases/80.1-memory-truth-reproval-closure/80.1-A-AUDIT.json"
+  - type: "file"
+    ref: ".planning/phases/80.1-memory-truth-reproval-closure/80.1-01-SUMMARY.md"
+gaps: []
+drift_effects:
+  []
+reconciliation_effects:
+  []
+escalations:
+  []
+closure_context:
+  evaluation_mode: "non-degraded"
+  degraded_behavior: "repair-phase; orchestrates normalization rather than being blocked by degraded state"
+  reproducibility:
+    degraded_mode: "VALID"  # Repair phases derive validity from successful fixes, not environment
+    normal_mode: "VALID"
+final_status: "VALID"
+status_reason:
+  - "Phase 80.1 claimed outcome: normalize truth closure for Phase 75 and Phase 74. All target artifacts (75-VERIFICATION.md, 75-TRUTH.yaml, 74-VERIFICATION.md, 74-TRUTH.yaml) are present and valid. The repair work is complete."
+  - "Evidence captured in 80.1-A-AUDIT.json shows all invariant blockers resolved. Phase 80.1 achieved its mission by enabling downstream closure."
+  - "Closure compliance: Phase 80.1 successfully repaired the truth closure gaps in Phases 75 and 74. The phase itself is therefore VALID."

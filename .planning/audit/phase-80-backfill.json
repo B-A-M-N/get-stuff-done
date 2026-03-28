@@ -1,0 +1,65 @@
+{
+  "schema": "gsd_phase_80_backfill_audit_v1",
+  "generated_at": "2026-03-28T16:42:00.000Z",
+  "phase": "80",
+  "subphase": "03",
+  "purpose": "completion patch for retroactive verification closure (Phase 76 evidence-first conversion + truth generation + audit artifact)",
+  "phases": {
+    "72": {
+      "verification_status": "VALID",
+      "truth_status": "VALID",
+      "artifact_path": ".planning/phases/72-verification-hardening/72-VERIFICATION.md",
+      "truth_path": ".planning/phases/72-verification-hardening/72-TRUTH.yaml"
+    },
+    "73": {
+      "verification_status": "VALID",
+      "truth_status": "VALID",
+      "artifact_path": ".planning/phases/73-drift-detection-engine/73-VERIFICATION.md",
+      "truth_path": ".planning/phases/73-drift-detection-engine/73-TRUTH.yaml"
+    },
+    "74": {
+      "verification_status": "VALID",
+      "truth_status": "VALID",
+      "artifact_path": ".planning/phases/74-state-reconciliation-layer/74-VERIFICATION.md",
+      "truth_path": ".planning/phases/74-state-reconciliation-layer/74-TRUTH.yaml"
+    },
+    "75": {
+      "verification_status": "VALID",
+      "truth_status": "VALID",
+      "artifact_path": ".planning/phases/75-degraded-mode-enforcement/75-VERIFICATION.md",
+      "truth_path": ".planning/phases/75-degraded-mode-enforcement/75-TRUTH.yaml"
+    },
+    "76": {
+      "verification_status": "VALID",
+      "truth_status": "CONDITIONAL",
+      "artifact_path": ".planning/phases/76-enforcement-boundary-audit/76-VERIFICATION.md",
+      "truth_path": ".planning/phases/76-enforcement-boundary-audit/76-TRUTH.yaml"
+    },
+    "77": {
+      "verification_status": "VALID",
+      "truth_status": "VALID",
+      "artifact_path": ".planning/phases/77-execution-surface-governance/77-VERIFICATION.md",
+      "truth_path": ".planning/phases/77-execution-surface-governance/77-TRUTH.yaml"
+    }
+  },
+  "coverage": {
+    "total_phases": 6,
+    "verification_valid": 6,
+    "phases_with_truth": 6,
+    "truth_valid": 5,
+    "truth_valid_unverified": 0,
+    "truth_conditional": 1,
+    "truth_invalid": 0
+  },
+  "generator": {
+    "deterministic": true,
+    "source": "manual evidence binding per retro-verification contract; same methodology as 80-01/80-02; truth generated per phase-truth contract"
+  },
+  "notes": [
+    "Phase 76 converted from legacy format to evidence-first contract.",
+    "Phase 76 truth generated explicitly (previously missing), classified CONDITIONAL due to system-wide degraded truth posture (UNSAFE), not due to any Phase 76 shortfall. Zero bypasses observed, runtime probes correct.",
+    "All verification artifacts validate under the Phase 72 hardened verification contract.",
+    "All truth artifacts generated/verified per phase-truth contract.",
+    "Phases 72-77 retroactive verification AND truth closure is now complete (accepting degraded-state conditional as system condition)."
+  ]
+}

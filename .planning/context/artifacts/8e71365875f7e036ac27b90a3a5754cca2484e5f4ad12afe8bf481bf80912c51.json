@@ -1,0 +1,13 @@
+{
+  "id": "8e71365875f7e036ac27b90a3a5754cca2484e5f4ad12afe8bf481bf80912c51",
+  "source_uri": ".planning/phases/14-reusable-plugin-extraction/14-01-PLAN.md",
+  "type": "internal",
+  "content_markdown": "---\nphase: \"14\"\nplan: \"01\"\nname: \"Create a standalone ITL package with a clean public API\"\nwave: 1\nrequirements:\n\n  - \"FR-13\"\n  - \"FR-14\"\n\n---\n\n# PLAN: 14-01 - Create a standalone ITL package with a clean public API\n\n## Goal\n\nCreate a standalone `packages/itl` package that exposes a clean public API for narrative interpretation without requiring consumers to reach into GSD internals.\n\n## Read First\n\n- `.planning/phases/14-reusable-plugin-extraction/14-RESEARCH.md`\n- `get-stuff-done/bin/lib/itl*.cjs`\n- `package.json`\n- `tests/itl.test.cjs`\n\n## Tasks\n\n<task type=\"auto\">\n  <name>Create a reusable package boundary for the ITL runtime</name>\n  <files>packages/itl/*, get-stuff-done/bin/lib/itl*.cjs, tests/*.test.cjs</files>\n  <action>\n    Add a standalone package with its own package metadata and entrypoint, exposing a clean narrative-interpretation API and any minimal supporting utilities needed for portability.\n  </action>\n  <acceptance_criteria>\n\n    - A dedicated standalone package exists under `packages/itl`.\n    - The package can be imported without using deep GSD runtime paths.\n    - The primary public API is centered on `interpret_narrative(input_text, context_data)`.\n  </acceptance_criteria>\n  <verify>Direct tests import the package and verify the public API shape.</verify>\n</task>\n\n<task type=\"auto\">\n  <name>Provide a TypeScript-friendly public surface</name>\n  <files>packages/itl/*</files>\n  <action>\n    Add package metadata and TypeScript declarations so the extracted module is usable from both plain Node.js and TypeScript consumers.\n  </action>\n  <acceptance_criteria>\n\n    - Package metadata is present and coherent.\n    - Type declarations exist for the public API.\n    - The public surface stays smaller than the full GSD runtime surface.\n  </acceptance_criteria>\n  <verify>Package files and tests confirm the intended export contract.</verify>\n</task>\n\n## Verification\n\n- A standalone package exists with a clean import surface.\n- The package exposes `interpret_narrative` and supporting utilities intentionally.\n- TypeScript declarations exist for the public API.\n\n---\n*Status: Planned*\n",
+  "content_hash": "1096da30440f938cdb93e879ec5a7ea92fb60de0c4d939c03b379cf1cb3321cd",
+  "normalized_at": "2026-03-28T03:46:22.114Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  }
+}

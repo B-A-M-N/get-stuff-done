@@ -1,0 +1,13 @@
+{
+  "id": "3d741b803b0b0781d15ffed20abca6e29f52528f012aea6e217352dbfa7276a2",
+  "source_uri": "packages/gsd-tools/src/validation/contract_validator.js",
+  "type": "internal",
+  "content_markdown": "```javascript\n/**\n * Contract Validator\n * Validates contract metadata payloads used by the proof harness.\n */\nmodule.exports = {\n  name: 'contract_validator',\n\n  validate(content) {\n    try {\n      const obj = JSON.parse(content);\n\n      if (typeof obj.validator !== 'string' || obj.validator.length === 0) {\n        return { valid: false, error: 'validator must be non-empty string' };\n      }\n\n      if (typeof obj.version !== 'string' || !/^\\d+\\.\\d+\\.\\d+$/.test(obj.version)) {\n        return { valid: false, error: 'version must be semver string' };\n      }\n\n      if (typeof obj.contract_hash !== 'string' || !/^[a-f0-9]{64}$/i.test(obj.contract_hash)) {\n        return { valid: false, error: 'contract_hash must be 64-char hex' };\n      }\n\n      return { valid: true };\n    } catch (err) {\n      return { valid: false, error: err.message };\n    }\n  },\n};\n\n```",
+  "content_hash": "12c619bc1da2b779af73f5cf5a6df3127cba6abd629b640b68eac7e69a24df8f",
+  "normalized_at": "2026-03-28T03:46:22.542Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  }
+}

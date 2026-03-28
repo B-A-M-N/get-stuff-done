@@ -7,12 +7,12 @@ status: unknown
 stopped_at: Archived milestone v0.6.0
 checkpoint_status: None
 checkpoint_path: None
-last_updated: "2026-03-28T00:43:26.341Z"
+last_updated: "2026-03-28T21:38:29.402Z"
 progress:
-  total_phases: 10
-  completed_phases: 9
-  total_plans: 16
-  completed_plans: 17
+  total_phases: 14
+  completed_phases: 13
+  total_plans: 29
+  completed_plans: 27
 ---
 
 # Project State
@@ -208,6 +208,6 @@ Checkpoint Path: None
 **Roadmap Status:** BLOCKED
 **Operator Health:** UNHEALTHY
 **Requires Reverification:** true
-**Reverification Reason:** execution_drift invalidated or downgraded trusted truth; verification_drift invalidated or downgraded trusted truth
+**Reverification Reason:** execution_drift invalidated or downgraded trusted truth; execution_drift invalidated or downgraded trusted truth; verification_drift invalidated or downgraded trusted truth
 **Source Report:** .planning/drift/latest-report.json
-**Reconciled At:** 2026-03-27T20:46:18.146Z
+**Reconciled At:** 2026-03-28T21:38:29.389Z

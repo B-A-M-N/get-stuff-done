@@ -14,5 +14,3 @@
 - Authoritative context-build coverage is covered by scenarios that include `context-build` surfaces.
 - Memory truth contradiction coverage is covered by scenarios that include `memory-truth` plus either `drift-report` or `degraded-state`.
 - Plane-configured coverage is preserved as capability-gated live coverage through `plane-configured-truth-path`.
-
-<!-- GSD-AUTHORITY: 79-01-2:2117b766f9e4c7db84c694e56fb04a3fc4218a101a4870a4e4dc8614c1bb6b21 -->

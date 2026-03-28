@@ -1,0 +1,13 @@
+{
+  "id": "bccccbda64c2a1bf82cc70846acebd8b4c6fa4514c81b9e9406abb4fa02b5ce0",
+  "source_uri": ".planning/phases/20-scenario-and-contract-tests/20-VALIDATION.md",
+  "type": "internal",
+  "content_markdown": "---\nphase: 20\nslug: scenario-and-contract-tests\nstatus: ready\nnyquist_compliant: true\nwave_0_complete: true\ncreated: 2026-03-17\n---\n\n# Phase 20 Validation Strategy: Scenario and Contract Tests\n\n**Goal:** Provide full end-to-end and contract test coverage for the v0.2.0 orchestration integrity model.\n\n## Validation Infrastructure\n\n| Property | Value |\n|----------|-------|\n| **Framework** | node:test (built-in) |\n| **Config file** | none — scripts/run-tests.cjs auto-discovers *.test.cjs |\n| **Quick run command** | `node scripts/run-tests.cjs` |\n| **Full suite command** | `node scripts/run-tests.cjs` |\n| **Estimated runtime** | ~40 seconds |\n\n---\n\n## Sampling Rate\n\n- **After every task commit:** Run the specific test file being modified\n- **After every plan wave:** Run `node scripts/run-tests.cjs`\n- **Before final completion:** All tests (including the 5 new ones) must be green\n- **Max feedback latency:** 40 seconds\n\n---\n\n## Dimension 8: Verification Matrix (Nyquist)\n\n| Task ID | Plan | Wave | Requirement | Test Type | Automated Command | File Exists | Status |\n|---------|------|------|-------------|-----------|-------------------|-------------|--------|\n| 20-01-01 | 01 | 1 | TEST-05 | regression | `node --test tests/checkpoint-contract.test.cjs` | ✅ existing | ⬜ pending |\n| 20-02-01 | 02 | 1 | TEST-04 | contract | `node --test tests/summary-contract.test.cjs` | ❌ W0 (new file) | ⬜ pending |\n| 20-03-01 | 03 | 2 | TEST-01 | E2E | `node --test tests/scenario-loop.test.cjs` | ❌ W0 (new file) | ⬜ pending |\n| 20-03-02 | 03 | 2 | TEST-02 | gate | `node --test tests/gate-enforcement.test.cjs` | ❌ W0 (new file) | ⬜ pending |\n\n*Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*\n\n---\n\n## Wave 0 Requirements\n\n- [x] All 5 untracked files exist in `tests/`.\n- [x] `executionSummarySchema` exists in `artifact-schema.cjs`.\n\n---\n\n## Manual-Only Verifications\n\n| Behavior | Manual Verification Steps | Expected Outcome |\n|----------|---------------------------|------------------|\n| CI Integration | Run `git status` after Plan 01 | The 5 test files are tracked by git. |\n| Loop Recovery | Set `blocked`, run `resume`, resolve, then run `execute` | The workflow proceeds to execution only after resolution. |\n",
+  "content_hash": "10f184ef64fa924947de042f9fae91e0885f8df148c8042553bbe866734133ff",
+  "normalized_at": "2026-03-28T03:46:21.900Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  }
+}

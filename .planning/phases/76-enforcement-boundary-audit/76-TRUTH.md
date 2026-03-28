@@ -1,14 +1,12 @@
 # Phase 76: Enforcement Boundary Audit — Truth
 
-**Generated:** 2026-03-28T00:24:41.592Z
+**Generated:** 2026-03-28T21:15:04.063Z
 **Final Status:** CONDITIONAL
 
 ## Status Reasons
-- Verification artifact does not satisfy the evidence-first verification contract.
 - Current degraded truth posture is UNSAFE.
-- Verification artifact failed contract validation: Frontmatter status must be one of VALID, CONDITIONAL, INVALID; Missing required section: Requirement Coverage; Missing required section: Anti-Pattern Scan; Missing required section: Drift Analysis; Requirement Coverage must contain at least one requirement row; Missing required section: Anti-Pattern Scan; Final Status JSON invalid: missing fenced JSON block
-- context:plan-phase blocked by planning_server: planning_server_unavailable
-- context:execute-plan blocked by planning_server: planning_server_unavailable
+- context:plan-phase blocked by model_facing_memory: canonical_postgres_memory_unavailable
+- context:execute-plan blocked by model_facing_memory: canonical_postgres_memory_unavailable
 - verify:integrity blocked by drift_truth: drift_truth_stale
 - verify:workflow-readiness blocked by drift_truth: drift_truth_stale
 
@@ -32,10 +30,9 @@
 - command: phase-truth generate 76
 
 ## Gaps
-- verification_gap: Verification artifact failed contract validation: Frontmatter status must be one of VALID, CONDITIONAL, INVALID; Missing required section: Requirement Coverage; Missing required section: Anti-Pattern Scan; Missing required section: Drift Analysis; Requirement Coverage must contain at least one requirement row; Missing required section: Anti-Pattern Scan; Final Status JSON invalid: missing fenced JSON block
 - degraded_state_caveat: Current degraded truth posture is UNSAFE.
-- workflow_block: context:plan-phase blocked by planning_server: planning_server_unavailable
-- workflow_block: context:execute-plan blocked by planning_server: planning_server_unavailable
+- workflow_block: context:plan-phase blocked by model_facing_memory: canonical_postgres_memory_unavailable
+- workflow_block: context:execute-plan blocked by model_facing_memory: canonical_postgres_memory_unavailable
 - workflow_block: verify:integrity blocked by drift_truth: drift_truth_stale
 - workflow_block: verify:workflow-readiness blocked by drift_truth: drift_truth_stale
 

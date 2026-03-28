@@ -1,0 +1,13 @@
+{
+  "id": "a2765053c8d21f55671f523b3fb3ec4ab76153c0057f875ffbaf0c9cc8d6ddd7",
+  "source_uri": ".planning/phases/16-checkpoint-artifact-lifecycle/16-VERIFICATION.md",
+  "type": "internal",
+  "content_markdown": "---\nphase: 16-checkpoint-artifact-lifecycle\nverified: 2026-03-21T16:30:00Z\nstatus: passed\nscore: 4/4 must-haves verified\n---\n\n# Phase 16: Checkpoint Artifact Lifecycle Verification Report\n\n**Phase Goal:** CHECKPOINT.md is written on every blocking checkpoint, re-read and validated by resume-project, and its lifecycle state is tracked in STATE.md\n**Status:** passed\n\n## Goal Achievement\n\n### Observable Truths\n\n| # | Truth | Status | Evidence |\n|---|-------|--------|----------|\n| 1 | `state checkpoint` updates STATE.md | ✓ VERIFIED | `cmdStateCheckpoint` in `state.cjs` |\n| 2 | `state json` surfaces checkpoint fields | ✓ VERIFIED | `buildStateFrontmatter` in `state.cjs` |\n| 3 | Workflows write/commit CHECKPOINT.md | ✓ VERIFIED | `execute-plan.md` calls `checkpoint write` |\n| 4 | Resume validates active checkpoints | ✓ VERIFIED | `resume-project.md` uses `checkpointArtifactSchema` |\n\n### Requirements Coverage\n\n| Requirement | Description | Status | Evidence |\n|-------------|-------------|--------|----------|\n| CHECKPOINT-01 | CHECKPOINT.md written on block | SATISFIED | `commands.cjs:cmdCheckpointWrite` |\n| CHECKPOINT-02 | Validated by resume-project | SATISFIED | `resume-project.md:check_checkpoint_artifact` |\n| CHECKPOINT-03 | Lifecycle tracked in STATE.md | SATISFIED | `state.cjs` and `execute-phase.md` |\n| CHECKPOINT-04 | Zod schema definition | SATISFIED | Referenced in `resume-project.md` |\n\n### Gaps Summary\n\nNo gaps found. All core persistence and validation logic for checkpoints is implemented and wired into workflows.\n",
+  "content_hash": "fa69c4ad813f726df05347f3924fa768b1e781aa143c5b27399cc3e3425565c8",
+  "normalized_at": "2026-03-28T03:46:22.003Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  }
+}

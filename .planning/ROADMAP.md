@@ -514,12 +514,13 @@ Plans:
 **Goal:** Repair milestone bookkeeping drift after Phase 79, backfill missing validation surfaces for phases 73 through 79, and restore milestone auditability before archival.
 **Requirements**: TRUTH-CLAIM-01, TRUTH-OPS-01
 **Depends on:** Phase 80.1
-**Status**: [Planned]
+**Status**: [Completed]
 **Gap Closure:** Closes roadmap and requirements traceability drift plus missing Nyquist coverage from the `v0.7.0` milestone audit.
 
 Plans:
-- [ ] 81-01-PLAN.md — sync roadmap and requirements truth for executed Phase 79 and restore truthful operator-facing milestone state
-- [ ] 81-02-PLAN.md — add retroactive validation artifacts for phases 73 through 79 and prepare milestone re-audit
+- [x] 81-01-PLAN.md — sync roadmap and requirements truth for executed Phase 79 and restore truthful operator-facing milestone state
+- [x] 81-02-PLAN.md — add retroactive validation artifacts for phases 73 through 79 and prepare milestone re-audit
+- [x] 81-03-PLAN.md — final reconciliation and milestone closeout
 
 ---
 
@@ -529,3 +530,22 @@ Plans:
 
 <!-- GSD-AUTHORITY: 72-00-0:97da5ec86fb4fef1e489f34a7f0b2bf3bf02e8a1e3ca6876deae070b19598553 -->
 <!-- GSD-AUTHORITY: 70-01-1:9bad888438eeaf3e360197959355d24f2511adfba804680f87452c3b151a7d7f -->
+<!-- GSD-AUTHORITY: 70-01-1:5d5125d2489fc33c17509e07f7402c1f5a4667e88ad5d74be95d8b94645cea82 -->
+
+---
+
+### Phase 82: Drift Remediation & Canonical Restoration
+
+**Goal:** Resolve active CRITICAL drift, restore Postgres canonical memory, and re-validate Phase 81 closure under non-degraded conditions to achieve fully VALID milestone final state.
+
+**Requirements**: DRIFT-REMED-01, TRUTH-VALIDATE-01
+**Depends on:** Phase 81
+**Status**: [Planned]
+**Gap Closure:** Addresses blocked truth generation caused by degraded environment and outstanding drift from Phase 70; normalizes closure artifacts to VALID.
+
+Plans:
+- [ ] 82-01-PLAN.md — restore Postgres canonical memory and confirm healthy system state
+- [ ] 82-02-PLAN.md — resolve Phase 70 CRITICAL drift and refresh reconciliation truth
+- [ ] 82-03-PLAN.md — regenerate Phase 81 TRUTH to VALID in non-degraded mode
+- [ ] 82-04-PLAN.md — re-run full validation sweep and finalize milestone audit
+

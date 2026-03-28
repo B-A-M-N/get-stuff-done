@@ -1,9 +1,9 @@
 phase: "77"
 title: "Execution Surface Governance"
-generated_at: "2026-03-28T00:24:41.583Z"
+generated_at: "2026-03-28T21:33:43.896Z"
 strict: false
 inputs:
-  verification: null
+  verification: ".planning/phases/77-execution-surface-governance/77-VERIFICATION.md"
   summaries:
     - ".planning/phases/77-execution-surface-governance/77-01-SUMMARY.md"
     - ".planning/phases/77-execution-surface-governance/77-02-SUMMARY.md"
@@ -48,17 +48,17 @@ observable_evidence:
     ref: ".planning/phases/77-execution-surface-governance/77-01-SUMMARY.md"
   - type: "file"
     ref: ".planning/phases/77-execution-surface-governance/77-02-SUMMARY.md"
+  - type: "file"
+    ref: ".planning/phases/77-execution-surface-governance/77-VERIFICATION.md"
   - type: "command"
     ref: "phase-truth generate 77"
 gaps:
-  - type: "verification_gap"
-    description: "Verification artifact is missing."
   - type: "degraded_state_caveat"
     description: "Current degraded truth posture is UNSAFE."
   - type: "workflow_block"
-    description: "context:plan-phase blocked by planning_server: planning_server_unavailable"
+    description: "context:plan-phase blocked by model_facing_memory: canonical_postgres_memory_unavailable"
   - type: "workflow_block"
-    description: "context:execute-plan blocked by planning_server: planning_server_unavailable"
+    description: "context:execute-plan blocked by model_facing_memory: canonical_postgres_memory_unavailable"
   - type: "workflow_block"
     description: "verify:integrity blocked by drift_truth: drift_truth_stale"
   - type: "workflow_block"
@@ -71,9 +71,8 @@ escalations:
   []
 final_status: "CONDITIONAL"
 status_reason:
-  - "Verification artifact is missing."
   - "Current degraded truth posture is UNSAFE."
-  - "context:plan-phase blocked by planning_server: planning_server_unavailable"
-  - "context:execute-plan blocked by planning_server: planning_server_unavailable"
+  - "context:plan-phase blocked by model_facing_memory: canonical_postgres_memory_unavailable"
+  - "context:execute-plan blocked by model_facing_memory: canonical_postgres_memory_unavailable"
   - "verify:integrity blocked by drift_truth: drift_truth_stale"
   - "verify:workflow-readiness blocked by drift_truth: drift_truth_stale"

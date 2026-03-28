@@ -1,0 +1,137 @@
+{
+  "generated_at": "2026-03-28T21:33:44.780Z",
+  "truth_admissibility": [
+    {
+      "phase": "70",
+      "path": ".planning/phases/70-drift-surface-mapping/70-TRUTH.yaml",
+      "technical_status": "INVALID",
+      "admissibility": "REPAIR_REQUIRED",
+      "justification": [],
+      "mode": "explicit"
+    },
+    {
+      "phase": "71",
+      "path": ".planning/phases/71-execution-proof-chain/71-TRUTH.yaml",
+      "technical_status": "CONDITIONAL",
+      "admissibility": "CONDITIONAL_ACCEPTED",
+      "justification": [
+        "No requirement block",
+        "Condition explicit",
+        "Condition stable"
+      ],
+      "mode": "explicit"
+    },
+    {
+      "phase": "72",
+      "path": ".planning/phases/72-verification-hardening/72-TRUTH.yaml",
+      "technical_status": "CONDITIONAL",
+      "admissibility": "CONDITIONAL_ACCEPTED",
+      "justification": [
+        "No requirement block",
+        "Condition explicit",
+        "Condition stable"
+      ],
+      "mode": "explicit"
+    },
+    {
+      "phase": "73",
+      "path": ".planning/phases/73-drift-detection-engine/73-TRUTH.yaml",
+      "technical_status": "CONDITIONAL",
+      "admissibility": "CONDITIONAL_ACCEPTED",
+      "justification": [
+        "No requirement block",
+        "Condition explicit",
+        "Condition stable"
+      ],
+      "mode": "explicit"
+    },
+    {
+      "phase": "74",
+      "path": ".planning/phases/74-state-reconciliation-layer/74-TRUTH.yaml",
+      "technical_status": "VALID",
+      "admissibility": "VALID_ACCEPTED",
+      "justification": [],
+      "mode": "explicit"
+    },
+    {
+      "phase": "75",
+      "path": ".planning/phases/75-degraded-mode-enforcement/75-TRUTH.yaml",
+      "technical_status": "VALID",
+      "admissibility": "VALID_ACCEPTED",
+      "justification": [],
+      "mode": "explicit"
+    },
+    {
+      "phase": "76",
+      "path": ".planning/phases/76-enforcement-boundary-audit/76-TRUTH.yaml",
+      "technical_status": "CONDITIONAL",
+      "admissibility": "CONDITIONAL_ACCEPTED",
+      "justification": [
+        "No requirement block",
+        "Condition explicit",
+        "Condition stable"
+      ],
+      "mode": "explicit"
+    },
+    {
+      "phase": "77",
+      "path": ".planning/phases/77-execution-surface-governance/77-TRUTH.yaml",
+      "technical_status": "CONDITIONAL",
+      "admissibility": "CONDITIONAL_ACCEPTED",
+      "justification": [
+        "No requirement block",
+        "Condition explicit",
+        "Condition stable"
+      ],
+      "mode": "explicit"
+    },
+    {
+      "phase": "78",
+      "path": ".planning/phases/78-phase-truth-contracts/78-TRUTH.yaml",
+      "technical_status": "CONDITIONAL",
+      "admissibility": "CONDITIONAL_ACCEPTED",
+      "justification": [
+        "No requirement block",
+        "Condition explicit",
+        "Condition stable"
+      ],
+      "mode": "explicit"
+    },
+    {
+      "phase": "79",
+      "path": ".planning/phases/79-end-to-end-integrity-gauntlet/79-TRUTH.yaml",
+      "technical_status": "VALID",
+      "admissibility": "VALID_ACCEPTED",
+      "justification": [],
+      "mode": "explicit"
+    },
+    {
+      "phase": "80",
+      "path": ".planning/phases/80-retroactive-verification-closure/80-TRUTH.yaml",
+      "technical_status": "VALID",
+      "admissibility": "VALID_ACCEPTED",
+      "justification": [],
+      "mode": "explicit"
+    },
+    {
+      "phase": "80.1",
+      "path": ".planning/phases/80.1-memory-truth-reproval-closure/80.1-TRUTH.yaml",
+      "technical_status": "VALID",
+      "admissibility": "VALID_ACCEPTED",
+      "justification": [],
+      "mode": "explicit"
+    },
+    {
+      "phase": "81",
+      "path": ".planning/phases/81-audit-traceability-nyquist-closure/81-TRUTH.yaml",
+      "technical_status": "CONDITIONAL",
+      "admissibility": "CONDITIONAL_ACCEPTED",
+      "justification": [
+        "No requirement block",
+        "Condition explicit",
+        "Condition stable"
+      ],
+      "mode": "explicit"
+    }
+  ]
+}

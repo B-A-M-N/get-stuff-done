@@ -1,0 +1,13 @@
+{
+  "id": "73a843880a85f13f65bfb7ce65de61bb429f1d57bfbb598ea9858a2dbe4fd534",
+  "source_uri": ".planning/phases/25-research-unified-normalization-pipeline/25-VALIDATION.md",
+  "type": "internal",
+  "content_markdown": "---\nphase: 25\nslug: research-unified-normalization-pipeline\nstatus: draft\nnyquist_compliant: true\nwave_0_complete: false\ncreated: 2026-03-21\n---\n\n# Phase 25 — Validation Strategy\n\n## Goal-Backward Checks\n\n### 1. Parity\n\nWhat must be true: Both internal files and external JSONs must parse into a `ContextArtifact` using identical schemas.\nArtifact: `tests/normalization-parity.test.cjs`\nCheck: The test suite passes.\n\n### 2. Integration\n\nWhat must be true: The context builder reads from the normalizer instead of raw files.\nArtifact: `get-stuff-done/bin/lib/context.cjs`\nCheck: Integration test confirms `context build` works with normalized data.\n\n## Nyquist Compliance Checklist\n\n- [x] All requirements have coverage mapped to plans\n- [x] Wave 0 validation framework exists (tests mapped)\n- [x] Every task has an automated `<verify>` command\n- [x] No human visual checks required\n",
+  "content_hash": "72a4fe2fd8a4e475d456003bae6e47f6848774f02472592858763ad0e900db00",
+  "normalized_at": "2026-03-28T03:46:21.777Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  }
+}

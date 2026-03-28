@@ -1,0 +1,13 @@
+{
+  "id": "b1ec21804937791b926a3315dbc889411ba05d11c5c2b0af2d2d6ec01b082f4b",
+  "source_uri": ".planning/phases/04-narrative-first-initialization/04-02-SUMMARY.md",
+  "type": "internal",
+  "content_markdown": "---\nphase: \"04\"\nplan: \"02\"\nstatus: \"Complete\"\ncompleted: \"2026-03-16\"\nrequirements:\n\n  - \"FR-01\"\n\n---\n\n# SUMMARY: 04-02 - Document and test the installed dostuff narrative-first surface\n\n## Outcome\n\nUser-facing docs and focused tests now reflect `/dostuff:new-project` and `/dostuff:quick` as the installed narrative-first surfaces for this fork.\n\n## Implemented\n\n- Updated command/router docs in:\n  - `commands/gsd/dostuff.md`\n  - `get-stuff-done/workflows/dostuff.md`\n  - `get-stuff-done/workflows/help.md`\n  - `docs/COMMANDS.md`\n  - `docs/ARCHITECTURE.md`\n- Added focused command/workflow assertions in `tests/dostuff.test.cjs`.\n- Added focused ITL/init-seed coverage in `tests/itl.test.cjs`.\n\n## Verification\n\n- `node --test tests/itl.test.cjs tests/dostuff.test.cjs`\n- `rg -n \"/dostuff:new-project|/dostuff:quick|itl init-seed|clarification_questions|requirements_seed.active\" …`\n\n## Notes\n\n- `tests/init.test.cjs` remains sandbox-sensitive in this environment because its helper shells out through child processes. That limitation is environmental rather than a Phase 4 logic failure, so verification focused on the directly changed ITL and command/workflow surfaces.\n",
+  "content_hash": "a009c6376ccf96f1425b69f31f00cfdbf632262379b5cd90cbb6bc1a2bce2cd4",
+  "normalized_at": "2026-03-28T03:46:22.305Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  }
+}

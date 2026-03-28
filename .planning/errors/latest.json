@@ -1,0 +1,11 @@
+{
+  "timestamp": "2026-03-28T04:52:08.997Z",
+  "command": "/home/bamn/.codex/dostuff/get-stuff-done/bin/gsd-tools.cjs verify plan-structure .planning/phases/80.1-memory-truth-reproval-closure/80.1-01-PLAN.md",
+  "cwd": "/home/bamn/get-stuff-done",
+  "env": {
+    "GSD_INTERNAL_BYPASS": "true"
+  },
+  "message": "Cannot find module 'zod'\nRequire stack:\n- /home/bamn/.codex/dostuff/get-stuff-done/bin/lib/artifact-schema.cjs\n- /home/bamn/.codex/dostuff/get-stuff-done/bin/lib/verify.cjs\n- /home/bamn/.codex/dostuff/get-stuff-done/bin/gsd-tools.cjs",
+  "stack": "Error: Cannot find module 'zod'\nRequire stack:\n- /home/bamn/.codex/dostuff/get-stuff-done/bin/lib/artifact-schema.cjs\n- /home/bamn/.codex/dostuff/get-stuff-done/bin/lib/verify.cjs\n- /home/bamn/.codex/dostuff/get-stuff-done/bin/gsd-tools.cjs\n    at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)\n    at defaultResolveImpl (node:internal/modules/cjs/loader:1025:19)\n    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1030:22)\n    at Function._load (node:internal/modules/cjs/loader:1192:37)\n    at TracingChannel.traceSync (node:diagnostics_channel:328:14)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)\n    at Module.require (node:internal/modules/cjs/loader:1463:12)\n    at require (node:internal/modules/helpers:147:16)\n    at Object.<anonymous> (/home/bamn/.codex/dostuff/get-stuff-done/bin/lib/artifact-schema.cjs:6:15)\n    at Module._compile (node:internal/modules/cjs/loader:1705:14)",
+  "type": "unhandledRejection"
+}

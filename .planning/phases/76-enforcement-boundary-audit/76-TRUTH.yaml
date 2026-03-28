@@ -1,6 +1,6 @@
 phase: "76"
 title: "Enforcement Boundary Audit"
-generated_at: "2026-03-28T00:24:41.592Z"
+generated_at: "2026-03-28T21:15:04.063Z"
 strict: false
 inputs:
   verification: ".planning/phases/76-enforcement-boundary-audit/76-VERIFICATION.md"
@@ -41,14 +41,12 @@ observable_evidence:
   - type: "command"
     ref: "phase-truth generate 76"
 gaps:
-  - type: "verification_gap"
-    description: "Verification artifact failed contract validation: Frontmatter status must be one of VALID, CONDITIONAL, INVALID; Missing required section: Requirement Coverage; Missing required section: Anti-Pattern Scan; Missing required section: Drift Analysis; Requirement Coverage must contain at least one requirement row; Missing required section: Anti-Pattern Scan; Final Status JSON invalid: missing fenced JSON block"
   - type: "degraded_state_caveat"
     description: "Current degraded truth posture is UNSAFE."
   - type: "workflow_block"
-    description: "context:plan-phase blocked by planning_server: planning_server_unavailable"
+    description: "context:plan-phase blocked by model_facing_memory: canonical_postgres_memory_unavailable"
   - type: "workflow_block"
-    description: "context:execute-plan blocked by planning_server: planning_server_unavailable"
+    description: "context:execute-plan blocked by model_facing_memory: canonical_postgres_memory_unavailable"
   - type: "workflow_block"
     description: "verify:integrity blocked by drift_truth: drift_truth_stale"
   - type: "workflow_block"
@@ -61,10 +59,8 @@ escalations:
   []
 final_status: "CONDITIONAL"
 status_reason:
-  - "Verification artifact does not satisfy the evidence-first verification contract."
   - "Current degraded truth posture is UNSAFE."
-  - "Verification artifact failed contract validation: Frontmatter status must be one of VALID, CONDITIONAL, INVALID; Missing required section: Requirement Coverage; Missing required section: Anti-Pattern Scan; Missing required section: Drift Analysis; Requirement Coverage must contain at least one requirement row; Missing required section: Anti-Pattern Scan; Final Status JSON invalid: missing fenced JSON block"
-  - "context:plan-phase blocked by planning_server: planning_server_unavailable"
-  - "context:execute-plan blocked by planning_server: planning_server_unavailable"
+  - "context:plan-phase blocked by model_facing_memory: canonical_postgres_memory_unavailable"
+  - "context:execute-plan blocked by model_facing_memory: canonical_postgres_memory_unavailable"
   - "verify:integrity blocked by drift_truth: drift_truth_stale"
   - "verify:workflow-readiness blocked by drift_truth: drift_truth_stale"

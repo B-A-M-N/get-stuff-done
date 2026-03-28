@@ -1,0 +1,81 @@
+{
+  "timestamp": "2026-03-28T21:38:29.389Z",
+  "source_report": ".planning/drift/latest-report.json",
+  "source_report_hash": "0831de3d6e07401e3548e5c37f132d6c1c5da524760ff53f351c20caf5239c8c",
+  "applied_changes": [
+    {
+      "severity": "CRITICAL",
+      "surface": "verification_status",
+      "target": "phase_70",
+      "from": "UNSET",
+      "to": "INVALID",
+      "reason": "execution_drift",
+      "evidence": [
+        "node get-stuff-done/bin/gsd-tools.cjs brain open-status --raw",
+        "node /home/bamn/.codex/get-shit-done/bin/gsd-tools.cjs brain open-status --raw"
+      ]
+    },
+    {
+      "severity": "CRITICAL",
+      "surface": "phase_status",
+      "target": "phase_70",
+      "from": "UNSET",
+      "to": "INVALID",
+      "reason": "execution_drift",
+      "evidence": [
+        "node get-stuff-done/bin/gsd-tools.cjs brain open-status --raw",
+        "node /home/bamn/.codex/get-shit-done/bin/gsd-tools.cjs brain open-status --raw"
+      ]
+    },
+    {
+      "severity": "CRITICAL",
+      "surface": "roadmap_status",
+      "target": "phase_70",
+      "from": "UNSET",
+      "to": "BLOCKED",
+      "reason": "execution_drift",
+      "evidence": [
+        "node get-stuff-done/bin/gsd-tools.cjs brain open-status --raw",
+        "node /home/bamn/.codex/get-shit-done/bin/gsd-tools.cjs brain open-status --raw"
+      ]
+    },
+    {
+      "severity": "CRITICAL",
+      "surface": "operator_health",
+      "target": "phase_70",
+      "from": "UNSET",
+      "to": "UNHEALTHY",
+      "reason": "execution_drift",
+      "evidence": [
+        "node get-stuff-done/bin/gsd-tools.cjs brain open-status --raw",
+        "node /home/bamn/.codex/get-shit-done/bin/gsd-tools.cjs brain open-status --raw"
+      ]
+    }
+  ],
+  "unchanged": [
+    {
+      "surface": "historical_drift",
+      "reason": "historical_only_drift",
+      "target": "phase_70"
+    }
+  ],
+  "reverification_required": [
+    {
+      "target": "phase_70",
+      "reason": "execution_drift invalidated or downgraded trusted truth"
+    },
+    {
+      "target": "phase_70",
+      "reason": "execution_drift invalidated or downgraded trusted truth"
+    },
+    {
+      "target": "phase_70",
+      "reason": "verification_drift invalidated or downgraded trusted truth"
+    }
+  ],
+  "summary": {
+    "critical": 2,
+    "major": 1,
+    "minor": 0
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "id": "26a115a534c37e95472ae3616c915c538c47d076a53e25a0fb4991039d527068",
+  "source_uri": "packages/gsd-tools/src/validation/json_validator.js",
+  "type": "internal",
+  "content_markdown": "```javascript\n/**\n * JSON Validator\n * Validates that input is valid JSON.\n */\nmodule.exports = {\n  name: 'json_validator',\n\n  validate(content) {\n    try {\n      JSON.parse(content);\n      return { valid: true };\n    } catch (err) {\n      return { valid: false, error: err.message };\n    }\n  },\n};\n\n```",
+  "content_hash": "84da24566c6c60185cc88c7781e3ae0c71f5d3721b1ff2bef0b3f7a4b1ce1669",
+  "normalized_at": "2026-03-28T03:46:22.539Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  }
+}

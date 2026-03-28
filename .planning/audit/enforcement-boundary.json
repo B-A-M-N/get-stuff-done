@@ -1,6 +1,6 @@
 {
   "schema": "gsd_enforcement_boundary_audit_v1",
-  "generated_at": "2026-03-27T22:06:10.083Z",
+  "generated_at": "2026-03-28T21:18:27.485Z",
   "phase": "76",
   "policy_paths": {
     "sanctioned_interfaces": ".planning/policy/sanctioned-interfaces.yaml",

@@ -33,5 +33,3 @@ This catalog is the authoritative hostile contract for Phase 79.
 - Declared degradation: `declared-memory-degradation`, `declared-firecrawl-degradation`
 - Undeclared degradation: `undeclared-memory-degradation`, `mixed-missing-commit-and-undeclared-degradation`, `mixed-declared-firecrawl-and-undeclared-memory`
 - Plane-configured path when available: `plane-configured-truth-path`
-
-<!-- GSD-AUTHORITY: 79-01-2:2aeac5577eb0010742c56d3bd5a5fa8626e6b944f8ceb134a1a33f5cf32dc90a -->

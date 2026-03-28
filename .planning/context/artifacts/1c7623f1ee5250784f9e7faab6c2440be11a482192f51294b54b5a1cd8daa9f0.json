@@ -1,0 +1,13 @@
+{
+  "id": "1c7623f1ee5250784f9e7faab6c2440be11a482192f51294b54b5a1cd8daa9f0",
+  "source_uri": ".planning/phases/09-failure-mode-testing/09-02-SUMMARY.md",
+  "type": "internal",
+  "content_markdown": "---\nphase: \"09\"\nplan: \"02\"\nstatus: \"Complete\"\ncompleted: \"2026-03-16\"\nrequirements:\n\n  - \"TR-05\"\n  - \"TR-06\"\n  - \"TR-08\"\n  - \"TR-09\"\n\n---\n\n# SUMMARY: 09-02 - Add adversarial fixtures and document the gate\n\n## Outcome\n\nThe adversarial ambiguity gate is now covered by focused fixture tests and documented clearly enough for later workflow enforcement and audit work.\n\n## Implemented\n\n- Extended `tests/itl.test.cjs` with adversarial fixtures for:\n  - preference-like pseudo-invariants,\n  - emotionally charged vague narratives,\n  - low-ambiguity but still non-lockable invariant-style claims.\n- Updated `get-stuff-done/workflows/help.md` and `docs/COMMANDS.md` so docs explicitly say inferred constraints are not safe to lock until they pass the adversarial ambiguity gate.\n\n## Verification\n\n- `node --test tests/itl.test.cjs`\n- `rg -n \"adversarial ambiguity gate|not automatically promoted\" get-stuff-done/workflows/help.md docs/COMMANDS.md`\n\n## Notes\n\n- The gate semantics are now explicit in code and docs, but full workflow enforcement remains Phase 10 work.\n",
+  "content_hash": "686d88a5d19a7fcf1404f678317c720c0f48428d14f56e705e3d9036edc55b6f",
+  "normalized_at": "2026-03-28T03:46:22.201Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  }
+}

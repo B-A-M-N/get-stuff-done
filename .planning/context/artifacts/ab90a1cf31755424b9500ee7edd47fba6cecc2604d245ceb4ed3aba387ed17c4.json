@@ -1,0 +1,13 @@
+{
+  "id": "ab90a1cf31755424b9500ee7edd47fba6cecc2604d245ceb4ed3aba387ed17c4",
+  "source_uri": ".planning/phases/08-itl-to-planning-integration/08-01-SUMMARY.md",
+  "type": "internal",
+  "content_markdown": "---\nphase: \"08\"\nplan: \"01\"\nstatus: \"Complete\"\ncompleted: \"2026-03-16\"\nrequirements:\n\n  - \"FR-02\"\n  - \"FR-03\"\n\n---\n\n# SUMMARY: 08-01 - Feed enriched context into source plan-phase and planner prompt\n\n## Outcome\n\nThe canonical planning handoff now explicitly teaches the planner to treat confirmed implementation decisions as locked choices and richer narrative/research cues as shaping guidance, without changing the PLAN.md contract or planner/checker loop.\n\n## Implemented\n\n- Updated `commands/gsd/plan-phase.md` so the command contract explicitly notes that narrative-first context improves planner handoff but does not replace planning artifacts.\n- Updated `get-stuff-done/workflows/plan-phase.md` so the workflow now:\n  - explains how to interpret `Implementation Decisions`, `Narrative Intake Summary`, and `Research Cues`,\n  - tells the planner to honor locked decisions,\n  - allows inferred guidance to shape task structure and sequencing,\n  - forbids silently converting inferred cues into hard scope or acceptance criteria,\n  - stays compatible with sparse or PRD-generated context.\n\n## Verification\n\n- `node --test tests/dostuff.test.cjs`\n- `rg -n \"Implementation Decisions|Narrative Intake Summary|Research Cues|hard scope\" commands/gsd/plan-phase.md get-stuff-done/workflows/plan-phase.md`\n\n## Notes\n\n- This phase changes planner guidance, not the planner output format or validation contract.\n",
+  "content_hash": "a9821564b56c49d0741e86d2f82e3012c2c28d09ee31a8234439c681fb1ec1bb",
+  "normalized_at": "2026-03-28T03:46:22.233Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  }
+}

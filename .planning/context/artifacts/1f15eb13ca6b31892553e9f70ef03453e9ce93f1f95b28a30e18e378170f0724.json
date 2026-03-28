@@ -1,0 +1,30 @@
+{
+  "id": "1f15eb13ca6b31892553e9f70ef03453e9ce93f1f95b28a30e18e378170f0724",
+  "source_uri": "packages/gsd-tools/src/logging/SafeLogger.js",
+  "type": "internal",
+  "content_markdown": "```javascript\nconst { inspect } = require('util');\n\nconst REDACTION = '[REDACTED]';\nconst SECRET_PATTERNS = [\n  { name: 'openai', regex: /\\bsk-[A-Za-z0-9]{16,}\\b/g },\n  { name: 'aws-access-key', regex: /\\bAKIA[0-9A-Z]{16}\\b/g },\n  { name: 'github-token', regex: /\\bgh[pousr]_[A-Za-z0-9]{20,}\\b/g },\n  { name: 'bearer-token', regex: /\\bBearer\\s+[A-Za-z0-9._\\-+/=]{12,}\\b/gi },\n  { name: 'jwt', regex: /\\beyJ[A-Za-z0-9_-]+\\.[A-Za-z0-9._-]+\\.[A-Za-z0-9._-]+\\b/g },\n  { name: 'private-key', regex: /-----BEGIN [A-Z ]*PRIVATE KEY-----[\\s\\S]*?-----END [A-Z ]*PRIVATE KEY-----/g },\n  { name: 'database-url', regex: /\\b(?:postgres(?:ql)?|mysql|mariadb|mongodb(?:\\+srv)?|redis|amqp|amqps):\\/\\/[^/\\s:@]+:[^@\\s/]+@[^\\s]+/gi },\n  { name: 'generic-credential-assignment', regex: /\\b(api[_-]?key|token|secret|password|passwd|auth[_-]?token)\\s*[:=]\\s*[\"'][^\"'\\\\\\s]{8,}[\"']/gi },\n];\nconst HIGH_ENTROPY_REGEX = /\\b(?=[A-Za-z0-9+/_=-]{32,}\\b)(?=[A-Za-z0-9+/_=-]*[a-z])(?=[A-Za-z0-9+/_=-]*[A-Z])(?=(?:.*\\d){2,})[A-Za-z0-9+/_=-]{32,}\\b/g;\n\nfunction stringify(value) {\n  if (Buffer.isBuffer(value)) {\n    return value.toString('utf8');\n  }\n  if (typeof value === 'string') {\n    return value;\n  }\n  if (value === null || value === undefined) {\n    return String(value);\n  }\n  if (typeof value === 'object') {\n    return inspect(value, { depth: 5, breakLength: Infinity, compact: true });\n  }\n  return String(value);\n}\n\nclass SafeLogger {\n  static sanitize(input) {\n    let output = stringify(input);\n    for (const { regex } of SECRET_PATTERNS) {\n      output = output.replace(regex, REDACTION);\n    }\n    output = output.replace(HIGH_ENTROPY_REGEX, REDACTION);\n    return output;\n  }\n\n  static write(writer, message) {\n    writer(this.sanitize(message));\n  }\n\n  static log(writer, message) {\n    this.write(writer, message);\n  }\n\n  static info(writer, message) {\n    this.write(writer, message);\n  }\n\n  static warn(writer, message) {\n    this.write(writer, message);\n  }\n\n  static error(writer, message) {\n    this.write(writer, message);\n  }\n\n  static patterns() {\n    return [\n      ...SECRET_PATTERNS.map(({ name, regex }) => ({ name, regex })),\n      { name: 'high-entropy', regex: HIGH_ENTROPY_REGEX },\n    ];\n  }\n}\n\nmodule.exports = { SafeLogger };\n\n```",
+  "content_hash": "4baff39aeb178d248de95f6b625426b55206beaa65a1c2f76c9b9b710ff0a8cf",
+  "normalized_at": "2026-03-28T03:46:22.575Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  },
+  "analysis": {
+    "symbols": [
+      {
+        "name": "stringify",
+        "kind": "function",
+        "line": 16
+      },
+      {
+        "name": "SafeLogger",
+        "kind": "class",
+        "line": 32
+      }
+    ],
+    "dependencies": [
+      "util"
+    ]
+  }
+}

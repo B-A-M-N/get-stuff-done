@@ -1,0 +1,13 @@
+{
+  "id": "e3c09da64720d6f264f8b97518dc98b00eed14eb6f2ac1b63a878480ea5dd4ec",
+  "source_uri": ".planning/phases/25-research-unified-normalization-pipeline/25-01-SUMMARY.md",
+  "type": "internal",
+  "content_markdown": "---\nphase: 25\nplan: 01\ntype: standard\nstatus: complete\ndate: 2026-03-21\nrequirements_completed:\n\n  - NORMAL-INTERNAL\n  - NORMAL-FIRE\n\n---\n\n# Summary 25-01: Implementation of Normalization Adapters\n\nCreated the core adapters for the unified normalization pipeline.\n\n## Accomplishments\n\n- Implemented `internal-normalizer.cjs` for processing project artifacts.\n- Implemented `firecrawl-normalizer.cjs` for processing external documentation.\n- Integrated both adapters with the canonical `ContextArtifact` schema.\n\n## Evidence\n\n- Modules verified to export required normalization functions.\n- Schema validation confirmed for both adapter outputs.\n",
+  "content_hash": "10cb00f3883360e56df702a7d417078a66cb3324e5ee33754e71e0e42c21b166",
+  "normalized_at": "2026-03-28T03:46:21.790Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  }
+}

@@ -1,0 +1,740 @@
+{
+  "meta": {
+    "total_artifacts": 39,
+    "generated_at": "2026-03-28T21:33:44.779Z"
+  },
+  "target_artifacts": [
+    {
+      "phase": "70",
+      "artifact_type": "VERIFICATION",
+      "path": ".planning/phases/70-drift-surface-mapping/70-VERIFICATION.md",
+      "required": true
+    },
+    {
+      "phase": "70",
+      "artifact_type": "TRUTH",
+      "path": ".planning/phases/70-drift-surface-mapping/70-TRUTH.yaml",
+      "required": true
+    },
+    {
+      "phase": "70",
+      "artifact_type": "VALIDATION",
+      "path": ".planning/phases/70-drift-surface-mapping/70-VALIDATION.md",
+      "required": true
+    },
+    {
+      "phase": "71",
+      "artifact_type": "VERIFICATION",
+      "path": ".planning/phases/71-execution-proof-chain/71-VERIFICATION.md",
+      "required": true
+    },
+    {
+      "phase": "71",
+      "artifact_type": "TRUTH",
+      "path": ".planning/phases/71-execution-proof-chain/71-TRUTH.yaml",
+      "required": true
+    },
+    {
+      "phase": "71",
+      "artifact_type": "VALIDATION",
+      "path": ".planning/phases/71-execution-proof-chain/71-VALIDATION.md",
+      "required": true
+    },
+    {
+      "phase": "72",
+      "artifact_type": "VERIFICATION",
+      "path": ".planning/phases/72-verification-hardening/72-VERIFICATION.md",
+      "required": true
+    },
+    {
+      "phase": "72",
+      "artifact_type": "TRUTH",
+      "path": ".planning/phases/72-verification-hardening/72-TRUTH.yaml",
+      "required": true
+    },
+    {
+      "phase": "72",
+      "artifact_type": "VALIDATION",
+      "path": ".planning/phases/72-verification-hardening/72-VALIDATION.md",
+      "required": true
+    },
+    {
+      "phase": "73",
+      "artifact_type": "VERIFICATION",
+      "path": ".planning/phases/73-drift-detection-engine/73-VERIFICATION.md",
+      "required": true
+    },
+    {
+      "phase": "73",
+      "artifact_type": "TRUTH",
+      "path": ".planning/phases/73-drift-detection-engine/73-TRUTH.yaml",
+      "required": true
+    },
+    {
+      "phase": "73",
+      "artifact_type": "VALIDATION",
+      "path": ".planning/phases/73-drift-detection-engine/73-VALIDATION.md",
+      "required": true
+    },
+    {
+      "phase": "74",
+      "artifact_type": "VERIFICATION",
+      "path": ".planning/phases/74-state-reconciliation-layer/74-VERIFICATION.md",
+      "required": true
+    },
+    {
+      "phase": "74",
+      "artifact_type": "TRUTH",
+      "path": ".planning/phases/74-state-reconciliation-layer/74-TRUTH.yaml",
+      "required": true
+    },
+    {
+      "phase": "74",
+      "artifact_type": "VALIDATION",
+      "path": ".planning/phases/74-state-reconciliation-layer/74-VALIDATION.md",
+      "required": true
+    },
+    {
+      "phase": "75",
+      "artifact_type": "VERIFICATION",
+      "path": ".planning/phases/75-degraded-mode-enforcement/75-VERIFICATION.md",
+      "required": true
+    },
+    {
+      "phase": "75",
+      "artifact_type": "TRUTH",
+      "path": ".planning/phases/75-degraded-mode-enforcement/75-TRUTH.yaml",
+      "required": true
+    },
+    {
+      "phase": "75",
+      "artifact_type": "VALIDATION",
+      "path": ".planning/phases/75-degraded-mode-enforcement/75-VALIDATION.md",
+      "required": true
+    },
+    {
+      "phase": "76",
+      "artifact_type": "VERIFICATION",
+      "path": ".planning/phases/76-enforcement-boundary-audit/76-VERIFICATION.md",
+      "required": true
+    },
+    {
+      "phase": "76",
+      "artifact_type": "TRUTH",
+      "path": ".planning/phases/76-enforcement-boundary-audit/76-TRUTH.yaml",
+      "required": true
+    },
+    {
+      "phase": "76",
+      "artifact_type": "VALIDATION",
+      "path": ".planning/phases/76-enforcement-boundary-audit/76-VALIDATION.md",
+      "required": true
+    },
+    {
+      "phase": "77",
+      "artifact_type": "VERIFICATION",
+      "path": ".planning/phases/77-execution-surface-governance/77-VERIFICATION.md",
+      "required": true
+    },
+    {
+      "phase": "77",
+      "artifact_type": "TRUTH",
+      "path": ".planning/phases/77-execution-surface-governance/77-TRUTH.yaml",
+      "required": true
+    },
+    {
+      "phase": "77",
+      "artifact_type": "VALIDATION",
+      "path": ".planning/phases/77-execution-surface-governance/77-VALIDATION.md",
+      "required": true
+    },
+    {
+      "phase": "78",
+      "artifact_type": "VERIFICATION",
+      "path": ".planning/phases/78-phase-truth-contracts/78-VERIFICATION.md",
+      "required": true
+    },
+    {
+      "phase": "78",
+      "artifact_type": "TRUTH",
+      "path": ".planning/phases/78-phase-truth-contracts/78-TRUTH.yaml",
+      "required": true
+    },
+    {
+      "phase": "78",
+      "artifact_type": "VALIDATION",
+      "path": ".planning/phases/78-phase-truth-contracts/78-VALIDATION.md",
+      "required": true
+    },
+    {
+      "phase": "79",
+      "artifact_type": "VERIFICATION",
+      "path": ".planning/phases/79-end-to-end-integrity-gauntlet/79-VERIFICATION.md",
+      "required": true
+    },
+    {
+      "phase": "79",
+      "artifact_type": "TRUTH",
+      "path": ".planning/phases/79-end-to-end-integrity-gauntlet/79-TRUTH.yaml",
+      "required": true
+    },
+    {
+      "phase": "79",
+      "artifact_type": "VALIDATION",
+      "path": ".planning/phases/79-end-to-end-integrity-gauntlet/79-VALIDATION.md",
+      "required": true
+    },
+    {
+      "phase": "80",
+      "artifact_type": "VERIFICATION",
+      "path": ".planning/phases/80-retroactive-verification-closure/80-VERIFICATION.md",
+      "required": true
+    },
+    {
+      "phase": "80",
+      "artifact_type": "TRUTH",
+      "path": ".planning/phases/80-retroactive-verification-closure/80-TRUTH.yaml",
+      "required": true
+    },
+    {
+      "phase": "80",
+      "artifact_type": "VALIDATION",
+      "path": ".planning/phases/80-retroactive-verification-closure/80-VALIDATION.md",
+      "required": true
+    },
+    {
+      "phase": "80.1",
+      "artifact_type": "VERIFICATION",
+      "path": ".planning/phases/80.1-memory-truth-reproval-closure/80.1-VERIFICATION.md",
+      "required": true
+    },
+    {
+      "phase": "80.1",
+      "artifact_type": "TRUTH",
+      "path": ".planning/phases/80.1-memory-truth-reproval-closure/80.1-TRUTH.yaml",
+      "required": true
+    },
+    {
+      "phase": "80.1",
+      "artifact_type": "VALIDATION",
+      "path": ".planning/phases/80.1-memory-truth-reproval-closure/80.1-VALIDATION.md",
+      "required": true
+    },
+    {
+      "phase": "81",
+      "artifact_type": "VERIFICATION",
+      "path": ".planning/phases/81-audit-traceability-nyquist-closure/81-VERIFICATION.md",
+      "required": true
+    },
+    {
+      "phase": "81",
+      "artifact_type": "TRUTH",
+      "path": ".planning/phases/81-audit-traceability-nyquist-closure/81-TRUTH.yaml",
+      "required": true
+    },
+    {
+      "phase": "81",
+      "artifact_type": "VALIDATION",
+      "path": ".planning/phases/81-audit-traceability-nyquist-closure/81-VALIDATION.md",
+      "required": true
+    }
+  ],
+  "inventory": [
+    {
+      "phase": "70",
+      "type": "VERIFICATION",
+      "path": ".planning/phases/70-drift-surface-mapping/70-VERIFICATION.md",
+      "required": true,
+      "exists": true,
+      "technical_status": "VALID",
+      "technical_classification": "VALID_EXISTING",
+      "admissibility": "VALID_ACCEPTED",
+      "justification": [],
+      "evidence": "(node:2690271) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n(Use `node --trace-warnings ...` to show where the warning was created)\ninvalid"
+    },
+    {
+      "phase": "70",
+      "type": "TRUTH",
+      "path": ".planning/phases/70-drift-surface-mapping/70-TRUTH.yaml",
+      "required": true,
+      "exists": true,
+      "technical_status": "INVALID",
+      "technical_classification": "INVALID",
+      "admissibility": "REPAIR_REQUIRED",
+      "justification": [],
+      "evidence": null
+    },
+    {
+      "phase": "70",
+      "type": "VALIDATION",
+      "path": ".planning/phases/70-drift-surface-mapping/70-VALIDATION.md",
+      "required": true,
+      "exists": true,
+      "technical_status": "VALID",
+      "technical_classification": "VALID_EXISTING",
+      "admissibility": "VALID_ACCEPTED",
+      "justification": [],
+      "evidence": "nyquist_compliant: true"
+    },
+    {
+      "phase": "71",
+      "type": "VERIFICATION",
+      "path": ".planning/phases/71-execution-proof-chain/71-VERIFICATION.md",
+      "required": true,
+      "exists": true,
+      "technical_status": "VALID",
+      "technical_classification": "VALID_EXISTING",
+      "admissibility": "VALID_ACCEPTED",
+      "justification": [],
+      "evidence": "(node:2690280) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n(Use `node --trace-warnings ...` to show where the warning was created)\ninvalid"
+    },
+    {
+      "phase": "71",
+      "type": "TRUTH",
+      "path": ".planning/phases/71-execution-proof-chain/71-TRUTH.yaml",
+      "required": true,
+      "exists": true,
+      "technical_status": "CONDITIONAL",
+      "technical_classification": "CONDITIONAL",
+      "admissibility": "CONDITIONAL_ACCEPTED",
+      "justification": [
+        "No requirement block",
+        "Condition explicit",
+        "Condition stable"
+      ],
+      "evidence": null
+    },
+    {
+      "phase": "71",
+      "type": "VALIDATION",
+      "path": ".planning/phases/71-execution-proof-chain/71-VALIDATION.md",
+      "required": true,
+      "exists": true,
+      "technical_status": "VALID",
+      "technical_classification": "VALID_EXISTING",
+      "admissibility": "VALID_ACCEPTED",
+      "justification": [],
+      "evidence": "nyquist_compliant: true"
+    },
+    {
+      "phase": "72",
+      "type": "VERIFICATION",
+      "path": ".planning/phases/72-verification-hardening/72-VERIFICATION.md",
+      "required": true,
+      "exists": true,
+      "technical_status": "VALID",
+      "technical_classification": "VALID_EXISTING",
+      "admissibility": "VALID_ACCEPTED",
+      "justification": [],
+      "evidence": "(node:2690305) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n(Use `node --trace-warnings ...` to show where the warning was created)\nvalid"
+    },
+    {
+      "phase": "72",
+      "type": "TRUTH",
+      "path": ".planning/phases/72-verification-hardening/72-TRUTH.yaml",
+      "required": true,
+      "exists": true,
+      "technical_status": "CONDITIONAL",
+      "technical_classification": "CONDITIONAL",
+      "admissibility": "CONDITIONAL_ACCEPTED",
+      "justification": [
+        "No requirement block",
+        "Condition explicit",
+        "Condition stable"
+      ],
+      "evidence": null
+    },
+    {
+      "phase": "72",
+      "type": "VALIDATION",
+      "path": ".planning/phases/72-verification-hardening/72-VALIDATION.md",
+      "required": true,
+      "exists": true,
+      "technical_status": "VALID",
+      "technical_classification": "VALID_EXISTING",
+      "admissibility": "VALID_ACCEPTED",
+      "justification": [],
+      "evidence": "nyquist_compliant: true"
+    },
+    {
+      "phase": "73",
+      "type": "VERIFICATION",
+      "path": ".planning/phases/73-drift-detection-engine/73-VERIFICATION.md",
+      "required": true,
+      "exists": true,
+      "technical_status": "VALID",
+      "technical_classification": "VALID_EXISTING",
+      "admissibility": "VALID_ACCEPTED",
+      "justification": [],
+      "evidence": "(node:2690348) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n(Use `node --trace-warnings ...` to show where the warning was created)\nvalid"
+    },
+    {
+      "phase": "73",
+      "type": "TRUTH",
+      "path": ".planning/phases/73-drift-detection-engine/73-TRUTH.yaml",
+      "required": true,
+      "exists": true,
+      "technical_status": "CONDITIONAL",
+      "technical_classification": "CONDITIONAL",
+      "admissibility": "CONDITIONAL_ACCEPTED",
+      "justification": [
+        "No requirement block",
+        "Condition explicit",
+        "Condition stable"
+      ],
+      "evidence": null
+    },
+    {
+      "phase": "73",
+      "type": "VALIDATION",
+      "path": ".planning/phases/73-drift-detection-engine/73-VALIDATION.md",
+      "required": true,
+      "exists": true,
+      "technical_status": "VALID",
+      "technical_classification": "VALID_EXISTING",
+      "admissibility": "VALID_ACCEPTED",
+      "justification": [],
+      "evidence": "nyquist_compliant: true"
+    },
+    {
+      "phase": "74",
+      "type": "VERIFICATION",
+      "path": ".planning/phases/74-state-reconciliation-layer/74-VERIFICATION.md",
+      "required": true,
+      "exists": true,
+      "technical_status": "VALID",
+      "technical_classification": "VALID_EXISTING",
+      "admissibility": "VALID_ACCEPTED",
+      "justification": [],
+      "evidence": "(node:2690357) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n(Use `node --trace-warnings ...` to show where the warning was created)\nvalid"
+    },
+    {
+      "phase": "74",
+      "type": "TRUTH",
+      "path": ".planning/phases/74-state-reconciliation-layer/74-TRUTH.yaml",
+      "required": true,
+      "exists": true,
+      "technical_status": "VALID",
+      "technical_classification": "VALID_EXISTING",
+      "admissibility": "VALID_ACCEPTED",
+      "justification": [],
+      "evidence": null
+    },
+    {
+      "phase": "74",
+      "type": "VALIDATION",
+      "path": ".planning/phases/74-state-reconciliation-layer/74-VALIDATION.md",
+      "required": true,
+      "exists": true,
+      "technical_status": "VALID",
+      "technical_classification": "VALID_EXISTING",
+      "admissibility": "VALID_ACCEPTED",
+      "justification": [],
+      "evidence": "nyquist_compliant: true"
+    },
+    {
+      "phase": "75",
+      "type": "VERIFICATION",
+      "path": ".planning/phases/75-degraded-mode-enforcement/75-VERIFICATION.md",
+      "required": true,
+      "exists": true,
+      "technical_status": "VALID",
+      "technical_classification": "VALID_EXISTING",
+      "admissibility": "VALID_ACCEPTED",
+      "justification": [],
+      "evidence": "(node:2690371) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n(Use `node --trace-warnings ...` to show where the warning was created)\nvalid"
+    },
+    {
+      "phase": "75",
+      "type": "TRUTH",
+      "path": ".planning/phases/75-degraded-mode-enforcement/75-TRUTH.yaml",
+      "required": true,
+      "exists": true,
+      "technical_status": "VALID",
+      "technical_classification": "VALID_EXISTING",
+      "admissibility": "VALID_ACCEPTED",
+      "justification": [],
+      "evidence": null
+    },
+    {
+      "phase": "75",
+      "type": "VALIDATION",
+      "path": ".planning/phases/75-degraded-mode-enforcement/75-VALIDATION.md",
+      "required": true,
+      "exists": true,
+      "technical_status": "VALID",
+      "technical_classification": "VALID_EXISTING",
+      "admissibility": "VALID_ACCEPTED",
+      "justification": [],
+      "evidence": "nyquist_compliant: true"
+    },
+    {
+      "phase": "76",
+      "type": "VERIFICATION",
+      "path": ".planning/phases/76-enforcement-boundary-audit/76-VERIFICATION.md",
+      "required": true,
+      "exists": true,
+      "technical_status": "VALID",
+      "technical_classification": "VALID_EXISTING",
+      "admissibility": "VALID_ACCEPTED",
+      "justification": [],
+      "evidence": "(node:2690390) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n(Use `node --trace-warnings ...` to show where the warning was created)\ninvalid"
+    },
+    {
+      "phase": "76",
+      "type": "TRUTH",
+      "path": ".planning/phases/76-enforcement-boundary-audit/76-TRUTH.yaml",
+      "required": true,
+      "exists": true,
+      "technical_status": "CONDITIONAL",
+      "technical_classification": "CONDITIONAL",
+      "admissibility": "CONDITIONAL_ACCEPTED",
+      "justification": [
+        "No requirement block",
+        "Condition explicit",
+        "Condition stable"
+      ],
+      "evidence": null
+    },
+    {
+      "phase": "76",
+      "type": "VALIDATION",
+      "path": ".planning/phases/76-enforcement-boundary-audit/76-VALIDATION.md",
+      "required": true,
+      "exists": true,
+      "technical_status": "VALID",
+      "technical_classification": "VALID_EXISTING",
+      "admissibility": "VALID_ACCEPTED",
+      "justification": [],
+      "evidence": "nyquist_compliant: true"
+    },
+    {
+      "phase": "77",
+      "type": "VERIFICATION",
+      "path": ".planning/phases/77-execution-surface-governance/77-VERIFICATION.md",
+      "required": true,
+      "exists": true,
+      "technical_status": "VALID",
+      "technical_classification": "VALID_EXISTING",
+      "admissibility": "VALID_ACCEPTED",
+      "justification": [],
+      "evidence": "(node:2690409) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n(Use `node --trace-warnings ...` to show where the warning was created)\nvalid"
+    },
+    {
+      "phase": "77",
+      "type": "TRUTH",
+      "path": ".planning/phases/77-execution-surface-governance/77-TRUTH.yaml",
+      "required": true,
+      "exists": true,
+      "technical_status": "CONDITIONAL",
+      "technical_classification": "CONDITIONAL",
+      "admissibility": "CONDITIONAL_ACCEPTED",
+      "justification": [
+        "No requirement block",
+        "Condition explicit",
+        "Condition stable"
+      ],
+      "evidence": null
+    },
+    {
+      "phase": "77",
+      "type": "VALIDATION",
+      "path": ".planning/phases/77-execution-surface-governance/77-VALIDATION.md",
+      "required": true,
+      "exists": true,
+      "technical_status": "VALID",
+      "technical_classification": "VALID_EXISTING",
+      "admissibility": "VALID_ACCEPTED",
+      "justification": [],
+      "evidence": "nyquist_compliant: true"
+    },
+    {
+      "phase": "78",
+      "type": "VERIFICATION",
+      "path": ".planning/phases/78-phase-truth-contracts/78-VERIFICATION.md",
+      "required": true,
+      "exists": true,
+      "technical_status": "VALID",
+      "technical_classification": "VALID_EXISTING",
+      "admissibility": "VALID_ACCEPTED",
+      "justification": [],
+      "evidence": "(node:2690431) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n(Use `node --trace-warnings ...` to show where the warning was created)\nvalid"
+    },
+    {
+      "phase": "78",
+      "type": "TRUTH",
+      "path": ".planning/phases/78-phase-truth-contracts/78-TRUTH.yaml",
+      "required": true,
+      "exists": true,
+      "technical_status": "CONDITIONAL",
+      "technical_classification": "CONDITIONAL",
+      "admissibility": "CONDITIONAL_ACCEPTED",
+      "justification": [
+        "No requirement block",
+        "Condition explicit",
+        "Condition stable"
+      ],
+      "evidence": null
+    },
+    {
+      "phase": "78",
+      "type": "VALIDATION",
+      "path": ".planning/phases/78-phase-truth-contracts/78-VALIDATION.md",
+      "required": true,
+      "exists": true,
+      "technical_status": "VALID",
+      "technical_classification": "VALID_EXISTING",
+      "admissibility": "VALID_ACCEPTED",
+      "justification": [],
+      "evidence": "nyquist_compliant: true"
+    },
+    {
+      "phase": "79",
+      "type": "VERIFICATION",
+      "path": ".planning/phases/79-end-to-end-integrity-gauntlet/79-VERIFICATION.md",
+      "required": true,
+      "exists": true,
+      "technical_status": "VALID",
+      "technical_classification": "VALID_EXISTING",
+      "admissibility": "VALID_ACCEPTED",
+      "justification": [],
+      "evidence": "(node:2690446) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n(Use `node --trace-warnings ...` to show where the warning was created)\nvalid"
+    },
+    {
+      "phase": "79",
+      "type": "TRUTH",
+      "path": ".planning/phases/79-end-to-end-integrity-gauntlet/79-TRUTH.yaml",
+      "required": true,
+      "exists": true,
+      "technical_status": "VALID",
+      "technical_classification": "VALID_EXISTING",
+      "admissibility": "VALID_ACCEPTED",
+      "justification": [],
+      "evidence": null
+    },
+    {
+      "phase": "79",
+      "type": "VALIDATION",
+      "path": ".planning/phases/79-end-to-end-integrity-gauntlet/79-VALIDATION.md",
+      "required": true,
+      "exists": true,
+      "technical_status": "VALID",
+      "technical_classification": "VALID_EXISTING",
+      "admissibility": "VALID_ACCEPTED",
+      "justification": [],
+      "evidence": "nyquist_compliant: true"
+    },
+    {
+      "phase": "80",
+      "type": "VERIFICATION",
+      "path": ".planning/phases/80-retroactive-verification-closure/80-VERIFICATION.md",
+      "required": true,
+      "exists": true,
+      "technical_status": "VALID",
+      "technical_classification": "VALID_EXISTING",
+      "admissibility": "VALID_ACCEPTED",
+      "justification": [],
+      "evidence": "(node:2690461) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n(Use `node --trace-warnings ...` to show where the warning was created)\nvalid"
+    },
+    {
+      "phase": "80",
+      "type": "TRUTH",
+      "path": ".planning/phases/80-retroactive-verification-closure/80-TRUTH.yaml",
+      "required": true,
+      "exists": true,
+      "technical_status": "VALID",
+      "technical_classification": "VALID_EXISTING",
+      "admissibility": "VALID_ACCEPTED",
+      "justification": [],
+      "evidence": null
+    },
+    {
+      "phase": "80",
+      "type": "VALIDATION",
+      "path": ".planning/phases/80-retroactive-verification-closure/80-VALIDATION.md",
+      "required": true,
+      "exists": true,
+      "technical_status": "VALID",
+      "technical_classification": "VALID_EXISTING",
+      "admissibility": "VALID_ACCEPTED",
+      "justification": [],
+      "evidence": "nyquist_compliant: true"
+    },
+    {
+      "phase": "80.1",
+      "type": "VERIFICATION",
+      "path": ".planning/phases/80.1-memory-truth-reproval-closure/80.1-VERIFICATION.md",
+      "required": true,
+      "exists": true,
+      "technical_status": "VALID",
+      "technical_classification": "VALID_EXISTING",
+      "admissibility": "VALID_ACCEPTED",
+      "justification": [],
+      "evidence": "(node:2690479) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n(Use `node --trace-warnings ...` to show where the warning was created)\nvalid"
+    },
+    {
+      "phase": "80.1",
+      "type": "TRUTH",
+      "path": ".planning/phases/80.1-memory-truth-reproval-closure/80.1-TRUTH.yaml",
+      "required": true,
+      "exists": true,
+      "technical_status": "VALID",
+      "technical_classification": "VALID_EXISTING",
+      "admissibility": "VALID_ACCEPTED",
+      "justification": [],
+      "evidence": null
+    },
+    {
+      "phase": "80.1",
+      "type": "VALIDATION",
+      "path": ".planning/phases/80.1-memory-truth-reproval-closure/80.1-VALIDATION.md",
+      "required": true,
+      "exists": true,
+      "technical_status": "VALID",
+      "technical_classification": "VALID_EXISTING",
+      "admissibility": "VALID_ACCEPTED",
+      "justification": [],
+      "evidence": "nyquist_compliant: true"
+    },
+    {
+      "phase": "81",
+      "type": "VERIFICATION",
+      "path": ".planning/phases/81-audit-traceability-nyquist-closure/81-VERIFICATION.md",
+      "required": true,
+      "exists": true,
+      "technical_status": "VALID",
+      "technical_classification": "VALID_EXISTING",
+      "admissibility": "VALID_ACCEPTED",
+      "justification": [],
+      "evidence": "(node:2690495) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n(Use `node --trace-warnings ...` to show where the warning was created)\nvalid"
+    },
+    {
+      "phase": "81",
+      "type": "TRUTH",
+      "path": ".planning/phases/81-audit-traceability-nyquist-closure/81-TRUTH.yaml",
+      "required": true,
+      "exists": true,
+      "technical_status": "CONDITIONAL",
+      "technical_classification": "CONDITIONAL",
+      "admissibility": "CONDITIONAL_ACCEPTED",
+      "justification": [
+        "No requirement block",
+        "Condition explicit",
+        "Condition stable"
+      ],
+      "evidence": null
+    },
+    {
+      "phase": "81",
+      "type": "VALIDATION",
+      "path": ".planning/phases/81-audit-traceability-nyquist-closure/81-VALIDATION.md",
+      "required": true,
+      "exists": true,
+      "technical_status": "VALID",
+      "technical_classification": "VALID_EXISTING",
+      "admissibility": "VALID_ACCEPTED",
+      "justification": [],
+      "evidence": "nyquist_compliant: true"
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 phase: "79"
 title: "End-to-End Integrity Gauntlet"
-generated_at: "2026-03-28T08:54:02.471Z"
+generated_at: "2026-03-28T20:37:05.286Z"
 strict: true
 inputs:
   verification: ".planning/phases/79-end-to-end-integrity-gauntlet/79-VERIFICATION.md"

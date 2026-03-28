@@ -1,0 +1,13 @@
+{
+  "id": "09db3ea7579ed6ba1e85022ee8a8ba2cab98f49e5b3aa061ad0d12a988271538",
+  "source_uri": ".planning/phases/23-research-hard-context-sandbox/23-01-SUMMARY.md",
+  "type": "internal",
+  "content_markdown": "---\nphase: 23-research-hard-context-sandbox\nplan: 01\nsubsystem: sandbox\ntags: [security, enforcement, core]\ndependency_graph:\n  requires: []\n  provides: [SANDBOX-01, SANDBOX-02]\n  affects: [gsd-tools, gate]\ntech_stack:\n  added: [sandbox.cjs]\n  patterns: [runtime-enforcement, path-guarding]\nkey_files:\n  created: [get-stuff-done/bin/lib/sandbox.cjs]\n  modified: [get-stuff-done/bin/lib/gate.cjs, get-stuff-done/bin/gsd-tools.cjs]\ndecisions:\n\n  - Use exit code 13 for blocked paths in the CLI to distinguish from other errors.\n  - Implement sandbox as a core library (sandbox.cjs) for reuse across components.\n\nmetrics:\n  duration: 10m\n  completed_date: \"2026-03-19T10:00:00.000Z\"\n---\n\n# Phase 23 Plan 01: Core Sandbox Implementation Summary\n\n## Substantive One-liner\n\nImplemented the core `sandbox.cjs` library for path-guarding and exposed it via `gsd-tools gate check-path`.\n\n## Objective Success\n\n- [x] Sandbox library exists and exports checkPath logic.\n- [x] `gsd-tools gate check-path --path <path>` returns status 0 for allowed paths.\n- [x] `gsd-tools gate check-path --path <path>` returns status 13 for denied paths.\n\n## Key Changes\n\n- Created `get-stuff-done/bin/lib/sandbox.cjs` with `checkPath` function and `DENY_LIST`.\n- Updated `get-stuff-done/bin/lib/gate.cjs` to include `cmdGateCheckPath`.\n- Updated `get-stuff-done/bin/gsd-tools.cjs` to expose `gate check-path`.\n\n## Deviations from Plan\n\nNone - plan executed exactly as written.\n\n## Self-Check: PASSED\n\n- [x] Created files exist.\n- [x] Commits exist.\n- [x] Verification passed.\n",
+  "content_hash": "4370914f006ee3868df3a58aca2829586a04149cab438f9c15e4f2f80dd2615a",
+  "normalized_at": "2026-03-28T03:46:21.832Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "id": "332a4e675c24de0061b148c82e7897644331968804b343a83938812af85c0424",
+  "source_uri": ".planning/phases/77-execution-surface-governance/77-TRUTH.md",
+  "type": "internal",
+  "content_markdown": "# Phase 77: Execution Surface Governance — Truth\n\n**Generated:** 2026-03-28T00:24:41.583Z\n**Final Status:** CONDITIONAL\n\n## Status Reasons\n\n- Verification artifact is missing.\n- Current degraded truth posture is UNSAFE.\n- context:plan-phase blocked by planning_server: planning_server_unavailable\n- context:execute-plan blocked by planning_server: planning_server_unavailable\n- verify:integrity blocked by drift_truth: drift_truth_stale\n- verify:workflow-readiness blocked by drift_truth: drift_truth_stale\n\n## Inputs\n\n- Verification: None\n- Summaries: .planning/phases/77-execution-surface-governance/77-01-SUMMARY.md, .planning/phases/77-execution-surface-governance/77-02-SUMMARY.md\n- Drift reports: .planning/drift/latest-report.json\n- Reconciliation: .planning/drift/latest-reconciliation.json\n- Degraded state: .planning/health/latest-degraded-state.json\n\n## Claimed Outcomes\n\n- Narrow enforcement to authoritative truth boundaries so execution stays fast, recovery stays available, and only truth-bearing state transitions block under unsafe posture.\n- canonical command governance policy map\n- deterministic route classification helper\n- default warn_only fallback for future commands\n- governance-aware CLI blocking only at authoritative truth transitions\n- structured warn-only route warnings\n- guaranteed recovery-only route availability under unsafe posture\n\n## Observable Evidence\n\n- file: .planning/phases/77-execution-surface-governance/77-01-SUMMARY.md\n- file: .planning/phases/77-execution-surface-governance/77-02-SUMMARY.md\n- command: phase-truth generate 77\n\n## Gaps\n\n- verification_gap: Verification artifact is missing.\n- degraded_state_caveat: Current degraded truth posture is UNSAFE.\n- workflow_block: context:plan-phase blocked by planning_server: planning_server_unavailable\n- workflow_block: context:execute-plan blocked by planning_server: planning_server_unavailable\n- workflow_block: verify:integrity blocked by drift_truth: drift_truth_stale\n- workflow_block: verify:workflow-readiness blocked by drift_truth: drift_truth_stale\n\n## Drift Effects\n\n- None\n\n## Reconciliation Effects\n\n- None\n",
+  "content_hash": "3b276d0356de670c8736d139420383cf1478ea7ffdfa1ec0047b8818f2a337ad",
+  "normalized_at": "2026-03-28T03:46:20.889Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  }
+}

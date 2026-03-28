@@ -1,0 +1,13 @@
+{
+  "id": "f1efe5f74791bfd9e67109eaf5143b9d4ac1540797ac3f98bfb758f85e67711d",
+  "source_uri": ".planning/phases/25-research-unified-normalization-pipeline/25-02-SUMMARY.md",
+  "type": "internal",
+  "content_markdown": "---\nphase: 25\nplan: 02\ntype: standard\nstatus: complete\ndate: 2026-03-21\nrequirements_completed:\n\n  - NORMAL-PARITY\n  - CLI-PARITY\n\n---\n\n# Summary 25-02: Pipeline Integration & Parity Testing\n\nIntegrated the unified normalization pipeline into the `context build` workflow and verified structural parity.\n\n## Accomplishments\n\n- Modified `context.cjs` to force normalization of internal planning files during build.\n- Verified that all internal artifacts are stored in the canonical artifact store.\n- Implemented parity tests confirming internal and external artifacts share the same Zod schema.\n- Confirmed deterministic ID generation for all context sources.\n\n## Evidence\n\n- `tests/normalization-parity.test.cjs` passes with 100% success.\n- Project artifacts now appear in `.planning/context/artifacts/` after any `context build` command.\n",
+  "content_hash": "f59c92bd28ba099acc8ba2ed4be530a990168e75bb5cae557332d3389d974ae3",
+  "normalized_at": "2026-03-28T03:46:21.783Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  }
+}

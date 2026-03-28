@@ -1,0 +1,13 @@
+{
+  "id": "84a44ad9d05b861ee5f9ac6c77a560cd97d95a4450720f91046459fa45155e38",
+  "source_uri": ".planning/phases/23-research-hard-context-sandbox/23-CONTEXT.md",
+  "type": "internal",
+  "content_markdown": "# Phase 23: Research - Hard Context Sandbox CONTEXT\n\n## Goal\n\nImplement the core sandbox components (Guard module, path checks, and shell interceptor) and verify they correctly block unsanctioned file access.\n\n## Requirements\n\n- CREATE `get-stuff-done/bin/lib/sandbox.cjs` with Guard logic and deny-list.\n- ADD `gate check-path` command to `get-stuff-done/bin/gsd-tools.cjs`.\n- IMPLEMENT a proof-of-concept shell interceptor in `get-stuff-done/bin/gsd-shell.js`.\n- ADD a test suite in `tests/sandbox.test.cjs` to verify that bypass attempts are blocked.\n\n## Decisions\n\n- Use exit code 13 for blocked attempts or appropriate error messages.\n- Block access to `.planning/` files except for sanctioned read/write operations (TBD).\n\n## Success Criteria\n\n- `tests/sandbox.test.cjs` passes.\n- All bypass attempts are rejected.\n",
+  "content_hash": "2c6c6657cbef8e480bd1b720976f1b2c7e0068e97121d0fb4960a47e590affef",
+  "normalized_at": "2026-03-28T03:46:21.825Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "id": "e552ef6745220196ae4824c7430773d253536b140c15e70ff09b88d64d2e0d2b",
+  "source_uri": ".planning/audit/firecrawl/ROADMAP.md",
+  "type": "internal",
+  "content_markdown": "# Roadmap — Firecrawl Context Control Brownfield Audit\n\n## Phase 1 — Brownfield System Reconstruction\n\nMap the real system, context lifecycle, and trust boundaries.\n\n## Phase 2 — Context Path & Retrieval Surface Audit\n\nEnumerate all sanctioned and unsanctioned context access paths.\n\n## Phase 3 — Firecrawl Determinism & Contract Audit\n\nVerify endpoint determinism, normalization stability, and reproducibility.\n\n## Phase 4 — Internal/External Context Unification Audit\n\nVerify schema, retrieval, and ranking parity across internal and external context.\n\n## Phase 5 — Enforcement Boundary & CLI Primitive Audit\n\nVerify non-bypassable execution and verification primitives.\n\n## Phase 6 — Flow Control & Phase Discipline Audit\n\nVerify strict wait-state behavior, redirect continuity, and no phase leakage.\n\n## Phase 7 — Adversarial & Degraded Mode Testing\n\nBreak the system intentionally and inspect safety behavior.\n\n## Phase 8 — StorageAdapter & Memory Plane Audit\n\nVerify Redis/Postgres/Chroma mapping, provenance, and retrieval alignment.\n\n## Phase 9 — Metrics, Failure Matrix, and Remediation Design\n\nProduce scored evidence, exploit scenarios, fixes, and invariance contract.\n\n## Phase 10 — Production Hardening Lock-In\n\nConvert findings into enforced invariants, runtime checks, and regression suite.\n",
+  "content_hash": "179bad183ff9a964bde77e213ef0c13e8d25c433bbb4b0050844b40b5f6ee530",
+  "normalized_at": "2026-03-28T03:46:22.450Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  }
+}

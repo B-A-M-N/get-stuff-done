@@ -28,9 +28,19 @@ Delivered in `v0.3.0`:
 
 Runtime-bound orchestration integrity with controlled context retrieval, deterministic evidence, and local memory that can be audited instead of hand-waved.
 
-## Next Milestone Goals
+## Current Milestone: v0.7.0 Truth Enforcement & Drift Elimination
 
-No active milestone is defined yet. The next planning pass should decide whether to deepen Open Brain capabilities, normalize historical roadmap bookkeeping, or expand model-facing workflow ergonomics around the new memory boundaries.
+**Goal:** Convert the system from “generally correct when followed” into a mechanically enforced truth system where state claims, verification outcomes, degraded modes, and execution results are all backed by observable evidence and enforced paths.
+
+**Target features:**
+- define a strict evidence standard so unverifiable claims are downgraded automatically
+- require execution proof chains from task -> commit -> summary -> verification artifact
+- harden `VERIFICATION.md` into an evidence-first artifact with requirement coverage, anti-pattern scanning, and explicit status
+- detect and classify roadmap/code, execution, and verification drift automatically
+- reconcile detected drift through deterministic status downgrades and re-verification requirements
+- make degraded mode explicit and behaviorally meaningful instead of silently permissive
+- audit critical enforcement boundaries for bypass paths across CLI, artifacts, and truth-bearing interfaces
+- produce phase-level truth contracts and an end-to-end adversarial integrity gauntlet
 
 ## Archived Context
 
@@ -68,6 +78,6 @@ Add a separate local-first Open Brain sidecar that improves agent performance ov
 </details>
 
 ---
-*Last updated: 2026-03-27 after v0.6.0 milestone completion*
+*Last updated: 2026-03-27 during v0.7.0 milestone definition*
 
-<!-- GSD-AUTHORITY: 53-01-1:2a316a9a1c282c6f0430f2ea15e45c78b2605632d49856dc67ebd903082e8900 -->
+<!-- GSD-AUTHORITY: 70-00-0:313db6b23bd69b71d0b3219edfde97a661688cf774936b069eac79d0eb1e0e9e -->

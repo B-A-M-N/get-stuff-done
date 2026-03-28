@@ -1,0 +1,39 @@
+{
+  "generated_at": "2026-03-28T21:06:00Z",
+  "total_processed": 4,
+  "created": 0,
+  "repaired": 0,
+  "skipped": 1,
+  "deferred": 3,
+  "failed": 0,
+  "entries": [
+    {
+      "phase": "70",
+      "artifact": "TRUTH",
+      "action": "SKIP",
+      "status_after": "SKIPPED",
+      "evidence": ["non_core_legacy", "auto_repair_not_possible"]
+    },
+    {
+      "phase": "81",
+      "artifact": "VERIFICATION",
+      "action": "DEFER",
+      "status_after": "DEFERRED",
+      "evidence": ["self_artifact_belongs_to_81-03"]
+    },
+    {
+      "phase": "81",
+      "artifact": "TRUTH",
+      "action": "DEFER",
+      "status_after": "DEFERRED",
+      "evidence": ["self_artifact_belongs_to_81-03"]
+    },
+    {
+      "phase": "81",
+      "artifact": "VALIDATION",
+      "action": "DEFER",
+      "status_after": "DEFERRED",
+      "evidence": ["self_artifact_belongs_to_81-03"]
+    }
+  ]
+}

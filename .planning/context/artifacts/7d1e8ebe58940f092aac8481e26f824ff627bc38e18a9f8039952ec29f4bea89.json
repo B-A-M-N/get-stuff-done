@@ -1,0 +1,13 @@
+{
+  "id": "7d1e8ebe58940f092aac8481e26f824ff627bc38e18a9f8039952ec29f4bea89",
+  "source_uri": ".planning/phases/01-foundational-rebrand-fixes/01-03-SUMMARY.md",
+  "type": "internal",
+  "content_markdown": "---\nphase: \"01\"\nplan: \"03\"\nname: \"Add dostuff command entry point\"\n---\n\n# Phase 1 Plan 03 Summary\n\n## One-Line Summary\n\nAdded a narrative-first `dostuff` entry point that routes users to `new-project` or `quick`.\n\n## Work Completed\n\n- Created `commands/gsd/dostuff.md`.\n- Added `get-stuff-done/workflows/dostuff.md` as the lightweight router workflow.\n- Updated command inventory/docs and Copilot skill-count coverage.\n- Added targeted tests for command/workflow presence and routing intent.\n\n## Key Files\n\n- `commands/gsd/dostuff.md`\n- `get-stuff-done/workflows/dostuff.md`\n- `tests/dostuff.test.cjs`\n- `tests/copilot-install.test.cjs`\n\n## Verification\n\n- `node --test tests/dostuff.test.cjs`\n- `node --test --test-name-pattern \"copyCommandsAsCopilotSkills|Copilot agent conversion - real files|Copilot content conversion - engine files|Copilot instructions merge/strip|Copilot uninstall skill removal|Copilot manifest and patches fixes\" tests/copilot-install.test.cjs`\n\n## Notes\n\n- The new command is recorded as a soft entry point only; Phase 2 planning is still pending.\n",
+  "content_hash": "18f76237ab6ac765f6b8e9aa12da382f03674d2ea3e8cce533cd1e9777446d05",
+  "normalized_at": "2026-03-28T03:46:22.348Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  }
+}

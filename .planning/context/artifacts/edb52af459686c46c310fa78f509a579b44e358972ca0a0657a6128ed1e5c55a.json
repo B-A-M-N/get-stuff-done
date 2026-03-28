@@ -1,0 +1,13 @@
+{
+  "id": "edb52af459686c46c310fa78f509a579b44e358972ca0a0657a6128ed1e5c55a",
+  "source_uri": ".planning/phases/11-coverage-and-test-hardening/11-02-SUMMARY.md",
+  "type": "internal",
+  "content_markdown": "# SUMMARY: 11-02 - Tighten the coverage contract and document test-surface limits\n\n## Outcome\n\nAligned the coverage script, documentation, and test-surface claims with the actual stable baseline enforced in this repo.\n\n## What Changed\n\n- Updated [package.json](/home/bamn/get-stuff-done/package.json) so `npm run test:coverage` gates the scoped ITL runtime surface instead of the entire `bin/lib` tree.\n- Documented the stable coverage baseline in:\n  - [help.md](/home/bamn/get-stuff-done/get-stuff-done/workflows/help.md)\n  - [COMMANDS.md](/home/bamn/get-stuff-done/docs/COMMANDS.md)\n- Made the boundary explicit:\n  - dev dependencies, including `c8`, must be installed\n  - direct tests `tests/itl.test.cjs` and `tests/dostuff.test.cjs` form the stable coverage path\n  - subprocess-heavy suites remain valuable regressions but are not implied by the coverage gate\n\n## Verification\n\n- `npm install`\n- `npm run test:coverage`\n\n## Notes\n\nPhase 11 now leaves an honest coverage baseline for later phases instead of implying whole-repo or subprocess-heavy coverage guarantees that are not actually enforced.\n",
+  "content_hash": "3e616fdd63a3caf652d133af293b181297e4dab0c6da1ac41e3a701cbe5569fb",
+  "normalized_at": "2026-03-28T03:46:22.151Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  }
+}

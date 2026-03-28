@@ -1,0 +1,13 @@
+{
+  "id": "89610b5553a02303aa9b39ebb52dcda116fee9900980c1b0efc6fd4760c4ed05",
+  "source_uri": ".planning/phases/76-enforcement-boundary-audit/76-VERIFICATION.md",
+  "type": "internal",
+  "content_markdown": "# Phase 76 Verification\n\n## Observable Truths\n\n- Sanctioned interface policy loaded from `.planning/policy/sanctioned-interfaces.yaml`\n- Required validator policy loaded from `.planning/policy/required-validators.yaml`\n- Authoritative surfaces audited: 5\n- Runtime probes executed: 3\n\n## Coverage\n\n- .planning/STATE.md\n- .planning/ROADMAP.md\n- .planning/drift/latest-report.json\n- .planning/drift/latest-reconciliation.json\n- .planning/health/latest-degraded-state.json\n\n## Findings\n\n- No bypass findings detected.\n\n## Runtime Probes\n\n- context_plan_phase_guard: disproven\n- verify_integrity_guard: disproven\n- diagnostic_health_reader: proven\n\n## Final Status\n\n- Final Status: VALID\n- Critical bypasses: 0\n- Major bypasses: 0\n- Minor bypasses: 0\n- Machine artifact: `.planning/audit/enforcement-boundary.json`\n\n<!-- GSD-AUTHORITY: 76-01-1:11c767bb6f9fa02c005b7c17f80b836649c5f2b67eeafbfb3cced21d60656d68 -->\n",
+  "content_hash": "566b5f0d8227b07845041ffb9f22d0f934513d29cd048ffb6087a3e2bc8543ca",
+  "normalized_at": "2026-03-28T03:46:20.925Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  }
+}

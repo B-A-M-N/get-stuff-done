@@ -1,0 +1,13 @@
+{
+  "id": "2618bcf7eecbdcd2bc9720e3265e3f2bde2d3c400f6fa4974de75b0b615d150f",
+  "source_uri": ".planning/phases/09-failure-mode-testing/09-01-SUMMARY.md",
+  "type": "internal",
+  "content_markdown": "---\nphase: \"09\"\nplan: \"01\"\nstatus: \"Complete\"\ncompleted: \"2026-03-16\"\nrequirements:\n\n  - \"TR-05\"\n  - \"TR-08\"\n  - \"TR-09\"\n\n---\n\n# SUMMARY: 09-01 - Add adversarial ambiguity and lockability harness to ITL\n\n## Outcome\n\nThe ITL ambiguity layer now exposes a separate adversarial lockability result so inferred constraints can remain `guidance-only` unless they survive a deterministic adversarial pass.\n\n## Implemented\n\n- Updated `get-stuff-done/bin/lib/itl-ambiguity.cjs` to add `assessInvariantLockability()`.\n- Kept ambiguity and lockability as separate concerns:\n  - `assessAmbiguity()` still answers whether clarification is needed.\n  - `assessInvariantLockability()` now answers whether inferred constraints are safe to treat as lockable.\n- Updated `get-stuff-done/bin/lib/itl.cjs` so ITL results now include `lockability` alongside `ambiguity`.\n\n## Verification\n\n- `node --test tests/itl.test.cjs`\n- `rg -n \"assessInvariantLockability|guidance-only\" get-stuff-done/bin/lib/itl-ambiguity.cjs get-stuff-done/bin/lib/itl.cjs`\n\n## Notes\n\n- This phase creates the gate. It does not yet enforce that every workflow must consume it before promoting inferred invariants.\n",
+  "content_hash": "400afc825b85b349a89e9ee4b62a8d00f3114b81b037d00110edf505443b01ec",
+  "normalized_at": "2026-03-28T03:46:22.213Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  }
+}

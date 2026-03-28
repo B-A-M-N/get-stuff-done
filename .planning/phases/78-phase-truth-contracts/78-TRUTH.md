@@ -1,12 +1,12 @@
 # Phase 78: Phase Truth Contracts — Truth
 
-**Generated:** 2026-03-28T00:43:26.350Z
+**Generated:** 2026-03-28T21:33:44.088Z
 **Final Status:** CONDITIONAL
 
 ## Status Reasons
 - Current degraded truth posture is UNSAFE.
-- context:plan-phase blocked by planning_server: planning_server_unavailable
-- context:execute-plan blocked by planning_server: planning_server_unavailable
+- context:plan-phase blocked by model_facing_memory: canonical_postgres_memory_unavailable
+- context:execute-plan blocked by model_facing_memory: canonical_postgres_memory_unavailable
 - verify:integrity blocked by drift_truth: drift_truth_stale
 - verify:workflow-readiness blocked by drift_truth: drift_truth_stale
 
@@ -33,8 +33,8 @@
 
 ## Gaps
 - degraded_state_caveat: Current degraded truth posture is UNSAFE.
-- workflow_block: context:plan-phase blocked by planning_server: planning_server_unavailable
-- workflow_block: context:execute-plan blocked by planning_server: planning_server_unavailable
+- workflow_block: context:plan-phase blocked by model_facing_memory: canonical_postgres_memory_unavailable
+- workflow_block: context:execute-plan blocked by model_facing_memory: canonical_postgres_memory_unavailable
 - workflow_block: verify:integrity blocked by drift_truth: drift_truth_stale
 - workflow_block: verify:workflow-readiness blocked by drift_truth: drift_truth_stale
 

@@ -1,0 +1,13 @@
+{
+  "id": "fcc3469b55c1d081053a87e1d25ec0e7bab3c376d810cc0c1678ccca296fdbfa",
+  "source_uri": ".planning/audit/firecrawl/PROJECT.md",
+  "type": "internal",
+  "content_markdown": "# Project: Firecrawl Context Control Brownfield Audit\n\n## Vision\n\nAudit and harden an existing system in which Firecrawl is used as the deterministic context control layer for both internal and external context retrieval, normalization, and orchestration.\n\nThe audit must verify that:\n\n- context access is deterministic\n- retrieval paths are standardized\n- no alternate or bypass paths exist\n- agent behavior cannot circumvent context controls\n- internal and external context are schema-aligned\n- brownfield implementation matches claimed architecture\n- verification is mechanical, not narrative\n\n## Core Thesis\n\nFirecrawl is not being used merely as a scraper. It is the context normalization and orchestration boundary through which all sanctioned context must flow.\n\n## Audit Standard\n\nThe system is presumed unsafe until proven otherwise.\n\nAny behavior that is:\n\n- unenforced\n- implicit\n- non-reproducible\n- bypassable\n- inconsistent across runs\n\nmust be treated as a defect.\n\n## Success Definition\n\nThe system is only considered audit-passing if:\n\n1. all approved context flows are mapped\n2. all context flows are reproducible\n3. Firecrawl is a true control boundary\n4. agent execution cannot silently bypass normalization\n5. internal/external retrieval behavior is contract-consistent\n6. failures degrade loudly and safely\n7. all guarantees are encoded as invariants and verification checks\n",
+  "content_hash": "5285855cdba5f5127e5b8328e087a99269d9dadbefc0dd1f3f09d394b08123fe",
+  "normalized_at": "2026-03-28T03:46:22.461Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  }
+}

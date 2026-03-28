@@ -1,0 +1,13 @@
+{
+  "id": "50f5670a6dbd54c52a20f3cb0e0fdede4769e41917dfe134a24f0a224bbe1274",
+  "source_uri": ".planning/phases/05-narrative-first-phase-discussion/05-01-SUMMARY.md",
+  "type": "internal",
+  "content_markdown": "---\nphase: \"05\"\nplan: \"01\"\nstatus: \"Complete\"\ncompleted: \"2026-03-16\"\nrequirements:\n\n  - \"FR-02\"\n  - \"FR-03\"\n\n---\n\n# SUMMARY: 05-01 - Add ITL-backed narrative intake to source discuss-phase workflow\n\n## Outcome\n\nThe canonical `discuss-phase` command/workflow now describes a narrative-first phase discussion flow that captures a freeform phase narrative, runs ITL interpretation, and feeds that result into `analyze_phase` without replacing the existing scope and gray-area analysis.\n\n## Implemented\n\n- Updated `commands/gsd/discuss-phase.md` to describe freeform phase narrative intake, ITL interpretation, and the installed `/dostuff:discuss-phase` surface.\n- Updated `get-stuff-done/workflows/discuss-phase.md` so the workflow now:\n  - captures a phase narrative after prior-context loading and codebase scouting,\n  - runs `gsd-tools.cjs itl discuss-seed`,\n  - shows an interpretation preview before gray-area selection,\n  - performs one bounded clarification round when ambiguity is high,\n  - explicitly preserves `analyze_phase` as the source of truth for ambiguity reduction, scope filtering, and gray-area generation.\n- Added `buildDiscussPhaseSeed()` and `cmdItlDiscussSeed()` in `get-stuff-done/bin/lib/itl.cjs`.\n- Added the `itl discuss-seed` CLI surface in `get-stuff-done/bin/gsd-tools.cjs`.\n- Extended `renderInterpretationSummary()` in `get-stuff-done/bin/lib/itl-summary.cjs` so discuss-phase can render a route-specific preview.\n\n## Verification\n\n- `node --test tests/itl.test.cjs`\n- `node get-stuff-done/bin/gsd-tools.cjs itl discuss-seed --text \"I want phase discussion to start from a short narrative, preserve CONTEXT.md, and keep new capabilities out of scope.\" --raw`\n\n## Notes\n\n- Narrative intake is an upstream input into `analyze_phase`, not a replacement for it.\n",
+  "content_hash": "b2fc806086b2c122525ddd12ac1d15de53e01f3ef780847de476c00fbe5ec9a9",
+  "normalized_at": "2026-03-28T03:46:22.286Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  }
+}

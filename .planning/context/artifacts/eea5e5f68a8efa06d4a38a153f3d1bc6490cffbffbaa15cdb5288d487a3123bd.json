@@ -1,0 +1,13 @@
+{
+  "id": "eea5e5f68a8efa06d4a38a153f3d1bc6490cffbffbaa15cdb5288d487a3123bd",
+  "source_uri": ".planning/research/STACK.md",
+  "type": "internal",
+  "content_markdown": "# Technology Stack: Intent Translation Layer\n\n**Project:** GSD\n**Researched:** 2024-05-24\n\n## Recommended Stack\n\n### Core Logic\n\n| Technology | Version | Purpose | Why |\n|------------|---------|---------|-----|\n| TypeScript | 5.x | Language | Strong typing for canonical intent schemas. |\n| Node.js | 18+ | Runtime | Native support for GSD CLI environment. |\n| Zod | 3.x | Validation | Runtime type safety for intent extraction and provider responses. |\n\n### Abstraction & Integration\n\n| Technology | Version | Purpose | Why |\n|------------|---------|---------|-----|\n| LiteLLM (Optional) | Latest | Provider Abstraction | Can be used as a proxy or library if GSD moves away from pure native scripts. |\n| Custom Middleware | N/A | Intent Mapping | GSD prefers minimal dependencies; a lightweight internal mapping layer is recommended. |\n\n### Infrastructure & Observability\n\n| Technology | Version | Purpose | Why |\n|------------|---------|---------|-----|\n| SQLite | 3.x | Audit Trail | Local, file-based persistence for inference tracking without external DB. |\n| JSON-RPC 2.0 | N/A | Plugin Protocol | Standardized communication between core GSD and modular provider plugins. |\n\n## Alternatives Considered\n\n| Category | Recommended | Alternative | Why Not |\n|----------|-------------|-------------|---------|\n| Abstraction | Custom ITL | LangChain | Too heavy; complex dependency tree; overkill for GSD's CLI-focused nature. |\n| Persistence | SQLite | Flat JSON Files | SQLite offers better queryability for audit trails and inference metrics at scale. |\n| Validation | Zod | Joi / AJV | Zod has better TypeScript integration and DX for defining schemas. |\n\n## Installation\n\n```bash\n\n# Core dependencies for the ITL\n\nnpm install zod sqlite3\n\n# Dev dependencies\n\nnpm install -D @types/sqlite3\n```\n\n## Sources\n\n- [GSD ARCHITECTURE.md](https://github.com/get-stuff-done/gsd/blob/main/docs/ARCHITECTURE.md)\n- [LiteLLM Documentation](https://docs.litellm.ai/)\n- [Zod Documentation](https://zod.dev/)\n",
+  "content_hash": "ab631b0eb4415bcd0f3fdf8221741f7d727ae9364fb967f21e6522bbe17983bf",
+  "normalized_at": "2026-03-28T03:46:20.809Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  }
+}

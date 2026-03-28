@@ -1,0 +1,13 @@
+{
+  "id": "f2502b73f08c4fe367aee29b6f980dfc276abcd8b7e7ff338bce3a0bc8875dca",
+  "source_uri": ".planning/phases/26-research-implement-ast-aware-normalization-tree-sitter/26-01-SUMMARY.md",
+  "type": "internal",
+  "content_markdown": "---\nphase: 26-research-implement-ast-aware-normalization-tree-sitter\nplan: 01\nsubsystem: ast-normalization\ntags: [ast, tree-sitter, schema, normalization]\nrequires:\n\n  - AST-SCHEMA-01\n  - AST-PARSER-01\n\nprovides: [AST-AWARE-SCHEMA, AST-PARSING-UTILITY]\naffects: [normalization-pipeline]\ntech-stack:\n  added: [web-tree-sitter]\n  patterns: [ast-querying, regex-fallback]\nkey-files:\n  created: [get-stuff-done/bin/lib/ast-parser.cjs]\n  modified: [get-stuff-done/bin/lib/artifact-schema.cjs]\nkey-decisions:\n\n  - \"Use web-tree-sitter for AST analysis with a robust regex fallback for synchronous contexts and restricted environments.\"\n  - \"Include symbol names, kinds, and line numbers in the canonical context artifact schema to support precise context retrieval.\"\n\nduration: 20m\ncompleted: 2026-03-22\n---\n\n# Phase 26 Plan 01: Extended Schema and AST Parser Summary\n\n## One-liner\n\nExtended the canonical context artifact schema with analysis fields and implemented an AST-aware parser for JS/TS using Tree-Sitter and Regex.\n\n## Accomplishments\n\n- **Schema Evolution:** Updated `artifact-schema.cjs` to include `analysis` and `title` fields in `contextArtifactSchema`. This enables storing extracted symbols and dependencies within normalized context artifacts.\n- **AST Parser Utility:** Created `ast-parser.cjs` which provides a `parseCode` function.\n  - Integrates with `web-tree-sitter` for deep AST analysis (async path).\n  - Implements a robust Regex fallback for synchronous parsing of function declarations, arrow functions, class declarations, imports, and requirements.\n  - Successfully verified symbol extraction with automated tests.\n- **Environment Readiness:** Verified presence of required WASM files for JavaScript, TypeScript, and TSX in the `bin/wasm/` directory.\n\n## Deviations from Plan\n\nNone - plan executed exactly as written. (Tasks 0 and 1 were pre-completed in the environment).\n\n## Self-Check: PASSED\n\n- [x] `get-stuff-done/bin/lib/ast-parser.cjs` exists and functions correctly.\n- [x] `get-stuff-done/bin/lib/artifact-schema.cjs` contains the `analysis` field.\n- [x] All commits made and verified.\n",
+  "content_hash": "930bdd17b620e1226a966bcccfbf3b35260db6b0ef2d36be79e0753f5655a0be",
+  "normalized_at": "2026-03-28T03:46:21.767Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  }
+}

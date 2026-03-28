@@ -1,0 +1,13 @@
+{
+  "id": "fb3caa9c239517ab701aa60f5dae58d977bdc61f0a150e0fd62cbdf27903dfb8",
+  "source_uri": ".planning/audit/firecrawl/STATE.md",
+  "type": "internal",
+  "content_markdown": "# State\n\n## Current Goal\n\nAudit the brownfield implementation that uses Firecrawl as the unified context control layer.\n\n## Audit Posture\n\nHostile verification. Assume claims are false until mechanically proven.\n\n## Non-Negotiable Standards\n\n- No silent fallbacks\n- No unenforced boundaries\n- No unverifiable claims\n- No alternate hidden context paths\n- No schema ambiguity between internal and external context\n\n## Decision Rules\n\n- If a path can bypass normalization, it is a defect\n- If a boundary depends on model obedience, it is not a boundary\n- If repeated runs diverge materially, determinism is not achieved\n- If failure is quiet, production safety is not achieved\n",
+  "content_hash": "af44ade860ee34b0ed04bcaa5a35a510bd97ff7a62f1105c52a036cd28a1a859",
+  "normalized_at": "2026-03-28T03:46:22.445Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  }
+}

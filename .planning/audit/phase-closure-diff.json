@@ -1,0 +1,22 @@
+{
+  "worklist": [
+    {
+      "phase": "70",
+      "type": "TRUTH",
+      "path": ".planning/phases/70-drift-surface-mapping/70-TRUTH.yaml",
+      "exists": true,
+      "technical_classification": "INVALID",
+      "admissibility": "REPAIR_REQUIRED",
+      "justification": [],
+      "proposed_action": "REPAIR"
+    }
+  ],
+  "counts": {
+    "VALID_ACCEPTED": 31,
+    "CONDITIONAL_ACCEPTED": 7,
+    "REPAIR_REQUIRED": 1,
+    "MISSING": 0
+  },
+  "go": true,
+  "blocking_issues": []
+}

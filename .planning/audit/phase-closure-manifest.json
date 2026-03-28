@@ -1,0 +1,45 @@
+{
+  "generated_at": "2026-03-28T21:06:00Z",
+  "entries": [
+    {
+      "phase": "70",
+      "artifact": "TRUTH",
+      "path": ".planning/phases/70-drift-surface-mapping/70-TRUTH.yaml",
+      "status_before": "INVALID",
+      "action": "SKIP",
+      "status_after": "SKIPPED",
+      "timestamp": "2026-03-28T21:06:00Z",
+      "evidence": ["non_core_legacy", "auto_repair_not_possible"]
+    },
+    {
+      "phase": "81",
+      "artifact": "VERIFICATION",
+      "path": ".planning/phases/81-audit-traceability-nyquist-closure/81-VERIFICATION.md",
+      "status_before": "MISSING",
+      "action": "DEFER",
+      "status_after": "DEFERRED",
+      "timestamp": "2026-03-28T21:06:00Z",
+      "evidence": ["self_artifact_belongs_to_81-03"]
+    },
+    {
+      "phase": "81",
+      "artifact": "TRUTH",
+      "path": ".planning/phases/81-audit-traceability-nyquist-closure/81-TRUTH.yaml",
+      "status_before": "MISSING",
+      "action": "DEFER",
+      "status_after": "DEFERRED",
+      "timestamp": "2026-03-28T21:06:00Z",
+      "evidence": ["self_artifact_belongs_to_81-03"]
+    },
+    {
+      "phase": "81",
+      "artifact": "VALIDATION",
+      "path": ".planning/phases/81-audit-traceability-nyquist-closure/81-VALIDATION.md",
+      "status_before": "MISSING",
+      "action": "DEFER",
+      "status_after": "DEFERRED",
+      "timestamp": "2026-03-28T21:06:00Z",
+      "evidence": ["self_artifact_belongs_to_81-03"]
+    }
+  ]
+}

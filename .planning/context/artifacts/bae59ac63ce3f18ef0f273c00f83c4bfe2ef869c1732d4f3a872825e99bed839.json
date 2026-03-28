@@ -1,0 +1,13 @@
+{
+  "id": "bae59ac63ce3f18ef0f273c00f83c4bfe2ef869c1732d4f3a872825e99bed839",
+  "source_uri": ".planning/phases/10-regression-audit/10-01-SUMMARY.md",
+  "type": "internal",
+  "content_markdown": "---\nphase: \"10\"\nplan: \"01\"\nstatus: \"Complete\"\ncompleted: \"2026-03-16\"\nrequirements:\n\n  - \"CP-01\"\n  - \"TR-04\"\n  - \"TR-09\"\n\n---\n\n# SUMMARY: 10-01 - Audit workflow and code contracts for invariant-safety regressions\n\n## Outcome\n\nThe current workflow/docs/runtime contract was audited for invariant-safety drift. No runtime path was found that silently promotes inferred constraints into locked invariants without the adversarial gate, and documentation was tightened where enforcement scope had been easy to overread.\n\n## Implemented\n\n- Audited the current workflow/docs/runtime surface against the Phase 9 gate.\n- Confirmed the ITL/runtime layer exposes `guidance-only` vs `lockable` explicitly.\n- Tightened docs in `get-stuff-done/workflows/help.md` and `docs/COMMANDS.md` so they no longer imply full workflow enforcement where only the ITL gate currently exists.\n- Added focused regression assertions in `tests/dostuff.test.cjs` to keep enforcement-scope wording honest.\n\n## Verification\n\n- `node --test tests/dostuff.test.cjs tests/itl.test.cjs`\n- `rg -n \"full workflow-by-workflow consumption is still being audited|full downstream workflow enforcement is not claimed|guidance-only\" get-stuff-done/workflows/help.md docs/COMMANDS.md get-stuff-done/bin/lib/itl-ambiguity.cjs`\n\n## Notes\n\n- Main audit finding: the gate exists in code, but full workflow-by-workflow consumption is still partial and must not be overstated.\n",
+  "content_hash": "d97ff8729f44ac677501782ace3b4fd8abf92e6015986503be47f7104d5b1598",
+  "normalized_at": "2026-03-28T03:46:22.186Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  }
+}
