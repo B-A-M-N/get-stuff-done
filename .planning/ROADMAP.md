@@ -497,11 +497,23 @@ Plans:
 - [ ] 80-01-PLAN.md — backfill verification artifacts for phases 72, 73, and 74 with evidence-first requirement coverage and final statuses
 - [ ] 80-02-PLAN.md — backfill verification artifacts for phases 75 and 77 and restore late-phase requirement closure
 
+### Phase 80.1: Memory Truth Reproval Closure
+
+**Goal:** Re-prove model-facing memory fail-closed behavior and reconcile freshness from one consistent live truth posture so the remaining conditional closure from Phase 80 can become authoritative requirement satisfaction instead of partial evidence.
+**Requirements**: TRUTH-MEMORY-01, TRUTH-DRIFT-02
+**Depends on:** Phase 80
+**Status**: [Planned]
+**Gap Closure:** Closes the residual conditional proof gap surfaced by Phase 80 for memory fail-closed behavior and fresh live reconcile reproval.
+
+Plans:
+- [ ] 80.1-01-PLAN.md — reproduce degraded memory and live brain status truth from one controlled posture and backfill authoritative closure evidence
+- [ ] 80.1-02-PLAN.md — refresh reconciliation truth inputs, re-run live reconcile proof, and finalize late-phase requirement closure before audit bookkeeping
+
 ### Phase 81: Audit Traceability & Nyquist Closure
 
 **Goal:** Repair milestone bookkeeping drift after Phase 79, backfill missing validation surfaces for phases 73 through 79, and restore milestone auditability before archival.
 **Requirements**: TRUTH-CLAIM-01, TRUTH-OPS-01
-**Depends on:** Phase 80
+**Depends on:** Phase 80.1
 **Status**: [Planned]
 **Gap Closure:** Closes roadmap and requirements traceability drift plus missing Nyquist coverage from the `v0.7.0` milestone audit.
 

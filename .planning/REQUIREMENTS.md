@@ -22,12 +22,12 @@ TRUTH-GAUNTLET-01: The system MUST pass an adversarial end-to-end integrity gaun
 |-------------|-------------|--------|
 | TRUTH-CLAIM-01 | Phase 81 | Pending |
 | TRUTH-EXEC-01 | Phase 71 | Complete |
-| TRUTH-VERIFY-01 | Phase 80 | Pending |
-| TRUTH-VERIFY-02 | Phase 80 | Pending |
+| TRUTH-VERIFY-01 | Phase 80 | Complete |
+| TRUTH-VERIFY-02 | Phase 80 | Complete |
 | TRUTH-DRIFT-01 | Phase 70 | Complete |
-| TRUTH-DRIFT-02 | Phase 80 | Pending |
-| TRUTH-DEGRADE-01 | Phase 80 | Pending |
-| TRUTH-MEMORY-01 | Phase 80 | Pending |
+| TRUTH-DRIFT-02 | Phase 80.1 | Pending |
+| TRUTH-DEGRADE-01 | Phase 80 | Complete |
+| TRUTH-MEMORY-01 | Phase 80.1 | Pending |
 | TRUTH-BYPASS-01 | Phase 76 | Complete |
 | TRUTH-OPS-01 | Phase 81 | Pending |
 | TRUTH-PHASE-01 | Phase 78 | Complete |
