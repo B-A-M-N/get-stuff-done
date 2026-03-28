@@ -115,6 +115,25 @@ function inferModelFacingMemoryState(backend = {}) {
   };
 }
 
+async function resolveCanonicalBackendState(providedBackend) {
+  const backend = providedBackend || secondBrain.getBackendState();
+  if (backend.active_backend !== 'postgres' || backend.degraded) {
+    return backend;
+  }
+
+  try {
+    const client = await secondBrain.pool.connect();
+    client.release();
+  } catch (err) {
+    secondBrain.transitionToDegraded(secondBrain.classifyPostgresFailure(err), {
+      message: err.message,
+      source: 'degraded_mode_probe',
+    });
+  }
+
+  return secondBrain.getBackendState();
+}
+
 function inferFreshnessState(sourceState, subject) {
   if (sourceState.status === 'fresh' || sourceState.status === 'ok') {
     return {
@@ -274,7 +293,7 @@ async function buildDegradedState(cwd, options = {}) {
     warnings.push(`Gate pending: ${key} — human acknowledgment required before continuing`);
   }
 
-  const backend = options.backendState || secondBrain.getBackendState();
+  const backend = await resolveCanonicalBackendState(options.backendState);
   const liveHealth = options.liveHealth || {};
   const driftState = options.driftState || driftEngine.getLatestReportState(cwd, options);
   const reconciliationState = options.reconciliationState || readReconciliationState(cwd, options);
@@ -373,5 +392,6 @@ module.exports = {
   normalizePolicyState,
   readLatestDegradedState,
   readReconciliationState,
+  resolveCanonicalBackendState,
   writeLatestDegradedState,
 };

@@ -161,6 +161,38 @@ describe('second-brain status and health surfaces', () => {
     assert.strictEqual(output.postgres.status, 'blocked');
     assert.match(output.postgres.detail, /Postgres is required/);
   });
+
+  test('context build workflows block on model-facing memory under canonical postgres outage posture', () => {
+    const planResult = spawnSync(
+      process.execPath,
+      ['get-stuff-done/bin/gsd-tools.cjs', 'context', 'build', '--workflow', 'plan-phase', '--raw'],
+      {
+        cwd: ROOT,
+        encoding: 'utf-8',
+        env: buildCanonicalDegradedMemoryEnv(),
+      }
+    );
+    const executeResult = spawnSync(
+      process.execPath,
+      ['get-stuff-done/bin/gsd-tools.cjs', 'context', 'build', '--workflow', 'execute-plan', '--raw'],
+      {
+        cwd: ROOT,
+        encoding: 'utf-8',
+        env: buildCanonicalDegradedMemoryEnv(),
+      }
+    );
+
+    assert.notStrictEqual(planResult.status, 0);
+    assert.notStrictEqual(executeResult.status, 0);
+
+    const planOutput = parseTrailingJson(planResult.stdout);
+    const executeOutput = parseTrailingJson(executeResult.stdout);
+
+    assert.strictEqual(planOutput.subsystem, 'model_facing_memory');
+    assert.strictEqual(planOutput.reason, 'canonical_postgres_memory_unavailable');
+    assert.strictEqual(executeOutput.subsystem, 'model_facing_memory');
+    assert.strictEqual(executeOutput.reason, 'canonical_postgres_memory_unavailable');
+  });
 });
 
 // GSD-AUTHORITY: 80.1-01-1:ca10049346b80a3e8928bb0a5230d3b579f7f86fd4ed61483c4ccce8866ed787
