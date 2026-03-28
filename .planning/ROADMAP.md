@@ -6,7 +6,7 @@
 - [x] **v0.3.0 Trusted Context & Local Memory** - Phases 23-32 (Completed 2026-03-23)
 - [x] **v0.5.0 Model-Facing Memory & Service Resilience** - Phases 53-54 (Completed 2026-03-27)
 - [x] **v0.6.0 Open Brain Foundations** - Phase 55 (Completed 2026-03-27)
-- [ ] **v0.7.0 Truth Enforcement & Drift Elimination** - Phases 70-78
+- [x] **v0.7.0 Truth Enforcement & Drift Elimination** - Phases 70-78 (Completed 2026-03-28)
 
 ## Archived Milestones
 
@@ -394,18 +394,18 @@ Plans:
 **Goal:** Require every completed task and plan artifact to map cleanly to commits, changed files, and execution evidence.
 **Requirements**: TRUTH-EXEC-01, TRUTH-CLAIM-01
 **Depends on:** Phase 70
-**Status**: [Planned]
+**Status**: [Complete]
 
 Plans:
-- [ ] 71-01-PLAN.md — task-to-commit proof schema and summary linkage contract
-- [ ] 71-02-PLAN.md — commit-presence validator and artifact proof formatting
+- [x] 71-01-PLAN.md — task-to-commit proof schema and summary linkage contract
+- [x] 71-02-PLAN.md — commit-presence validator and artifact proof formatting
 
 ### Phase 72: Verification Hardening
 
 **Goal:** Replace narrative verification with a strict evidence-first verification contract and validator.
 **Requirements**: TRUTH-VERIFY-01, TRUTH-VERIFY-02
 **Depends on:** Phase 71
-**Status**: [Planned]
+**Status**: [Complete]
 
 Plans:
 - [x] 72-01-PLAN.md — strict VERIFICATION template and requirement coverage contract
@@ -416,64 +416,64 @@ Plans:
 **Goal:** Detect spec, implementation, verification, and execution drift automatically and surface it through a dedicated CLI path.
 **Requirements**: TRUTH-DRIFT-01, TRUTH-DRIFT-02, TRUTH-OPS-01
 **Depends on:** Phase 72
-**Status**: [Planned]
+**Status**: [Complete]
 
 Plans:
-- [ ] 73-01-PLAN.md — drift scanner core and inconsistency detection rules
-- [ ] 73-02-PLAN.md — operator CLI surface for drift status and machine-readable reports
+- [x] 73-01-PLAN.md — drift scanner core and inconsistency detection rules
+- [x] 73-02-PLAN.md — operator CLI surface for drift status and machine-readable reports
 
 ### Phase 74: State Reconciliation Layer
 
 **Goal:** Reconcile detected inconsistencies deterministically by downgrading truth status, marking conditional validity, and requiring re-verification where needed.
 **Requirements**: TRUTH-DRIFT-02, TRUTH-CLAIM-01
 **Depends on:** Phase 73
-**Status**: [Planned]
+**Status**: [Complete]
 
 Plans:
-- [ ] 74-01-PLAN.md — reconciliation rules for validity downgrade and re-verification triggers
+- [x] 74-01-PLAN.md — reconciliation rules for validity downgrade and re-verification triggers
 
 ### Phase 75: Degraded Mode Enforcement
 
 **Goal:** Make degraded systems explicit, behaviorally meaningful, and non-silent across truth-bearing workflows.
 **Requirements**: TRUTH-DEGRADE-01, TRUTH-MEMORY-01, TRUTH-OPS-01
 **Depends on:** Phase 74
-**Status**: [Planned]
+**Status**: [Complete]
 
 Plans:
-- [ ] 75-01-PLAN.md — explicit degraded-state model and operator health truth surfaces
-- [ ] 75-02-PLAN.md — fail-closed behavior for unsafe or partially trusted memory paths
+- [x] 75-01-PLAN.md — explicit degraded-state model and operator health truth surfaces
+- [x] 75-02-PLAN.md — fail-closed behavior for unsafe or partially trusted memory paths
 
 ### Phase 76: Enforcement Boundary Audit
 
 **Goal:** Prove that critical truth-bearing flows cannot bypass required validators, artifact writers, and sanctioned execution interfaces.
 **Requirements**: TRUTH-BYPASS-01, TRUTH-CLAIM-01
 **Depends on:** Phase 75
-**Status**: [Planned]
+**Status**: [Complete]
 
 Plans:
-- [ ] 76-01-PLAN.md — CLI, file-write, and validator boundary audit with bypass classification
+- [x] 76-01-PLAN.md — CLI, file-write, and validator boundary audit with bypass classification
 
 ### Phase 77: Execution Surface Governance
 
 **Goal:** Narrow enforcement to authoritative truth boundaries so execution stays fast, recovery stays available, and only truth-bearing state transitions block under unsafe posture.
 **Requirements**: TRUTH-DEGRADE-01, TRUTH-BYPASS-01, TRUTH-OPS-01, TRUTH-CLAIM-01
 **Depends on:** Phase 76
-**Status**: [Planned]
+**Status**: [Complete]
 
 Plans:
-- [ ] 77-01-PLAN.md — canonical command governance map and classification contract
-- [ ] 77-02-PLAN.md — CLI governance wiring with warn-only, hard-gated, and recovery behavior
+- [x] 77-01-PLAN.md — canonical command governance map and classification contract
+- [x] 77-02-PLAN.md — CLI governance wiring with warn-only, hard-gated, and recovery behavior
 
 ### Phase 78: Phase Truth Contracts
 
 **Goal:** Standardize phase-level truth artifacts so every phase reports claimed outcomes, observable evidence, gaps, and final validity status.
 **Requirements**: TRUTH-PHASE-01, TRUTH-VERIFY-01
 **Depends on:** Phase 77
-**Status**: [Planned]
+**Status**: [Complete]
 
 Plans:
-- [ ] 78-01-PLAN.md — phase truth artifact contract and generation/update workflow
-- [ ] 78-02-PLAN.md — limited backfill of phase truth artifacts for phases 70-77
+- [x] 78-01-PLAN.md — phase truth artifact contract and generation/update workflow
+- [x] 78-02-PLAN.md — limited backfill of phase truth artifacts for phases 70-77
 
 ### Phase 79: End-to-End Integrity Gauntlet
 

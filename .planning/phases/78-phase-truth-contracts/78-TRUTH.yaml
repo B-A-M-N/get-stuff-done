@@ -1,6 +1,6 @@
 phase: "78"
 title: "Phase Truth Contracts"
-generated_at: "2026-03-28T00:43:07.162Z"
+generated_at: "2026-03-28T00:43:26.350Z"
 strict: true
 inputs:
   verification: ".planning/phases/78-phase-truth-contracts/78-VERIFICATION.md"
