@@ -20,18 +20,18 @@ TRUTH-GAUNTLET-01: The system MUST pass an adversarial end-to-end integrity gaun
 
 | Requirement | Final Phase | Status |
 |-------------|-------------|--------|
-| TRUTH-CLAIM-01 | Phase 70 | Complete |
+| TRUTH-CLAIM-01 | Phase 81 | Pending |
 | TRUTH-EXEC-01 | Phase 71 | Complete |
-| TRUTH-VERIFY-01 | Phase 72 | Complete |
-| TRUTH-VERIFY-02 | Phase 72 | Complete |
+| TRUTH-VERIFY-01 | Phase 80 | Pending |
+| TRUTH-VERIFY-02 | Phase 80 | Pending |
 | TRUTH-DRIFT-01 | Phase 70 | Complete |
-| TRUTH-DRIFT-02 | Phase 73 | Complete |
-| TRUTH-DEGRADE-01 | Phase 75 | Complete |
-| TRUTH-MEMORY-01 | Phase 75 | Complete |
+| TRUTH-DRIFT-02 | Phase 80 | Pending |
+| TRUTH-DEGRADE-01 | Phase 80 | Pending |
+| TRUTH-MEMORY-01 | Phase 80 | Pending |
 | TRUTH-BYPASS-01 | Phase 76 | Complete |
-| TRUTH-OPS-01 | Phase 73 | Complete |
+| TRUTH-OPS-01 | Phase 81 | Pending |
 | TRUTH-PHASE-01 | Phase 78 | Complete |
-| TRUTH-GAUNTLET-01 | Phase 79 | Planned |
+| TRUTH-GAUNTLET-01 | Phase 79 | Complete |
 
 # needs-clarification
 # None.

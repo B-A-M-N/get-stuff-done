@@ -480,10 +480,34 @@ Plans:
 **Goal:** Validate the entire truth-enforcement stack under adversarial failure conditions before milestone closeout.
 **Requirements**: TRUTH-GAUNTLET-01, TRUTH-DRIFT-02, TRUTH-DEGRADE-01, TRUTH-BYPASS-01
 **Depends on:** Phase 78
-**Status**: [Planned]
+**Status**: [Complete]
 
 Plans:
-- [ ] 79-01-PLAN.md — adversarial gauntlet suite for fake verification, missing commits, partial execution, degraded subsystems, and drift exposure
+- [x] 79-01-PLAN.md — adversarial gauntlet suite for fake verification, missing commits, partial execution, degraded subsystems, and drift exposure
+
+### Phase 80: Retroactive Verification Closure
+
+**Goal:** Backfill evidence-first `VERIFICATION.md` artifacts for the late truth-hardening phases so milestone requirements can close against authoritative verification rather than summary-only claims.
+**Requirements**: TRUTH-VERIFY-01, TRUTH-VERIFY-02, TRUTH-DRIFT-02, TRUTH-DEGRADE-01, TRUTH-MEMORY-01
+**Depends on:** Phase 79
+**Status**: [Planned]
+**Gap Closure:** Closes missing `VERIFICATION.md` blockers from the `v0.7.0` milestone audit.
+
+Plans:
+- [ ] 80-01-PLAN.md — backfill verification artifacts for phases 72, 73, and 74 with evidence-first requirement coverage and final statuses
+- [ ] 80-02-PLAN.md — backfill verification artifacts for phases 75 and 77 and restore late-phase requirement closure
+
+### Phase 81: Audit Traceability & Nyquist Closure
+
+**Goal:** Repair milestone bookkeeping drift after Phase 79, backfill missing validation surfaces for phases 73 through 79, and restore milestone auditability before archival.
+**Requirements**: TRUTH-CLAIM-01, TRUTH-OPS-01
+**Depends on:** Phase 80
+**Status**: [Planned]
+**Gap Closure:** Closes roadmap and requirements traceability drift plus missing Nyquist coverage from the `v0.7.0` milestone audit.
+
+Plans:
+- [ ] 81-01-PLAN.md — sync roadmap and requirements truth for executed Phase 79 and restore truthful operator-facing milestone state
+- [ ] 81-02-PLAN.md — add retroactive validation artifacts for phases 73 through 79 and prepare milestone re-audit
 
 ---
 
