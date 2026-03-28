@@ -123,6 +123,7 @@
  *   summary-extract <path> [--fields]  Extract structured data from SUMMARY.md
  *   state-snapshot                     Structured parse of STATE.md
  *   phase-plan-index <phase>           Index plans with waves and status
+ *   phase-truth generate <phase>       Generate N-TRUTH.yaml and N-TRUTH.md for a phase
  *
  * Phase Operations:
  *   phase next-decimal <phase>         Calculate next decimal phase number
@@ -267,6 +268,7 @@ const driftEngine = require('./lib/drift-engine.cjs');
 const driftReconcile = require('./lib/drift-reconcile.cjs');
 const degradedMode = require('./lib/degraded-mode.cjs');
 const commandGovernance = require('./lib/command-governance.cjs');
+const phaseTruth = require('./lib/phase-truth.cjs');
 
 async function enforceWorkflowOrBlock(cwd, workflow, options = {}) {
   const snapshot = await degradedMode.buildDegradedState(cwd, options);
@@ -356,7 +358,7 @@ async function main() {
   const command = args[0];
 
   if (!command) {
-    error('Usage: gsd-tools <command> [args] [--raw] [--cwd <path>]\nCommands: state, resolve-model, find-phase, commit, verify-summary, verify, frontmatter, template, generate-slug, current-timestamp, list-todos, verify-path-exists, policy, config-ensure-section, init, itl');
+    error('Usage: gsd-tools <command> [args] [--raw] [--cwd <path>]\nCommands: state, resolve-model, find-phase, commit, verify-summary, verify, frontmatter, template, generate-slug, current-timestamp, list-todos, verify-path-exists, policy, config-ensure-section, init, itl, phase-truth');
   }
 
   await enforceRouteGovernanceOrBlock(cwd, args, raw);
@@ -1377,6 +1379,19 @@ async function main() {
         phase.cmdPhaseComplete(cwd, args[2], phaseOptions, raw);
       } else {
         error('Unknown phase subcommand. Available: next-decimal, add, insert, remove, complete');
+      }
+      break;
+    }
+
+    case 'phase-truth': {
+      const subcommand = args[1];
+      if (subcommand === 'generate') {
+        const phaseArg = args[2];
+        if (!phaseArg) error('phase required for phase-truth generate');
+        const result = phaseTruth.writePhaseTruth(cwd, phaseArg);
+        output(result, raw, result.machine_artifact);
+      } else {
+        error('Unknown phase-truth subcommand. Available: generate');
       }
       break;
     }

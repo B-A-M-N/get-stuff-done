@@ -198,15 +198,14 @@ function normalizeProofEntry(entry = {}) {
   };
 }
 
-function cmdVerifyVerificationArtifact(cwd, filePath, raw) {
+function evaluateVerificationArtifact(cwd, filePath) {
   if (!filePath) {
     error('verification artifact path required');
   }
 
   const fullPath = path.isAbsolute(filePath) ? filePath : path.join(cwd, filePath);
   if (!fs.existsSync(fullPath)) {
-    output({ valid: false, error: 'Verification artifact not found', path: filePath }, raw, 'invalid');
-    return;
+    return { valid: false, error: 'Verification artifact not found', path: filePath };
   }
 
   const content = fs.readFileSync(fullPath, 'utf-8');
@@ -354,7 +353,7 @@ function cmdVerifyVerificationArtifact(cwd, filePath, raw) {
   }
 
   const valid = errors.length === 0;
-  output({
+  return {
     valid,
     path: path.relative(cwd, fullPath).replace(/\\/g, '/'),
     requirement_rows: reqCoverage.rows.length,
@@ -367,7 +366,23 @@ function cmdVerifyVerificationArtifact(cwd, filePath, raw) {
     drift_entries: driftEntries.length,
     errors,
     warnings,
-  }, raw, valid ? 'valid' : 'invalid');
+  };
+}
+
+function maybeTriggerPhaseTruth(cwd, phase, source) {
+  if (!phase) return null;
+  const phaseTruth = require('./phase-truth.cjs');
+  return phaseTruth.triggerPhaseTruthGeneration(cwd, phase, { source });
+}
+
+function cmdVerifyVerificationArtifact(cwd, filePath, raw) {
+  const result = evaluateVerificationArtifact(cwd, filePath);
+  const phaseTruthHelper = require('./phase-truth.cjs');
+  const phaseTruth = result.valid ? maybeTriggerPhaseTruth(cwd, phaseTruthHelper.inferPhaseFromPath(result.path), 'verify-verification-artifact') : null;
+  output({
+    ...result,
+    ...(phaseTruth ? { phase_truth: phaseTruth } : {}),
+  }, raw, result.valid ? 'valid' : 'invalid');
 }
 
 function cmdVerifySummary(cwd, summaryPath, checkFileCount, raw) {
@@ -549,7 +564,9 @@ function cmdVerifySummary(cwd, summaryPath, checkFileCount, raw) {
     self_check: selfCheck,
   };
 
-  const result = { passed, checks, errors, warnings, legacy: isLegacy };
+  const phaseTruthHelper = require('./phase-truth.cjs');
+  const phaseTruth = passed ? maybeTriggerPhaseTruth(cwd, phaseTruthHelper.inferPhaseFromPath(summaryPath), 'verify-summary') : null;
+  const result = { passed, checks, errors, warnings, legacy: isLegacy, ...(phaseTruth ? { phase_truth: phaseTruth } : {}) };
   output(result, raw, passed ? 'passed' : 'failed');
 }
 
@@ -3255,6 +3272,7 @@ function cmdVerifyBypass(cwd, filePath, raw) {
 }
 
 module.exports = {
+  evaluateVerificationArtifact,
   cmdVerifySummary,
   cmdVerifyWorkColdStart,
   cmdVerifyPlanStructure,

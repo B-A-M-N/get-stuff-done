@@ -896,6 +896,9 @@ function cmdPhaseComplete(cwd, phaseNum, raw) {
     requirements_updated: requirementsUpdated,
   };
 
+  const phaseTruth = require('./phase-truth.cjs');
+  result.phase_truth = phaseTruth.triggerPhaseTruthGeneration(cwd, phaseNum, { source: 'phase-complete' });
+
   output(result, raw);
 }
 

@@ -168,11 +168,16 @@ function applyReconciliation(cwd, decision, options = {}) {
   });
 
   const persisted = writeLatestReconciliation(cwd, decision);
+  const phaseTruth = require('./phase-truth.cjs');
+  const truthRegeneration = touchedPhases.map((phaseNum) =>
+    phaseTruth.triggerPhaseTruthGeneration(cwd, phaseNum, { source: 'drift-reconcile' })
+  );
   return {
     ...persisted,
     state: stateResult,
     roadmap: roadmapResults,
     current_phase: currentPhase,
+    phase_truth: truthRegeneration,
   };
 }
 
