@@ -596,6 +596,7 @@ function runDeterministicGauntlet(options = {}) {
     ? catalog.filter((scenario) => scenarioIds.has(scenario.id))
     : catalog;
 
+  // Every deterministic scenario runs through the same normalized result envelope.
   const results = scenarios.map((scenario) => executeScenario(scenario, options));
   return {
     ok: results.every((result) => result.matched),
@@ -709,4 +710,4 @@ module.exports = {
   renderDriftReport,
 };
 
-// GSD-AUTHORITY: 79-01-1:ba9fcc9236ff832329bb040f8c58f0781ae25340f3592ef90741d58014c6618d
+// GSD-AUTHORITY: 79-01-1:ad2832e6acfa475c35ea118744b864de41a62633ec957182701fbc4cbbf6d416
