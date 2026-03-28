@@ -48,3 +48,5 @@ invariants:
     evidence_surfaces:
       - ".planning/phases/75-degraded-mode-enforcement/75-VERIFICATION.md"
       - "node get-stuff-done/bin/gsd-tools.cjs verify verification-artifact .planning/phases/75-degraded-mode-enforcement/75-VERIFICATION.md"
+
+# GSD-AUTHORITY: 80.1-01-2:019b6e5cd849f06abc7de1a7f74b7fd027425b13e64681f65e68cf6aa003b3e0

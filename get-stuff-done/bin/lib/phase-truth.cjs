@@ -19,6 +19,12 @@ function toRelative(cwd, filePath) {
   return toPosixPath(path.relative(cwd, filePath));
 }
 
+function readTextIfExists(cwd, relPath) {
+  const fullPath = path.join(cwd, relPath);
+  if (!fs.existsSync(fullPath)) return null;
+  return fs.readFileSync(fullPath, 'utf-8');
+}
+
 function readJsonIfExists(cwd, relPath) {
   const fullPath = path.join(cwd, relPath);
   if (!fs.existsSync(fullPath)) return null;
@@ -118,6 +124,7 @@ function loadVerificationState(cwd, verificationPath) {
       valid_contract: false,
       final_status: null,
       result: null,
+      path: null,
     };
   }
 
@@ -130,6 +137,7 @@ function loadVerificationState(cwd, verificationPath) {
     valid_contract: result.valid,
     final_status: String(fm.status || '').trim() || null,
     result,
+    path: toRelative(cwd, fullPath),
   };
 }
 
@@ -249,6 +257,318 @@ function collectDegradedEffects(cwd) {
 function shouldUseStrictMode(phaseNum, options = {}) {
   if (typeof options.strict === 'boolean') return options.strict;
   return comparePhaseNum(String(phaseNum), '78') >= 0;
+}
+
+function getInvariantContractPath(cwd, phase) {
+  const { phaseDir, phaseInfo } = getPhaseDirectory(cwd, phase);
+  const normalizedPhase = normalizePhaseName(phaseInfo.phase_number || phase);
+  return path.join(phaseDir, `${normalizedPhase}-INVARIANTS.yaml`);
+}
+
+function loadInvariantContract(cwd, phase) {
+  const fullPath = getInvariantContractPath(cwd, phase);
+  const relativePath = toRelative(cwd, fullPath);
+  if (!fs.existsSync(fullPath)) {
+    return {
+      exists: false,
+      valid: false,
+      path: relativePath,
+      contract: null,
+      errors: ['Invariant contract is missing.'],
+    };
+  }
+
+  try {
+    const contract = JSON.parse(fs.readFileSync(fullPath, 'utf-8'));
+    const errors = [];
+    if (!contract || typeof contract !== 'object') {
+      errors.push('Invariant contract must be a JSON/YAML object.');
+    }
+    if (!Array.isArray(contract?.invariants) || contract.invariants.length === 0) {
+      errors.push('Invariant contract must define at least one invariant.');
+    }
+    return {
+      exists: true,
+      valid: errors.length === 0,
+      path: relativePath,
+      contract,
+      errors,
+    };
+  } catch (error) {
+    return {
+      exists: true,
+      valid: false,
+      path: relativePath,
+      contract: null,
+      errors: [`Invariant contract could not be parsed: ${error.message}`],
+    };
+  }
+}
+
+function loadCurrentTruthArtifact(cwd, phase) {
+  const { phaseDir, phaseInfo } = getPhaseDirectory(cwd, phase);
+  const normalizedPhase = normalizePhaseName(phaseInfo.phase_number || phase);
+  const fullPath = path.join(phaseDir, `${normalizedPhase}-TRUTH.yaml`);
+  if (!fs.existsSync(fullPath)) {
+    return {
+      exists: false,
+      path: toRelative(cwd, fullPath),
+      final_status: null,
+      verification_input: null,
+      gap_types: [],
+      gap_descriptions: [],
+      raw: null,
+    };
+  }
+
+  const raw = fs.readFileSync(fullPath, 'utf-8');
+  const finalStatusMatch = raw.match(/^final_status:\s+"?([^"\n]+)"?/m);
+  const verificationInputMatch = raw.match(/^  verification:\s*(.+)$/m);
+  const gapsMatch = raw.match(/^gaps:\n([\s\S]*?)^drift_effects:/m);
+  const gapTypes = [];
+  const gapDescriptions = [];
+  if (gapsMatch) {
+    const gapBlock = gapsMatch[1];
+    const typePattern = /^\s*-\s+type:\s+"([^"]+)"/gm;
+    const descriptionPattern = /^\s+description:\s+"([^"]+)"/gm;
+    let typeMatch;
+    let descriptionMatch;
+    while ((typeMatch = typePattern.exec(gapBlock)) !== null) {
+      gapTypes.push(typeMatch[1]);
+    }
+    while ((descriptionMatch = descriptionPattern.exec(gapBlock)) !== null) {
+      gapDescriptions.push(descriptionMatch[1]);
+    }
+  }
+
+  const rawVerificationInput = verificationInputMatch ? verificationInputMatch[1].trim() : null;
+  const normalizedVerificationInput = rawVerificationInput
+    ? rawVerificationInput.replace(/^"|"$/g, '')
+    : null;
+
+  return {
+    exists: true,
+    path: toRelative(cwd, fullPath),
+    final_status: finalStatusMatch ? finalStatusMatch[1] : null,
+    verification_input: normalizedVerificationInput,
+    gap_types: gapTypes,
+    gap_descriptions: gapDescriptions,
+    raw,
+  };
+}
+
+function buildInvariantResult(invariant, status, evidence, blockingReason, repairClass) {
+  return {
+    name: invariant.name,
+    description: invariant.description,
+    status,
+    affects_final_truth_synthesis: Boolean(invariant.affects_final_truth_synthesis),
+    expected_evidence_surfaces: Array.isArray(invariant.expected_evidence_surfaces) ? invariant.expected_evidence_surfaces : [],
+    evidence,
+    blocking_reason: blockingReason,
+    repair_class: repairClass,
+  };
+}
+
+function evaluateInvariant(invariant, context) {
+  const verificationEvidence = [];
+  if (context.verificationState.exists) {
+    verificationEvidence.push(context.verificationState.path);
+  }
+  const truthEvidence = [];
+  if (context.truthArtifact.exists) {
+    truthEvidence.push(context.truthArtifact.path);
+  }
+  const degradedEvidence = context.degradedArtifact ? [DEGRADED_STATE_PATH] : [];
+  const driftEvidence = [];
+  if (context.driftReport) driftEvidence.push(DRIFT_REPORT_PATH);
+  if (context.reconciliationArtifact) driftEvidence.push(RECONCILIATION_PATH);
+
+  switch (invariant.name) {
+    case 'memory_blocking': {
+      const verificationMentionsMemoryGap = /TRUTH-MEMORY-01/.test(context.verificationText || '')
+        && /postgres_required|blocked|degraded/i.test(context.verificationText || '');
+      const degradedMemorySurface = context.degradedArtifact?.subsystems?.model_facing_memory?.reason === 'canonical_postgres_memory_unavailable';
+      if (verificationMentionsMemoryGap && degradedMemorySurface) {
+        return buildInvariantResult(
+          invariant,
+          'PASS',
+          [...verificationEvidence, ...degradedEvidence],
+          null,
+          null
+        );
+      }
+      return buildInvariantResult(
+        invariant,
+        context.degradedArtifact ? 'FAIL' : 'MISSING',
+        [...verificationEvidence, ...degradedEvidence],
+        'Model-facing memory blocking is not yet provable from both the verification artifact and the current degraded-state surface.',
+        context.degradedArtifact ? 'logic' : 'missing_input'
+      );
+    }
+
+    case 'planning_memory_blocking': {
+      const requiredWorkflows = ['context:plan-phase', 'context:execute-plan'];
+      const blockedWorkflows = Array.isArray(context.degradedArtifact?.blocked_workflows)
+        ? context.degradedArtifact.blocked_workflows
+        : [];
+      const allBlocked = requiredWorkflows.every((workflow) =>
+        blockedWorkflows.some((entry) => entry.workflow === workflow && entry.subsystem === 'model_facing_memory')
+      );
+      if (allBlocked) {
+        return buildInvariantResult(
+          invariant,
+          'PASS',
+          [...degradedEvidence],
+          null,
+          null
+        );
+      }
+      return buildInvariantResult(
+        invariant,
+        context.degradedArtifact ? 'FAIL' : 'MISSING',
+        [...degradedEvidence],
+        'Authoritative planning workflows are not all machine-classified as blocked by unavailable canonical model-facing memory.',
+        context.degradedArtifact ? 'logic' : 'missing_input'
+      );
+    }
+
+    case 'degraded_state_signaling': {
+      const hasSamePostureStatusProof = /brain status --raw/.test(context.verificationText || '')
+        && /PGHOST=127\.0\.0\.1|GSD_MEMORY_MODE=sqlite|canonical-memory loss|same runtime posture/i.test(context.verificationText || '');
+      const degradedMemorySurface = context.degradedArtifact?.subsystems?.model_facing_memory?.canonical_state === 'UNSAFE';
+      if (hasSamePostureStatusProof && degradedMemorySurface) {
+        return buildInvariantResult(
+          invariant,
+          'PASS',
+          [...verificationEvidence, ...degradedEvidence],
+          null,
+          null
+        );
+      }
+      return buildInvariantResult(
+        invariant,
+        'MISSING',
+        [...verificationEvidence, ...degradedEvidence],
+        'The verification artifact still lacks same-posture `brain status --raw` evidence proving explicit degraded signaling alongside the fail-closed memory path.',
+        'missing_input'
+      );
+    }
+
+    case 'drift_input_validity': {
+      const driftReason = context.degradedArtifact?.subsystems?.drift_truth?.reason;
+      const reconciliationReason = context.degradedArtifact?.subsystems?.reconciliation_truth?.reason;
+      const driftValid = driftReason !== 'drift_truth_missing' && reconciliationReason !== 'reconciliation_truth_stale';
+      if (driftValid && context.driftReport && context.reconciliationArtifact) {
+        return buildInvariantResult(
+          invariant,
+          'PASS',
+          [...driftEvidence, ...degradedEvidence],
+          null,
+          null
+        );
+      }
+      return buildInvariantResult(
+        invariant,
+        (context.driftReport || context.reconciliationArtifact) ? 'FAIL' : 'MISSING',
+        [...driftEvidence, ...degradedEvidence],
+        'Phase 75 truth still consumes drift or reconciliation inputs that the current degraded-state artifact marks as missing or stale.',
+        'missing_input'
+      );
+    }
+
+    case 'verification_integrity': {
+      const verificationExists = context.verificationState.exists;
+      const truthReferencesVerification = Boolean(context.truthArtifact.verification_input && context.truthArtifact.verification_input !== 'null');
+      const truthCarriesVerificationGap = context.truthArtifact.gap_types.includes('verification_gap');
+      if (verificationExists && truthReferencesVerification && !truthCarriesVerificationGap) {
+        return buildInvariantResult(
+          invariant,
+          'PASS',
+          [...verificationEvidence, ...truthEvidence],
+          null,
+          null
+        );
+      }
+      return buildInvariantResult(
+        invariant,
+        verificationExists ? 'FAIL' : 'MISSING',
+        [...verificationEvidence, ...truthEvidence],
+        verificationExists
+          ? 'The current Phase 75 truth artifact still records verification as absent or unresolved even though `75-VERIFICATION.md` exists.'
+          : 'Phase 75 verification evidence is absent, so truth synthesis cannot consume it.',
+        verificationExists ? 'logic' : 'missing_input'
+      );
+    }
+
+    default:
+      return buildInvariantResult(
+        invariant,
+        'MISSING',
+        [],
+        'No evaluator exists for this invariant yet.',
+        'schema'
+      );
+  }
+}
+
+function derivePhaseInvariantAudit(cwd, phase, options = {}) {
+  const contractState = loadInvariantContract(cwd, phase);
+  const { phaseInfo, phaseDir, verification } = listPhaseArtifacts(cwd, phase);
+  const verificationPath = verification ? path.join(phaseDir, verification) : null;
+  const verificationRelativePath = verificationPath ? toRelative(cwd, verificationPath) : null;
+  const verificationState = loadVerificationState(cwd, verificationRelativePath);
+  const verificationText = verificationPath && fs.existsSync(verificationPath)
+    ? fs.readFileSync(verificationPath, 'utf-8')
+    : null;
+  const truthArtifact = loadCurrentTruthArtifact(cwd, phase);
+  const degradedArtifact = readJsonIfExists(cwd, DEGRADED_STATE_PATH);
+  const driftReport = readJsonIfExists(cwd, DRIFT_REPORT_PATH);
+  const reconciliationArtifact = readJsonIfExists(cwd, RECONCILIATION_PATH);
+  const invariants = contractState.valid ? contractState.contract.invariants : [];
+
+  const context = {
+    verificationState,
+    verificationText,
+    truthArtifact,
+    degradedArtifact,
+    driftReport,
+    reconciliationArtifact,
+  };
+
+  const results = invariants.map((invariant) => evaluateInvariant(invariant, context));
+  const summary = {
+    pass: results.filter((entry) => entry.status === 'PASS').length,
+    fail: results.filter((entry) => entry.status === 'FAIL').length,
+    missing: results.filter((entry) => entry.status === 'MISSING').length,
+    blocking_invariants: results
+      .filter((entry) => entry.status !== 'PASS' && entry.affects_final_truth_synthesis)
+      .map((entry) => entry.name),
+  };
+
+  return {
+    schema: 'gsd_phase_invariant_audit',
+    phase: normalizePhaseName(phaseInfo.phase_number),
+    enforcement_area: contractState.contract?.enforcement_area || null,
+    generated_at: options.now || new Date().toISOString(),
+    contract_path: contractState.path,
+    verification_artifact: verificationRelativePath,
+    truth_artifact: truthArtifact.path,
+    contract_valid: contractState.valid,
+    contract_errors: contractState.errors,
+    invariants: results,
+    summary,
+  };
+}
+
+function writePhaseInvariantAudit(cwd, phase, outputPath, options = {}) {
+  const audit = derivePhaseInvariantAudit(cwd, phase, options);
+  const fullPath = path.isAbsolute(outputPath) ? outputPath : path.join(cwd, outputPath);
+  safeWriteFile(fullPath, `${JSON.stringify(audit, null, 2)}\n`);
+  return {
+    ...audit,
+    output_path: toRelative(cwd, fullPath),
+  };
 }
 
 function deriveStatus(inputs, gaps, options = {}) {
@@ -599,10 +919,15 @@ module.exports = {
   DRIFT_REPORT_PATH,
   RECONCILIATION_PATH,
   derivePhaseTruth,
+  derivePhaseInvariantAudit,
   inferPhaseFromPath,
+  loadInvariantContract,
   renderMarkdown,
   renderYaml,
   triggerPhaseTruthGeneration,
   validatePhaseTruth,
+  writePhaseInvariantAudit,
   writePhaseTruth,
 };
+
+// GSD-AUTHORITY: 80.1-01-2:406a49d727f4858ec613aee383eb4984ccf6195264b4af630c71425d9482a9be
