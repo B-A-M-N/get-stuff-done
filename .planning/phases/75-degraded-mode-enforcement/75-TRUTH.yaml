@@ -1,0 +1,79 @@
+phase: "75"
+title: "Degraded Mode Enforcement"
+generated_at: "2026-03-28T00:24:41.590Z"
+strict: false
+inputs:
+  verification: null
+  summaries:
+    - ".planning/phases/75-degraded-mode-enforcement/75-01-SUMMARY.md"
+    - ".planning/phases/75-degraded-mode-enforcement/75-02-SUMMARY.md"
+  drift_reports:
+    - ".planning/drift/latest-report.json"
+  reconciliation:
+    - ".planning/drift/latest-reconciliation.json"
+  degraded_state:
+    - ".planning/health/latest-degraded-state.json"
+claimed_outcomes:
+  - id: null
+    description: "Make degraded systems explicit, behaviorally meaningful, and non-silent across truth-bearing workflows."
+    supporting_artifacts:
+      - ".planning/phases/75-degraded-mode-enforcement/75-01-SUMMARY.md"
+      - ".planning/phases/75-degraded-mode-enforcement/75-02-SUMMARY.md"
+  - id: null
+    description: "canonical degraded-policy evaluator and artifact"
+    supporting_artifacts:
+      - ".planning/phases/75-degraded-mode-enforcement/75-01-SUMMARY.md"
+  - id: null
+    description: "normalized HEALTHY DEGRADED UNSAFE subsystem vocabulary"
+    supporting_artifacts:
+      - ".planning/phases/75-degraded-mode-enforcement/75-01-SUMMARY.md"
+  - id: null
+    description: "shared degraded truth across brain health and health degraded-mode"
+    supporting_artifacts:
+      - ".planning/phases/75-degraded-mode-enforcement/75-01-SUMMARY.md"
+  - id: null
+    description: "top-level CLI blocking for unsafe truth-bearing workflows"
+    supporting_artifacts:
+      - ".planning/phases/75-degraded-mode-enforcement/75-02-SUMMARY.md"
+  - id: null
+    description: "verification and context-build backstop enforcement"
+    supporting_artifacts:
+      - ".planning/phases/75-degraded-mode-enforcement/75-02-SUMMARY.md"
+  - id: null
+    description: "structured blocked-flow responses with reason implications and next options"
+    supporting_artifacts:
+      - ".planning/phases/75-degraded-mode-enforcement/75-02-SUMMARY.md"
+observable_evidence:
+  - type: "file"
+    ref: ".planning/phases/75-degraded-mode-enforcement/75-01-SUMMARY.md"
+  - type: "file"
+    ref: ".planning/phases/75-degraded-mode-enforcement/75-02-SUMMARY.md"
+  - type: "command"
+    ref: "phase-truth generate 75"
+gaps:
+  - type: "verification_gap"
+    description: "Verification artifact is missing."
+  - type: "degraded_state_caveat"
+    description: "Current degraded truth posture is UNSAFE."
+  - type: "workflow_block"
+    description: "context:plan-phase blocked by planning_server: planning_server_unavailable"
+  - type: "workflow_block"
+    description: "context:execute-plan blocked by planning_server: planning_server_unavailable"
+  - type: "workflow_block"
+    description: "verify:integrity blocked by drift_truth: drift_truth_stale"
+  - type: "workflow_block"
+    description: "verify:workflow-readiness blocked by drift_truth: drift_truth_stale"
+drift_effects:
+  []
+reconciliation_effects:
+  []
+escalations:
+  []
+final_status: "CONDITIONAL"
+status_reason:
+  - "Verification artifact is missing."
+  - "Current degraded truth posture is UNSAFE."
+  - "context:plan-phase blocked by planning_server: planning_server_unavailable"
+  - "context:execute-plan blocked by planning_server: planning_server_unavailable"
+  - "verify:integrity blocked by drift_truth: drift_truth_stale"
+  - "verify:workflow-readiness blocked by drift_truth: drift_truth_stale"
