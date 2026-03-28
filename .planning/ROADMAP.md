@@ -453,25 +453,37 @@ Plans:
 Plans:
 - [ ] 76-01-PLAN.md — CLI, file-write, and validator boundary audit with bypass classification
 
-### Phase 77: Phase Truth Contracts
+### Phase 77: Execution Surface Governance
 
-**Goal:** Standardize phase-level truth artifacts so every phase reports claimed outcomes, observable evidence, gaps, and final validity status.
-**Requirements**: TRUTH-PHASE-01, TRUTH-VERIFY-01
+**Goal:** Narrow enforcement to authoritative truth boundaries so execution stays fast, recovery stays available, and only truth-bearing state transitions block under unsafe posture.
+**Requirements**: TRUTH-DEGRADE-01, TRUTH-BYPASS-01, TRUTH-OPS-01, TRUTH-CLAIM-01
 **Depends on:** Phase 76
 **Status**: [Planned]
 
 Plans:
-- [ ] 77-01-PLAN.md — phase truth artifact contract and generation/update workflow
+- [ ] 77-01-PLAN.md — canonical command governance map and classification contract
+- [ ] 77-02-PLAN.md — CLI governance wiring with warn-only, hard-gated, and recovery behavior
 
-### Phase 78: End-to-End Integrity Gauntlet
+### Phase 78: Phase Truth Contracts
 
-**Goal:** Validate the entire truth-enforcement stack under adversarial failure conditions before milestone closeout.
-**Requirements**: TRUTH-GAUNTLET-01, TRUTH-DRIFT-02, TRUTH-DEGRADE-01, TRUTH-BYPASS-01
+**Goal:** Standardize phase-level truth artifacts so every phase reports claimed outcomes, observable evidence, gaps, and final validity status.
+**Requirements**: TRUTH-PHASE-01, TRUTH-VERIFY-01
 **Depends on:** Phase 77
 **Status**: [Planned]
 
 Plans:
-- [ ] 78-01-PLAN.md — adversarial gauntlet suite for fake verification, missing commits, partial execution, degraded subsystems, and drift exposure
+- [ ] 78-01-PLAN.md — phase truth artifact contract and generation/update workflow
+- [ ] 78-02-PLAN.md — limited backfill of phase truth artifacts for phases 70-77
+
+### Phase 79: End-to-End Integrity Gauntlet
+
+**Goal:** Validate the entire truth-enforcement stack under adversarial failure conditions before milestone closeout.
+**Requirements**: TRUTH-GAUNTLET-01, TRUTH-DRIFT-02, TRUTH-DEGRADE-01, TRUTH-BYPASS-01
+**Depends on:** Phase 78
+**Status**: [Planned]
+
+Plans:
+- [ ] 79-01-PLAN.md — adversarial gauntlet suite for fake verification, missing commits, partial execution, degraded subsystems, and drift exposure
 
 ---
 
