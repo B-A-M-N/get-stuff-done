@@ -28,7 +28,7 @@ score: 1/2 requirements verified
 | `get-stuff-done/bin/gsd-tools.cjs` | top-level fail-closed route enforcement for truth-bearing commands | EXISTS + SUBSTANTIVE | Current `verify integrity --raw` and `context build --workflow plan-phase --raw` runs still return structured blocked payloads under unsafe posture. |
 | `get-stuff-done/bin/lib/verify.cjs` | subsystem backstop for `verify integrity` and verification workflows | EXISTS + SUBSTANTIVE | The verifier still reads the latest degraded-state snapshot and exits non-zero when `verify:integrity` is unsafe. |
 | `tests/degraded-mode-enforcement.test.cjs` | direct regression coverage for blocked truth-bearing routes and diagnostic allowances | VERIFIED | `node --test tests/degraded-mode-policy.test.cjs tests/brain-health.test.cjs tests/degraded-mode-enforcement.test.cjs tests/brain-mcp-degraded-mode.test.cjs tests/second-brain-status.test.cjs` passed. |
-| `tests/brain-mcp-degraded-mode.test.cjs` | direct regression coverage for model-facing memory fail-closed behavior | VERIFIED | The current suite still proves planner reads and executor checkpoint writeback return `postgres_required` when the backend degrades away from Postgres. |
+| `tests/brain-mcp-degraded-mode.test.cjs` | direct regression coverage for model-facing memory fail-closed behavior | VERIFIED | The current suite still proves planner reads and executor checkpoint writeback return `postgres_required` when the backend degrades away from Postgres, and the current `brain health --raw` output still reports model-facing memory as blocked when the repo falls back from canonical Postgres truth. |
 
 ## Key Link Verification
 
@@ -81,4 +81,4 @@ score: 1/2 requirements verified
 *Verified: 2026-03-28T04:39:30Z*
 *Verifier: Codex*
 
-<!-- GSD-AUTHORITY: 80-02-1:154c28f39c24d648ee2af2f696bf8633c6f2c73b5d83f39ac7617e78d540ab9b -->
+<!-- GSD-AUTHORITY: 80-02-1:bcff95a8cb035f329ba34248c02a8f495229f25929063c63e3563a8e1523c9d9 -->
