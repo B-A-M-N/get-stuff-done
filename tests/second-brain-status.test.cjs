@@ -6,14 +6,10 @@ const { spawnSync } = require('child_process');
 const ROOT = path.resolve(__dirname, '..');
 const secondBrain = require('../get-stuff-done/bin/lib/second-brain.cjs');
 const brainManager = require('../get-stuff-done/bin/lib/brain-manager.cjs');
-
-function parseTrailingJson(text) {
-  const match = String(text).match(/(\{[\s\S]*\})\s*$/);
-  if (!match) {
-    throw new Error(`No JSON object found in output: ${text}`);
-  }
-  return JSON.parse(match[1]);
-}
+const {
+  buildCanonicalDegradedMemoryEnv,
+  parseTrailingJson,
+} = require('./helpers.cjs');
 
 describe('second-brain status and health surfaces', () => {
   let originalEnv;
@@ -51,28 +47,80 @@ describe('second-brain status and health surfaces', () => {
     await secondBrain.close();
   });
 
-  test('brainManager surfaces authoritative degraded backend state and runbook', async () => {
-    secondBrain.transitionToDegraded('postgres_connect_failed', { message: 'connect ECONNREFUSED' });
+  test('brainManager status and health agree on degraded backend truth from one canonical postgres outage posture', async () => {
+    process.env.PGHOST = '127.0.0.1';
+    process.env.PGPORT = '1';
+    process.env.PGDATABASE = 'gsd_unavailable';
+    process.env.PGUSER = 'gsd_unavailable';
+    process.env.PGPASSWORD = 'gsd_unavailable';
 
-    const status = brainManager.getStatus();
-    assert.deepStrictEqual(status, {
-      configured_backend: 'postgres',
-      active_backend: 'sqlite',
-      degraded: true,
-      degraded_reason: 'postgres_connect_failed',
-      warning_emitted: true,
-      memory_critical_blocked: false,
+    const status = await brainManager.getStatus();
+    const health = await brainManager.checkHealth();
+
+    assert.strictEqual(status.configured_backend, 'postgres');
+    assert.strictEqual(status.active_backend, 'sqlite');
+    assert.strictEqual(status.degraded, true);
+    assert.match(status.degraded_reason, /^postgres_(auth|connect)_failed$/);
+    assert.strictEqual(status.warning_emitted, true);
+    assert.strictEqual(status.memory_critical_blocked, false);
+    assert.deepStrictEqual(status.model_facing_memory, {
+      available: false,
+      status: 'blocked',
+      detail: 'Model-facing memory is unavailable while degraded. Postgres-backed memory required.',
     });
 
-    const health = await brainManager.checkHealth();
     assert.strictEqual(health.configured_backend, 'postgres');
     assert.strictEqual(health.active_backend, 'sqlite');
     assert.strictEqual(health.degraded, true);
-    assert.strictEqual(health.degraded_reason, 'postgres_connect_failed');
+    assert.match(health.degraded_reason, /^postgres_(auth|connect)_failed$/);
     assert.strictEqual(health.warning_emitted, true);
     assert.strictEqual(health.memory_critical_blocked, false);
     assert.strictEqual(health.postgres.status, 'degraded');
     assert.match(health.runbook, /brain health --raw/);
+  });
+
+  test('healthy backend truth preserves model-facing memory availability', async () => {
+    const originalResolveBackendState = brainManager._resolveBackendState;
+    const originalCheckPostgres = brainManager._checkPostgres;
+    const originalCheckRabbitMq = brainManager._checkRabbitMq;
+    const originalCheckPlanningServerDetailed = brainManager._checkPlanningServerDetailed;
+
+    brainManager._resolveBackendState = async () => ({
+      configured_backend: 'postgres',
+      active_backend: 'postgres',
+      degraded: false,
+      degraded_reason: null,
+      warning_emitted: false,
+      memory_critical_blocked: false,
+    });
+    brainManager._checkPostgres = async () => ({ status: 'ok', detail: null });
+    brainManager._checkRabbitMq = async () => ({ status: 'ok', detail: null });
+    brainManager._checkPlanningServerDetailed = async () => ({ status: 'ok', detail: null });
+
+    try {
+      const status = await brainManager.getStatus();
+      const health = await brainManager.checkHealth();
+
+      assert.strictEqual(status.configured_backend, 'postgres');
+      assert.strictEqual(status.active_backend, 'postgres');
+      assert.strictEqual(status.degraded, false);
+      assert.deepStrictEqual(status.model_facing_memory, {
+        available: true,
+        status: 'ok',
+        detail: null,
+      });
+
+      assert.strictEqual(health.active_backend, 'postgres');
+      assert.strictEqual(health.degraded, false);
+      assert.strictEqual(health.model_facing_memory.available, true);
+      assert.strictEqual(health.model_facing_memory.status, 'ok');
+      assert.strictEqual(health.postgres.status, 'ok');
+    } finally {
+      brainManager._resolveBackendState = originalResolveBackendState;
+      brainManager._checkPostgres = originalCheckPostgres;
+      brainManager._checkRabbitMq = originalCheckRabbitMq;
+      brainManager._checkPlanningServerDetailed = originalCheckPlanningServerDetailed;
+    }
   });
 
   test('brain status CLI returns backend-state JSON in raw mode', () => {
@@ -82,29 +130,18 @@ describe('second-brain status and health surfaces', () => {
       {
         cwd: ROOT,
         encoding: 'utf-8',
-        env: {
-          ...process.env,
-          GSD_MEMORY_MODE: 'sqlite',
-          PGHOST: '',
-          PGPORT: '',
-          PGDATABASE: '',
-          PGUSER: '',
-          PGPASSWORD: '',
-          DATABASE_URL: '',
-        },
+        env: buildCanonicalDegradedMemoryEnv(),
       }
     );
 
     assert.strictEqual(result.status, 0, result.stderr);
     const output = parseTrailingJson(result.stdout);
-    assert.deepStrictEqual(Object.keys(output).sort(), [
-      'active_backend',
-      'configured_backend',
-      'degraded',
-      'degraded_reason',
-      'memory_critical_blocked',
-      'warning_emitted',
-    ]);
+    assert.strictEqual(output.configured_backend, 'postgres');
+    assert.strictEqual(output.active_backend, 'sqlite');
+    assert.strictEqual(output.degraded, true);
+    assert.strictEqual(output.degraded_reason, 'postgres_connect_failed');
+    assert.strictEqual(output.model_facing_memory.available, false);
+    assert.strictEqual(output.model_facing_memory.status, 'blocked');
   });
 
   test('brain health CLI blocks explicit Postgres-required checks', () => {
@@ -114,16 +151,7 @@ describe('second-brain status and health surfaces', () => {
       {
         cwd: ROOT,
         encoding: 'utf-8',
-        env: {
-          ...process.env,
-          GSD_MEMORY_MODE: 'sqlite',
-          PGHOST: '',
-          PGPORT: '',
-          PGDATABASE: '',
-          PGUSER: '',
-          PGPASSWORD: '',
-          DATABASE_URL: '',
-        },
+        env: buildCanonicalDegradedMemoryEnv(),
       }
     );
 
@@ -134,3 +162,5 @@ describe('second-brain status and health surfaces', () => {
     assert.match(output.postgres.detail, /Postgres is required/);
   });
 });
+
+// GSD-AUTHORITY: 80.1-01-1:ca10049346b80a3e8928bb0a5230d3b579f7f86fd4ed61483c4ccce8866ed787

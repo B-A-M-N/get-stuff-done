@@ -9,8 +9,8 @@ class BrainManager {
     this.planningPort = process.env.GSD_PLANNING_PORT || 3011;
   }
 
-  getStatus() {
-    const backend = secondBrain.getBackendState();
+  async getStatus() {
+    const backend = await this._resolveBackendState('brain_status_probe');
     return {
       ...this._pickBackendState(backend),
       model_facing_memory: this._getModelFacingMemoryStatus(backend),
@@ -41,10 +41,13 @@ class BrainManager {
 
     if (options.requirePostgres) {
       if (health.postgres.status !== 'ok') {
+        const blockedDetail = health.postgres.detail || 'Postgres is required for brain health';
         health.memory_critical_blocked = true;
         health.postgres = {
           status: 'blocked',
-          detail: health.postgres.detail || 'Postgres is required for brain health',
+          detail: blockedDetail.includes('Postgres is required')
+            ? blockedDetail
+            : `Postgres is required for brain health: ${blockedDetail}`,
         };
       }
     }
@@ -97,6 +100,25 @@ class BrainManager {
       status: 'blocked',
       detail: 'Model-facing memory is unavailable while degraded. Postgres-backed memory required.',
     };
+  }
+
+  async _resolveBackendState(source = 'brain_status_probe') {
+    const backend = secondBrain.getBackendState();
+    if (backend.active_backend !== 'postgres' || backend.degraded) {
+      return backend;
+    }
+
+    try {
+      const client = await secondBrain.pool.connect();
+      client.release();
+    } catch (err) {
+      secondBrain.transitionToDegraded(secondBrain.classifyPostgresFailure(err), {
+        message: err.message,
+        source,
+      });
+    }
+
+    return secondBrain.getBackendState();
   }
 
   async _checkPostgres(backend, options = {}) {
@@ -180,3 +202,5 @@ class BrainManager {
 }
 
 module.exports = new BrainManager();
+
+// GSD-AUTHORITY: 80.1-01-1:0fc4c1c7aa1a246b3af245238e627b66c32af2eeca8233e902a6456d94bf6e6d

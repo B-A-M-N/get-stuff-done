@@ -8,6 +8,15 @@ const path = require('path');
 
 const TOOLS_PATH = path.join(__dirname, '..', 'get-stuff-done', 'bin', 'gsd-tools.cjs');
 const { signFile } = require('../get-stuff-done/bin/lib/authority.cjs');
+const CANONICAL_MEMORY_ENV_KEYS = [
+  'GSD_MEMORY_MODE',
+  'PGHOST',
+  'PGPORT',
+  'PGDATABASE',
+  'PGUSER',
+  'PGPASSWORD',
+  'DATABASE_URL',
+];
 
 function signPlanningMarkdown(rootDir) {
   const planningDir = path.join(rootDir, '.planning');
@@ -123,4 +132,61 @@ function cleanup(tmpDir) {
   fs.rmSync(tmpDir, { recursive: true, force: true });
 }
 
-module.exports = { runGsdTools, createTempProject, createTempGitProject, cleanup, TOOLS_PATH };
+function snapshotEnv(keys = CANONICAL_MEMORY_ENV_KEYS) {
+  return Object.fromEntries(keys.map((key) => [key, process.env[key]]));
+}
+
+function restoreEnv(snapshot) {
+  for (const [key, value] of Object.entries(snapshot)) {
+    if (value === undefined) delete process.env[key];
+    else process.env[key] = value;
+  }
+}
+
+function buildCanonicalDegradedMemoryEnv(overrides = {}) {
+  return {
+    ...process.env,
+    GSD_MEMORY_MODE: undefined,
+    PGHOST: '127.0.0.1',
+    PGPORT: '1',
+    PGDATABASE: 'gsd_unavailable',
+    PGUSER: 'gsd_unavailable',
+    PGPASSWORD: 'gsd_unavailable',
+    DATABASE_URL: '',
+    ...overrides,
+  };
+}
+
+function applyCanonicalDegradedMemoryEnv(overrides = {}) {
+  const snapshot = snapshotEnv();
+  const env = buildCanonicalDegradedMemoryEnv(overrides);
+  for (const key of CANONICAL_MEMORY_ENV_KEYS) {
+    const value = env[key];
+    if (value === undefined) delete process.env[key];
+    else process.env[key] = value;
+  }
+  return snapshot;
+}
+
+function parseTrailingJson(text) {
+  const match = String(text).match(/(\{[\s\S]*\})\s*$/);
+  if (!match) {
+    throw new Error(`No JSON object found in output: ${text}`);
+  }
+  return JSON.parse(match[1]);
+}
+
+module.exports = {
+  applyCanonicalDegradedMemoryEnv,
+  buildCanonicalDegradedMemoryEnv,
+  cleanup,
+  createTempGitProject,
+  createTempProject,
+  parseTrailingJson,
+  restoreEnv,
+  runGsdTools,
+  snapshotEnv,
+  TOOLS_PATH,
+};
+
+// GSD-AUTHORITY: 80.1-01-1:ac4f79155222e07c6df96016bc255bd04f788d4b986c3bdf347f31673b1ec266
