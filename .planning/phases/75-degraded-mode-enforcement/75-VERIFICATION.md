@@ -34,8 +34,8 @@ score: 1/2 requirements verified
 
 | From | To | Via | Status | Details |
 |---|---|---|---|---|
-| `.planning/phases/75-degraded-mode-enforcement/75-01-SUMMARY.md` | `.planning/phases/75-degraded-mode-enforcement/75-VERIFICATION.md` | current degraded-policy code, tests, and health reader output | VALID | This artifact re-proves the canonical vocabulary, shared snapshot, and operator health alignment from `get-stuff-done/bin/lib/degraded-mode.cjs`, `tests/degraded-mode-policy.test.cjs`, `tests/brain-health.test.cjs`, and the current health commands instead of inheriting the summary verdict. |
-| `.planning/phases/75-degraded-mode-enforcement/75-02-SUMMARY.md` | `.planning/phases/75-degraded-mode-enforcement/75-VERIFICATION.md` | current fail-closed route enforcement and current memory-boundary evidence | VALID | The route-blocking claim is re-proved by `tests/degraded-mode-enforcement.test.cjs`, `node get-stuff-done/bin/gsd-tools.cjs verify integrity --raw`, and `node get-stuff-done/bin/gsd-tools.cjs context build --workflow plan-phase --raw`; the memory boundary is kept separate and downgraded where live reproval stayed partial. |
+| `.planning/phases/75-degraded-mode-enforcement/75-01-SUMMARY.md` | `.planning/phases/75-degraded-mode-enforcement/75-VERIFICATION.md` | current degraded-policy code, tests, and health reader output | VALID | This artifact re-proves the canonical vocabulary, shared snapshot, and operator health alignment from `get-stuff-done/bin/lib/degraded-mode.cjs`, `tests/degraded-mode-policy.test.cjs`, `tests/brain-health.test.cjs`, and the current health commands instead of inheriting the summary verdict, closing the milestone audit blocker for the missing Phase 75 verification artifact. |
+| `.planning/phases/75-degraded-mode-enforcement/75-02-SUMMARY.md` | `.planning/phases/75-degraded-mode-enforcement/75-VERIFICATION.md` | current fail-closed route enforcement and current memory-boundary evidence | VALID | The route-blocking claim is re-proved by `tests/degraded-mode-enforcement.test.cjs`, `node get-stuff-done/bin/gsd-tools.cjs verify integrity --raw`, and `node get-stuff-done/bin/gsd-tools.cjs context build --workflow plan-phase --raw`; the memory boundary is kept separate and downgraded where live reproval stayed partial, which is the only remaining phase-local condition preventing a fully VALID closeout. |
 | `get-stuff-done/bin/lib/retro-verification.cjs` | `.planning/phases/75-degraded-mode-enforcement/75-VERIFICATION.md` | shared Phase 80 section order and status derivation | VALID | Phase 75 uses the shared retro-verification helper from Plan 80-01 instead of inventing a second verification format. |
 
 ## Requirement Coverage
@@ -81,4 +81,4 @@ score: 1/2 requirements verified
 *Verified: 2026-03-28T04:39:30Z*
 *Verifier: Codex*
 
-<!-- GSD-AUTHORITY: 80-02-1:bcff95a8cb035f329ba34248c02a8f495229f25929063c63e3563a8e1523c9d9 -->
+<!-- GSD-AUTHORITY: 80-02-3:c75f8bca00ea840b75189feed4043c0c80e0a53d21603c2fa574294ed4c4e53c -->

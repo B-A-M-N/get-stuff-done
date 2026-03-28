@@ -34,8 +34,8 @@ score: 3/3 requirements verified
 
 | From | To | Via | Status | Details |
 |---|---|---|---|---|
-| `.planning/phases/77-execution-surface-governance/77-01-SUMMARY.md` | `.planning/phases/77-execution-surface-governance/77-VERIFICATION.md` | current policy map and deterministic helper evidence | VALID | The policy-map and classification claims are re-proved from `.planning/policy/command-governance.yaml`, `get-stuff-done/bin/lib/command-governance.cjs`, and the current command-governance regression suite instead of inheriting summary prose. |
-| `.planning/phases/77-execution-surface-governance/77-02-SUMMARY.md` | `.planning/phases/77-execution-surface-governance/77-VERIFICATION.md` | current CLI enforcement, warn-only stderr output, recovery-route availability, and hard-gated blocking | VALID | The narrowing claim is re-proved from `get-stuff-done/bin/gsd-tools.cjs`, `tests/command-governance-enforcement.test.cjs`, `tests/enforcement.test.cjs`, `node get-stuff-done/bin/gsd-tools.cjs state json --raw`, `node get-stuff-done/bin/gsd-tools.cjs verify verification-artifact .planning/phases/74-state-reconciliation-layer/74-VERIFICATION.md`, and `node get-stuff-done/bin/gsd-tools.cjs context build --workflow plan-phase --raw`. |
+| `.planning/phases/77-execution-surface-governance/77-01-SUMMARY.md` | `.planning/phases/77-execution-surface-governance/77-VERIFICATION.md` | current policy map and deterministic helper evidence | VALID | The policy-map and classification claims are re-proved from `.planning/policy/command-governance.yaml`, `get-stuff-done/bin/lib/command-governance.cjs`, and the current command-governance regression suite instead of inheriting summary prose, closing the milestone audit blocker for the missing Phase 77 verification artifact. |
+| `.planning/phases/77-execution-surface-governance/77-02-SUMMARY.md` | `.planning/phases/77-execution-surface-governance/77-VERIFICATION.md` | current CLI enforcement, warn-only stderr output, recovery-route availability, and hard-gated blocking | VALID | The narrowing claim is re-proved from `get-stuff-done/bin/gsd-tools.cjs`, `tests/command-governance-enforcement.test.cjs`, `tests/enforcement.test.cjs`, `node get-stuff-done/bin/gsd-tools.cjs state json --raw`, `node get-stuff-done/bin/gsd-tools.cjs verify verification-artifact .planning/phases/74-state-reconciliation-layer/74-VERIFICATION.md`, and `node get-stuff-done/bin/gsd-tools.cjs context build --workflow plan-phase --raw`, with no remaining phase-local evidence gap after the consistency pass. |
 | `get-stuff-done/bin/lib/retro-verification.cjs` | `.planning/phases/77-execution-surface-governance/77-VERIFICATION.md` | shared Phase 80 section order and status derivation | VALID | Phase 77 uses the shared retro-verification helper from Plan 80-01 rather than a bespoke closeout format. |
 
 ## Requirement Coverage
@@ -77,4 +77,4 @@ score: 3/3 requirements verified
 *Verified: 2026-03-28T04:39:30Z*
 *Verifier: Codex*
 
-<!-- GSD-AUTHORITY: 80-02-2:17f6086d24d8cc3a6d03e076cf8105d1bcc36bc292628293e5c89be453933722 -->
+<!-- GSD-AUTHORITY: 80-02-3:bb264f2432ada6e5d9328b9ce32e802207f2b547b2139b7ce0ba2ec4dc4a8514 -->
