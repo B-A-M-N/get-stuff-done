@@ -307,6 +307,7 @@ const getContext = lazyRequire('./lib/context.cjs');
 const getPlaneHealth = lazyRequire('./lib/plane-health.cjs');
 const getFirecrawlClient = lazyRequire('./lib/firecrawl-client.cjs');
 const getSearxngClient = lazyRequire('./lib/searxng-client.cjs');
+const getIntegrityGauntlet = lazyRequire('./lib/integrity-gauntlet.cjs');
 
 // ─── CLI Router ───────────────────────────────────────────────────────────────
 
@@ -1791,6 +1792,27 @@ async function main() {
       break;
     }
 
+    case 'integrity-gauntlet': {
+      const subcommand = args[1];
+      if (subcommand === 'run') {
+        const scenarioIds = [];
+        for (let i = 2; i < args.length; i += 1) {
+          if (args[i] === '--scenario' && args[i + 1]) {
+            scenarioIds.push(args[i + 1]);
+            i += 1;
+          }
+        }
+        const result = getIntegrityGauntlet().runDeterministicGauntlet({
+          cwd,
+          scenarioIds: scenarioIds.length > 0 ? scenarioIds : null,
+        });
+        output(result, raw);
+      } else {
+        error('Unknown integrity-gauntlet subcommand. Available: run');
+      }
+      break;
+    }
+
     default:
       error(`Unknown command: ${command}`);
   }
@@ -1798,4 +1820,4 @@ async function main() {
 
 main();
 
-// GSD-AUTHORITY: 72-01-1:3d695f700142909a9e47798a63b3863b44dce84fdcefdd1ed7ac7d3713af9a85
+// GSD-AUTHORITY: 79-01-1:f36ee20eca31611e068ea3a7c3a281cfeec5713d79d399b1d24e19c9614a0aa1
