@@ -1,0 +1,95 @@
+{
+  "phase": "80.1",
+  "plan": "01",
+  "generated_at": "2026-03-28T05:56:00Z",
+  "target_phase": "75",
+  "enforcement_area": "Model-Facing Memory Truth Closure",
+  "overall_status": "BLOCKED",
+  "summary": {
+    "pass": 2,
+    "fail": 3,
+    "missing": 0
+  },
+  "invariants": [
+    {
+      "name": "memory_blocking",
+      "status": "PASS",
+      "affects_truth": true,
+      "repair_class": null,
+      "evidence": [
+        "node --test tests/brain-mcp-degraded-mode.test.cjs tests/second-brain-status.test.cjs tests/brain-health.test.cjs",
+        "node get-stuff-done/bin/gsd-tools.cjs brain health --raw",
+        "node get-stuff-done/bin/gsd-tools.cjs brain status --raw"
+      ],
+      "blocking_reason": null,
+      "notes": [
+        "Current deterministic tests pass for degraded memory fail-closed behavior.",
+        "Current live brain health and brain status both report model-facing memory as blocked while Postgres-backed memory is unavailable."
+      ]
+    },
+    {
+      "name": "planning_memory_blocking",
+      "status": "FAIL",
+      "affects_truth": true,
+      "repair_class": "logic",
+      "evidence": [
+        ".planning/health/latest-degraded-state.json",
+        "node get-stuff-done/bin/gsd-tools.cjs context build --workflow plan-phase --raw",
+        "node get-stuff-done/bin/gsd-tools.cjs context build --workflow execute-plan --raw"
+      ],
+      "blocking_reason": "The degraded-state artifact attributes plan and execute-plan blocking to model_facing_memory, but the authoritative CLI surfaces currently block those workflows as planning_server_unavailable. Same-area planning-path truth is therefore not aligned across machine-readable and CLI-authoritative surfaces.",
+      "notes": [
+        "This is the clearest same-area truth split currently blocking Phase 75 closure.",
+        "80.1-B must normalize planning-path truth so degraded-memory closure does not depend on conflicting subsystem attribution."
+      ]
+    },
+    {
+      "name": "degraded_state_signaling",
+      "status": "PASS",
+      "affects_truth": true,
+      "repair_class": null,
+      "evidence": [
+        ".planning/health/latest-degraded-state.json",
+        "node get-stuff-done/bin/gsd-tools.cjs brain health --raw",
+        "node get-stuff-done/bin/gsd-tools.cjs brain status --raw"
+      ],
+      "blocking_reason": null,
+      "notes": [
+        "Degraded state is explicit, machine-readable, and visible on both operator surfaces.",
+        "The remaining issue is not silent degradation; it is closure semantics and subsystem-attribution mismatch."
+      ]
+    },
+    {
+      "name": "drift_input_validity",
+      "status": "FAIL",
+      "affects_truth": true,
+      "repair_class": "missing_input",
+      "evidence": [
+        ".planning/drift/latest-report.json",
+        ".planning/drift/latest-reconciliation.json",
+        "node get-stuff-done/bin/gsd-tools.cjs brain health --raw",
+        "node get-stuff-done/bin/gsd-tools.cjs verify verification-artifact .planning/phases/75-degraded-mode-enforcement/75-VERIFICATION.md"
+      ],
+      "blocking_reason": "Phase 75 truth currently consumes stale drift and reconciliation inputs. Current health output reports drift_truth_stale and reconciliation_truth_stale, and the regenerated phase truth keeps verify-path workflow blocks for drift truth unresolved.",
+      "notes": [
+        "This is in scope only because Phase 75 truth currently includes drift truth in final closure for the same enforcement area.",
+        "80.1-B should repair this minimally: freshness, presence, and machine-readable validity only."
+      ]
+    },
+    {
+      "name": "verification_integrity",
+      "status": "FAIL",
+      "affects_truth": true,
+      "repair_class": "logic",
+      "evidence": [
+        ".planning/phases/75-degraded-mode-enforcement/75-VERIFICATION.md",
+        "node get-stuff-done/bin/gsd-tools.cjs verify verification-artifact .planning/phases/75-degraded-mode-enforcement/75-VERIFICATION.md"
+      ],
+      "blocking_reason": "The verification artifact remains CONDITIONAL and cites mixed runtime-posture reasoning rather than converged same-area invariant closure. Requirement truth therefore still cannot close without manual interpretation.",
+      "notes": [
+        "Verification integrity is not a contract-shape problem; the artifact validates structurally.",
+        "The failure is that the same enforcement area still resolves to CONDITIONAL instead of a mechanically justified VALID outcome."
+      ]
+    }
+  ]
+}
