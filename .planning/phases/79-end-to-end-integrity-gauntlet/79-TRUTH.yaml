@@ -1,0 +1,53 @@
+phase: "79"
+title: "End-to-End Integrity Gauntlet"
+generated_at: "2026-03-28T08:54:02.471Z"
+strict: true
+inputs:
+  verification: ".planning/phases/79-end-to-end-integrity-gauntlet/79-VERIFICATION.md"
+  summaries:
+    - ".planning/phases/79-end-to-end-integrity-gauntlet/79-01-SUMMARY.md"
+  drift_reports:
+    - ".planning/drift/latest-report.json"
+  reconciliation:
+    - ".planning/drift/latest-reconciliation.json"
+  degraded_state:
+    - ".planning/health/latest-degraded-state.json"
+claimed_outcomes:
+  - id: null
+    description: "Validate the entire truth-enforcement stack under adversarial failure conditions before milestone closeout."
+    supporting_artifacts:
+      - ".planning/phases/79-end-to-end-integrity-gauntlet/79-01-SUMMARY.md"
+  - id: null
+    description: "deterministic hostile gauntlet harness driven through sanctioned CLI routes"
+    supporting_artifacts:
+      - ".planning/phases/79-end-to-end-integrity-gauntlet/79-01-SUMMARY.md"
+  - id: null
+    description: "declarative scenario catalog with explicit retrieval, memory, degradation, and governance coverage"
+    supporting_artifacts:
+      - ".planning/phases/79-end-to-end-integrity-gauntlet/79-01-SUMMARY.md"
+  - id: null
+    description: "rendered gauntlet spec, results, coverage map, drift report, and final verification artifacts"
+    supporting_artifacts:
+      - ".planning/phases/79-end-to-end-integrity-gauntlet/79-01-SUMMARY.md"
+  - id: null
+    description: "milestone closeout enforcement that blocks v0.7.0 when Phase 79 verification is missing or invalid"
+    supporting_artifacts:
+      - ".planning/phases/79-end-to-end-integrity-gauntlet/79-01-SUMMARY.md"
+observable_evidence:
+  - type: "file"
+    ref: ".planning/phases/79-end-to-end-integrity-gauntlet/79-01-SUMMARY.md"
+  - type: "file"
+    ref: ".planning/phases/79-end-to-end-integrity-gauntlet/79-VERIFICATION.md"
+  - type: "command"
+    ref: "phase-truth generate 79"
+gaps:
+  []
+drift_effects:
+  []
+reconciliation_effects:
+  []
+escalations:
+  []
+final_status: "VALID"
+status_reason:
+  - "All claimed outcomes are backed and no unresolved gaps or downgrades remain."
