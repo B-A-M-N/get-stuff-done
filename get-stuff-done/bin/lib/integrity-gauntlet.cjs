@@ -6,6 +6,7 @@ const path = require('path');
 const { execSync, spawnSync } = require('child_process');
 
 const { getScenarioCatalog } = require('./integrity-gauntlet-scenarios.cjs');
+const { extractFrontmatter } = require('./frontmatter.cjs');
 
 const TOOLS_PATH = path.join(__dirname, '..', 'gsd-tools.cjs');
 const OUTCOMES = new Set(['INVALID', 'CONDITIONAL', 'RECONCILIATION_REQUIRED', 'BLOCK']);
@@ -787,6 +788,160 @@ function renderDriftReport(result) {
   return lines.join('\n');
 }
 
+function assessVerification({ deterministicResult, liveStatuses, liveParityResults = [] }) {
+  const blockers = [];
+  const limitations = [];
+
+  if (!deterministicResult || !Array.isArray(deterministicResult.results) || deterministicResult.results.length === 0) {
+    blockers.push('No deterministic gauntlet results are available.');
+  }
+
+  for (const entry of deterministicResult?.results || []) {
+    if (!OUTCOMES.has(entry.actual_outcome)) {
+      blockers.push(`Scenario ${entry.id} produced an unclassified outcome.`);
+    }
+    if (!entry.matched) {
+      blockers.push(`Scenario ${entry.id} did not match its expected outcome.`);
+    }
+  }
+
+  for (const liveResult of liveParityResults) {
+    if (liveResult.expected_outcome !== liveResult.actual_outcome) {
+      blockers.push(`Live parity mismatch for ${liveResult.id}: expected ${liveResult.expected_outcome}, got ${liveResult.actual_outcome}.`);
+    }
+  }
+
+  for (const status of liveStatuses || []) {
+    if (status.availability !== 'available') {
+      limitations.push(`${status.id}: ${status.reason}`);
+    }
+  }
+
+  return {
+    status: blockers.length === 0 ? 'VALID' : 'INVALID',
+    release_gate: blockers.length === 0 ? 'PASS' : 'BLOCK',
+    blockers,
+    limitations,
+    deterministic_scenarios: deterministicResult?.scenario_count || 0,
+    live_checks: liveStatuses?.length || 0,
+  };
+}
+
+function renderVerificationArtifact({ deterministicResult, liveStatuses, assessment }) {
+  const lines = [
+    '---',
+    `status: ${assessment.status}`,
+    `release_gate: ${assessment.release_gate}`,
+    `deterministic_scenarios: ${assessment.deterministic_scenarios}`,
+    `live_checks: ${assessment.live_checks}`,
+    '---',
+    '# Phase 79 Verification',
+    '',
+    `Final verdict: ${assessment.status}`,
+    '',
+    '## Release Gate Criteria',
+    '',
+    `- Zero false positives: ${assessment.blockers.length === 0 ? 'satisfied' : 'blocked'}`,
+    `- Zero silent failures: ${assessment.blockers.length === 0 ? 'satisfied' : 'blocked'}`,
+    `- Zero unclassified outcomes: ${assessment.blockers.length === 0 ? 'satisfied' : 'blocked'}`,
+    `- Degraded conditions surfaced explicitly: ${assessment.blockers.length === 0 ? 'satisfied' : 'blocked'}`,
+    '',
+    '## Deterministic Verdict',
+    '',
+    `- Scenarios executed: ${deterministicResult.scenario_count}`,
+    `- All expected classifications matched: ${deterministicResult.ok ? 'yes' : 'no'}`,
+    '',
+    '## Live Parity',
+    '',
+  ];
+
+  for (const status of liveStatuses) {
+    lines.push(`- ${status.id}: ${status.availability} (${status.reason})`);
+  }
+
+  lines.push('');
+  lines.push('## Blockers');
+  lines.push('');
+  if (assessment.blockers.length === 0) {
+    lines.push('- None');
+  } else {
+    assessment.blockers.forEach((blocker) => lines.push(`- ${blocker}`));
+  }
+
+  lines.push('');
+  lines.push('## Documented Limitations');
+  lines.push('');
+  if (assessment.limitations.length === 0) {
+    lines.push('- None');
+  } else {
+    assessment.limitations.forEach((item) => lines.push(`- ${item}`));
+  }
+
+  lines.push('');
+  lines.push('## Final Status');
+  lines.push('```json');
+  lines.push(JSON.stringify({
+    status: assessment.status,
+    release_gate: assessment.release_gate,
+    blockers: assessment.blockers,
+    limitations: assessment.limitations,
+  }, null, 2));
+  lines.push('```');
+  lines.push('');
+  return lines.join('\n');
+}
+
+function writeVerificationArtifact(cwd, options = {}) {
+  const phaseDir = options.phaseDir || path.join(cwd, '.planning', 'phases', '79-end-to-end-integrity-gauntlet');
+  const deterministicResult = options.deterministicResult || runDeterministicGauntlet({ cwd });
+  const liveStatuses = options.liveStatuses || getLiveCapabilityStatuses(getScenarioCatalog());
+  const assessment = assessVerification({
+    deterministicResult,
+    liveStatuses,
+    liveParityResults: options.liveParityResults || [],
+  });
+  const verificationPath = path.join(phaseDir, '79-VERIFICATION.md');
+  writeFile(verificationPath, renderVerificationArtifact({ deterministicResult, liveStatuses, assessment }));
+  return {
+    path: verificationPath,
+    assessment,
+    deterministicResult,
+    liveStatuses,
+  };
+}
+
+function assertPhase79MilestoneGate(cwd, version) {
+  if (version !== 'v0.7.0') {
+    return { allowed: true, reason: 'not_phase_79_release_gate' };
+  }
+
+  const verificationPath = path.join(cwd, '.planning', 'phases', '79-end-to-end-integrity-gauntlet', '79-VERIFICATION.md');
+  if (!fs.existsSync(verificationPath)) {
+    return {
+      allowed: false,
+      reason: 'missing_phase_79_verification',
+      path: verificationPath,
+    };
+  }
+
+  const content = fs.readFileSync(verificationPath, 'utf-8');
+  const frontmatter = extractFrontmatter(content);
+  if (String(frontmatter.status || '').trim() !== 'VALID') {
+    return {
+      allowed: false,
+      reason: 'phase_79_verification_not_valid',
+      path: verificationPath,
+      status: String(frontmatter.status || '').trim() || 'UNKNOWN',
+    };
+  }
+
+  return {
+    allowed: true,
+    path: verificationPath,
+    status: 'VALID',
+  };
+}
+
 function writeGauntletArtifacts(cwd, options = {}) {
   const phaseDir = options.phaseDir || path.join(cwd, '.planning', 'phases', '79-end-to-end-integrity-gauntlet');
   const catalog = getScenarioCatalog();
@@ -803,10 +958,13 @@ module.exports = {
   ensureDeterministicRuntime,
   runDeterministicGauntlet,
   writeGauntletArtifacts,
+  assessVerification,
+  writeVerificationArtifact,
+  assertPhase79MilestoneGate,
   renderSpec,
   renderResults,
   renderCoverageMap,
   renderDriftReport,
 };
 
-// GSD-AUTHORITY: 79-01-2:c87222af9d8222a5bf892cfe426ef0f740f0ae26618956ede5c6bde90a144b89
+// GSD-AUTHORITY: 79-01-3:6dcd4374b34f8f295f8afa017a6c27097c632af69587673af3d3530b07e28bb1

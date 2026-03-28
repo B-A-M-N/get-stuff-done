@@ -7,6 +7,7 @@ const path = require('path');
 const { escapeRegex, getMilestonePhaseFilter, normalizeMd, output, error } = require('./core.cjs');
 const { extractFrontmatter } = require('./frontmatter.cjs');
 const { writeStateMd } = require('./state.cjs');
+const { assertPhase79MilestoneGate } = require('./integrity-gauntlet.cjs');
 
 function cmdRequirementsMarkComplete(cwd, reqIdsRaw, raw) {
   if (!reqIdsRaw || reqIdsRaw.length === 0) {
@@ -88,6 +89,22 @@ function cmdRequirementsMarkComplete(cwd, reqIdsRaw, raw) {
 function cmdMilestoneComplete(cwd, version, options, raw) {
   if (!version) {
     error('version required for milestone complete (e.g., v1.0)');
+  }
+
+  const phase79Gate = assertPhase79MilestoneGate(cwd, version);
+  if (!phase79Gate.allowed) {
+    const payload = {
+      completed: false,
+      blocked: true,
+      reason: phase79Gate.reason,
+      verification_path: phase79Gate.path || null,
+      verification_status: phase79Gate.status || null,
+    };
+    if (raw) {
+      process.stdout.write(JSON.stringify(payload, null, 2) + '\n');
+      process.exit(1);
+    }
+    error(`Milestone completion blocked by Phase 79 verification gate: ${phase79Gate.reason}`);
   }
 
   const roadmapPath = path.join(cwd, '.planning', 'ROADMAP.md');
@@ -248,3 +265,5 @@ module.exports = {
   cmdRequirementsMarkComplete,
   cmdMilestoneComplete,
 };
+
+// GSD-AUTHORITY: 79-01-3:e714d4381a3c5c47f40f293154e8e8cd37c5d4367f104250e27e9be1e349e9a8

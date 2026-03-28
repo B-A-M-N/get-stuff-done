@@ -29,7 +29,7 @@
 - Outcome: INVALID
 - Notes: verification artifact validation rejected forged truth
 - Artifacts: .planning/phases/79-end-to-end-integrity-gauntlet/79-VERIFICATION.md
-- Command: `node ../../home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs verify verification-artifact /tmp/gsd-gauntlet-fake-verification-forged-verdict-Dz8VXR/.planning/phases/79-end-to-end-integrity-gauntlet/79-VERIFICATION.md --raw` -> exit 0
+- Command: `node ../../home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs verify verification-artifact /tmp/gsd-gauntlet-fake-verification-forged-verdict-8b5845/.planning/phases/79-end-to-end-integrity-gauntlet/79-VERIFICATION.md --raw` -> exit 0
 
 ## fake-verification-missing-truth-table
 
@@ -38,7 +38,7 @@
 - Outcome: INVALID
 - Notes: verification artifact validation rejected forged truth
 - Artifacts: .planning/phases/79-end-to-end-integrity-gauntlet/79-VERIFICATION.md
-- Command: `node ../../home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs verify verification-artifact /tmp/gsd-gauntlet-fake-verification-missing-truth-table-fSjirk/.planning/phases/79-end-to-end-integrity-gauntlet/79-VERIFICATION.md --raw` -> exit 0
+- Command: `node ../../home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs verify verification-artifact /tmp/gsd-gauntlet-fake-verification-missing-truth-table-uF58N1/.planning/phases/79-end-to-end-integrity-gauntlet/79-VERIFICATION.md --raw` -> exit 0
 
 ## missing-commit-proof-chain
 
@@ -47,7 +47,7 @@
 - Outcome: INVALID
 - Notes: summary verification rejected missing commit proof
 - Artifacts: .planning/phases/79-end-to-end-integrity-gauntlet/79-01-SUMMARY.md
-- Command: `node ../../home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs verify summary /tmp/gsd-gauntlet-missing-commit-proof-chain-QrkGux/.planning/phases/79-end-to-end-integrity-gauntlet/79-01-SUMMARY.md --raw` -> exit 1
+- Command: `node ../../home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs verify summary /tmp/gsd-gauntlet-missing-commit-proof-chain-4RIiEE/.planning/phases/79-end-to-end-integrity-gauntlet/79-01-SUMMARY.md --raw` -> exit 1
 
 ## missing-proof-index-commit
 
@@ -56,7 +56,7 @@
 - Outcome: INVALID
 - Notes: summary verification rejected missing commit proof
 - Artifacts: .planning/phases/79-end-to-end-integrity-gauntlet/79-01-SUMMARY.md
-- Command: `node ../../home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs verify summary /tmp/gsd-gauntlet-missing-proof-index-commit-q2RieP/.planning/phases/79-end-to-end-integrity-gauntlet/79-01-SUMMARY.md --raw` -> exit 1
+- Command: `node ../../home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs verify summary /tmp/gsd-gauntlet-missing-proof-index-commit-Y3F2Jl/.planning/phases/79-end-to-end-integrity-gauntlet/79-01-SUMMARY.md --raw` -> exit 1
 
 ## partial-execution-summary-claim
 
@@ -65,7 +65,7 @@
 - Outcome: INVALID
 - Notes: summary claimed more tasks than its commit proof supports
 - Artifacts: .planning/phases/79-end-to-end-integrity-gauntlet/79-01-SUMMARY.md
-- Command: `node ../../home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs verify summary /tmp/gsd-gauntlet-partial-execution-summary-claim-UIIhCg/.planning/phases/79-end-to-end-integrity-gauntlet/79-01-SUMMARY.md --raw` -> exit 1
+- Command: `node ../../home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs verify summary /tmp/gsd-gauntlet-partial-execution-summary-claim-TcQB1Z/.planning/phases/79-end-to-end-integrity-gauntlet/79-01-SUMMARY.md --raw` -> exit 1
 
 ## partial-execution-task-gap
 
@@ -156,7 +156,7 @@
 - Outcome: INVALID
 - Notes: forged verification compounded with drift contradiction
 - Artifacts: .planning/phases/79-end-to-end-integrity-gauntlet/79-VERIFICATION.md, .planning/drift/latest-report.json
-- Command: `node ../../home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs verify verification-artifact /tmp/gsd-gauntlet-mixed-fake-proof-and-drift-6NLHUj/.planning/phases/79-end-to-end-integrity-gauntlet/79-VERIFICATION.md --raw` -> exit 0
+- Command: `node ../../home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs verify verification-artifact /tmp/gsd-gauntlet-mixed-fake-proof-and-drift-3OfTP8/.planning/phases/79-end-to-end-integrity-gauntlet/79-VERIFICATION.md --raw` -> exit 0
 - Command: `node ../../home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs health degraded-mode --raw` -> exit 0
 
 ## mixed-missing-commit-and-undeclared-degradation
@@ -166,7 +166,7 @@
 - Outcome: INVALID
 - Notes: missing commit proof compounded with undeclared degradation
 - Artifacts: .planning/phases/79-end-to-end-integrity-gauntlet/79-01-SUMMARY.md
-- Command: `node ../../home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs verify summary /tmp/gsd-gauntlet-mixed-missing-commit-and-undeclared-degradation-9wpbsj/.planning/phases/79-end-to-end-integrity-gauntlet/79-01-SUMMARY.md --raw` -> exit 1
+- Command: `node ../../home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs verify summary /tmp/gsd-gauntlet-mixed-missing-commit-and-undeclared-degradation-hHNItL/.planning/phases/79-end-to-end-integrity-gauntlet/79-01-SUMMARY.md --raw` -> exit 1
 - Command: `node ../../home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs verify integrity --phase 79 --plan 01 --raw` -> exit 1
 
 ## mixed-partial-execution-and-fake-verification
@@ -176,8 +176,8 @@
 - Outcome: INVALID
 - Notes: partial execution compounded with forged verification
 - Artifacts: .planning/phases/79-end-to-end-integrity-gauntlet/79-01-SUMMARY.md, .planning/phases/79-end-to-end-integrity-gauntlet/79-VERIFICATION.md
-- Command: `node ../../home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs verify summary /tmp/gsd-gauntlet-mixed-partial-execution-and-fake-verification-ZTKR51/.planning/phases/79-end-to-end-integrity-gauntlet/79-01-SUMMARY.md --raw` -> exit 1
-- Command: `node ../../home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs verify verification-artifact /tmp/gsd-gauntlet-mixed-partial-execution-and-fake-verification-ZTKR51/.planning/phases/79-end-to-end-integrity-gauntlet/79-VERIFICATION.md --raw` -> exit 0
+- Command: `node ../../home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs verify summary /tmp/gsd-gauntlet-mixed-partial-execution-and-fake-verification-pxHD2k/.planning/phases/79-end-to-end-integrity-gauntlet/79-01-SUMMARY.md --raw` -> exit 1
+- Command: `node ../../home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs verify verification-artifact /tmp/gsd-gauntlet-mixed-partial-execution-and-fake-verification-pxHD2k/.planning/phases/79-end-to-end-integrity-gauntlet/79-VERIFICATION.md --raw` -> exit 0
 
 ## mixed-declared-firecrawl-and-undeclared-memory
 
@@ -210,4 +210,4 @@
 | mixed-retrieval-downgrade-and-memory-contradiction | live | unavailable | Firecrawl live configuration not present in environment. |
 | plane-configured-truth-path | live | unavailable | Plane configuration not present in environment. |
 
-<!-- GSD-AUTHORITY: 79-01-2:57993bcd948ac8b13ccb2fe488b02cd6d881eaf28cb4b4e52363b1af516e64f1 -->
+<!-- GSD-AUTHORITY: 79-01-3:70c0dafb477a7305df7f1ee393277cf24901ed308ef240b739934de002805ebb -->
