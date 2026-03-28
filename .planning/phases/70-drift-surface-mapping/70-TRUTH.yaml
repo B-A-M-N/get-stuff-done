@@ -1,0 +1,130 @@
+phase: "70"
+title: "Drift Surface Mapping"
+generated_at: "2026-03-28T00:24:41.544Z"
+strict: false
+inputs:
+  verification: ".planning/phases/70-drift-surface-mapping/70-VERIFICATION.md"
+  summaries:
+    - ".planning/phases/70-drift-surface-mapping/70-01-SUMMARY.md"
+    - ".planning/phases/70-drift-surface-mapping/70-02-SUMMARY.md"
+    - ".planning/phases/70-drift-surface-mapping/70-DRIFT-SUMMARY.md"
+  drift_reports:
+    - ".planning/drift/latest-report.json"
+  reconciliation:
+    - ".planning/drift/latest-reconciliation.json"
+  degraded_state:
+    - ".planning/health/latest-degraded-state.json"
+claimed_outcomes:
+  - id: null
+    description: "Identify and classify every location where roadmap, requirements, execution, verification, and memory truth can drift apart."
+    supporting_artifacts:
+      - ".planning/phases/70-drift-surface-mapping/70-01-SUMMARY.md"
+      - ".planning/phases/70-drift-surface-mapping/70-02-SUMMARY.md"
+      - ".planning/phases/70-drift-surface-mapping/70-DRIFT-SUMMARY.md"
+  - id: null
+    description: "machine-readable Phase 70 drift catalog contract"
+    supporting_artifacts:
+      - ".planning/phases/70-drift-surface-mapping/70-01-SUMMARY.md"
+  - id: null
+    description: "sanctioned `drift catalog` CLI path"
+    supporting_artifacts:
+      - ".planning/phases/70-drift-surface-mapping/70-01-SUMMARY.md"
+  - id: null
+    description: "YAML-safe authority envelope support for machine truth artifacts"
+    supporting_artifacts:
+      - ".planning/phases/70-drift-surface-mapping/70-01-SUMMARY.md"
+  - id: null
+    description: "deterministic drift severity and activity classification"
+    supporting_artifacts:
+      - ".planning/phases/70-drift-surface-mapping/70-02-SUMMARY.md"
+  - id: null
+    description: "human-readable Phase 70 drift summary derived from the machine catalog"
+    supporting_artifacts:
+      - ".planning/phases/70-drift-surface-mapping/70-02-SUMMARY.md"
+  - id: null
+    description: "explicit active, historical, and healthy truth-surface segmentation"
+    supporting_artifacts:
+      - ".planning/phases/70-drift-surface-mapping/70-02-SUMMARY.md"
+observable_evidence:
+  - type: "file"
+    ref: ".planning/phases/70-drift-surface-mapping/70-01-SUMMARY.md"
+  - type: "file"
+    ref: ".planning/phases/70-drift-surface-mapping/70-02-SUMMARY.md"
+  - type: "file"
+    ref: ".planning/phases/70-drift-surface-mapping/70-DRIFT-SUMMARY.md"
+  - type: "file"
+    ref: ".planning/phases/70-drift-surface-mapping/70-VERIFICATION.md"
+  - type: "command"
+    ref: "phase-truth generate 70"
+gaps:
+  - type: "verification_gap"
+    description: "Verification artifact failed contract validation: Frontmatter status must be one of VALID, CONDITIONAL, INVALID; Missing required section: Observable Truths; Missing required section: Requirement Coverage; Requirement Coverage must contain at least one requirement row; Drift Analysis JSON invalid: missing fenced JSON block; Unknown anti-pattern classification: ℹ️ Info; Unknown anti-pattern classification: ℹ️ Info; Unknown anti-pattern classification: ℹ️ Info; Final Status JSON invalid: missing fenced JSON block"
+  - type: "reverification_required"
+    description: "execution_drift invalidated or downgraded trusted truth"
+  - type: "reverification_required"
+    description: "verification_drift invalidated or downgraded trusted truth"
+  - type: "degraded_state_caveat"
+    description: "Current degraded truth posture is UNSAFE."
+  - type: "workflow_block"
+    description: "context:plan-phase blocked by planning_server: planning_server_unavailable"
+  - type: "workflow_block"
+    description: "context:execute-plan blocked by planning_server: planning_server_unavailable"
+  - type: "workflow_block"
+    description: "verify:integrity blocked by drift_truth: drift_truth_stale"
+  - type: "workflow_block"
+    description: "verify:workflow-readiness blocked by drift_truth: drift_truth_stale"
+drift_effects:
+  - id: "phase70-open-brain-runtime-split"
+    type: "execution_drift"
+    severity: "CRITICAL"
+    source: ".planning/drift/latest-report.json"
+    description: "Repo-local and installed runtime Open Brain status surfaces must agree when reporting current backend truth."
+  - id: "phase70-planning-server-integrity-claims"
+    type: "verification_drift"
+    severity: "CRITICAL"
+    source: ".planning/drift/latest-report.json"
+    description: "Planning Server integrity fields must not report coherence or narrative-drift values without live proof."
+  - id: "phase70-recent-structural-history-50-55"
+    type: "verification_drift"
+    severity: "CRITICAL"
+    source: ".planning/drift/latest-report.json"
+    description: "Recent high-impact structural history that previously blocked milestone closeout must remain cataloged as non-blocking historical drift."
+reconciliation_effects:
+  - source: ".planning/drift/latest-reconciliation.json"
+    surface: "verification_status"
+    severity: "CRITICAL"
+    applied_status: "INVALID"
+    reason: "execution_drift"
+    evidence:
+      - "node get-stuff-done/bin/gsd-tools.cjs brain open-status --raw"
+      - "node /home/bamn/.codex/get-shit-done/bin/gsd-tools.cjs brain open-status --raw"
+  - source: ".planning/drift/latest-reconciliation.json"
+    surface: "phase_status"
+    severity: "CRITICAL"
+    applied_status: "INVALID"
+    reason: "execution_drift"
+    evidence:
+      - "node get-stuff-done/bin/gsd-tools.cjs brain open-status --raw"
+      - "node /home/bamn/.codex/get-shit-done/bin/gsd-tools.cjs brain open-status --raw"
+  - source: ".planning/drift/latest-reconciliation.json"
+    surface: "roadmap_status"
+    severity: "CRITICAL"
+    applied_status: "BLOCKED"
+    reason: "execution_drift"
+    evidence:
+      - "node get-stuff-done/bin/gsd-tools.cjs brain open-status --raw"
+      - "node /home/bamn/.codex/get-shit-done/bin/gsd-tools.cjs brain open-status --raw"
+  - source: ".planning/drift/latest-reconciliation.json"
+    surface: "operator_health"
+    severity: "CRITICAL"
+    applied_status: "UNHEALTHY"
+    reason: "execution_drift"
+    evidence:
+      - "node get-stuff-done/bin/gsd-tools.cjs brain open-status --raw"
+      - "node /home/bamn/.codex/get-shit-done/bin/gsd-tools.cjs brain open-status --raw"
+escalations:
+  []
+final_status: "INVALID"
+status_reason:
+  - "Applied reconciliation downgrades this phase to INVALID."
+  - "Active CRITICAL drift affects this phase."

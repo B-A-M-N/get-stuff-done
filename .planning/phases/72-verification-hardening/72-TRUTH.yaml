@@ -1,0 +1,79 @@
+phase: "72"
+title: "Verification Hardening"
+generated_at: "2026-03-28T00:24:41.612Z"
+strict: false
+inputs:
+  verification: null
+  summaries:
+    - ".planning/phases/72-verification-hardening/72-01-SUMMARY.md"
+    - ".planning/phases/72-verification-hardening/72-02-SUMMARY.md"
+  drift_reports:
+    - ".planning/drift/latest-report.json"
+  reconciliation:
+    - ".planning/drift/latest-reconciliation.json"
+  degraded_state:
+    - ".planning/health/latest-degraded-state.json"
+claimed_outcomes:
+  - id: null
+    description: "Replace narrative verification with a strict evidence-first verification contract and validator."
+    supporting_artifacts:
+      - ".planning/phases/72-verification-hardening/72-01-SUMMARY.md"
+      - ".planning/phases/72-verification-hardening/72-02-SUMMARY.md"
+  - id: null
+    description: "evidence-first verification scaffold"
+    supporting_artifacts:
+      - ".planning/phases/72-verification-hardening/72-01-SUMMARY.md"
+  - id: null
+    description: "strict verification status contract"
+    supporting_artifacts:
+      - ".planning/phases/72-verification-hardening/72-01-SUMMARY.md"
+  - id: null
+    description: "direct-evidence validation for verification artifacts"
+    supporting_artifacts:
+      - ".planning/phases/72-verification-hardening/72-01-SUMMARY.md"
+  - id: null
+    description: "blocker and degrader anti-pattern enforcement"
+    supporting_artifacts:
+      - ".planning/phases/72-verification-hardening/72-02-SUMMARY.md"
+  - id: null
+    description: "required drift typing for verification inconsistencies"
+    supporting_artifacts:
+      - ".planning/phases/72-verification-hardening/72-02-SUMMARY.md"
+  - id: null
+    description: "dedicated Phase 72 verification-artifact regression suite"
+    supporting_artifacts:
+      - ".planning/phases/72-verification-hardening/72-02-SUMMARY.md"
+observable_evidence:
+  - type: "file"
+    ref: ".planning/phases/72-verification-hardening/72-01-SUMMARY.md"
+  - type: "file"
+    ref: ".planning/phases/72-verification-hardening/72-02-SUMMARY.md"
+  - type: "command"
+    ref: "phase-truth generate 72"
+gaps:
+  - type: "verification_gap"
+    description: "Verification artifact is missing."
+  - type: "degraded_state_caveat"
+    description: "Current degraded truth posture is UNSAFE."
+  - type: "workflow_block"
+    description: "context:plan-phase blocked by planning_server: planning_server_unavailable"
+  - type: "workflow_block"
+    description: "context:execute-plan blocked by planning_server: planning_server_unavailable"
+  - type: "workflow_block"
+    description: "verify:integrity blocked by drift_truth: drift_truth_stale"
+  - type: "workflow_block"
+    description: "verify:workflow-readiness blocked by drift_truth: drift_truth_stale"
+drift_effects:
+  []
+reconciliation_effects:
+  []
+escalations:
+  []
+final_status: "CONDITIONAL"
+status_reason:
+  - "Verification artifact is missing."
+  - "Current degraded truth posture is UNSAFE."
+  - "context:plan-phase blocked by planning_server: planning_server_unavailable"
+  - "context:execute-plan blocked by planning_server: planning_server_unavailable"
+  - "verify:integrity blocked by drift_truth: drift_truth_stale"
+  - "verify:workflow-readiness blocked by drift_truth: drift_truth_stale"
