@@ -22,6 +22,7 @@ function writeUnsafeTruthArtifacts(tmpDir, options = {}) {
 
   if (options.drift !== false) {
     fs.writeFileSync(path.join(tmpDir, '.planning', 'drift', 'latest-report.json'), JSON.stringify({
+      schema: 'gsd_drift_report',
       generated_at: options.driftGeneratedAt || '2026-03-27T00:00:00.000Z',
       findings: [],
       summary: { active: 0 },
@@ -83,6 +84,23 @@ describe('command governance enforcement', () => {
       const out = JSON.parse(result.stdout.trim());
       assert.strictEqual(out.classification, 'hard_gated_state_transition');
       assert.strictEqual(out.canonical_state, 'UNSAFE');
+    } finally {
+      cleanup(tmpDir);
+    }
+  });
+
+  test('drift reconcile stays runnable as a recovery path under unsafe posture', () => {
+    const tmpDir = createTempProject();
+    try {
+      writeUnsafeTruthArtifacts(tmpDir, {
+        driftGeneratedAt: '2026-03-27T00:00:00.000Z',
+        reconciledAt: '2026-03-27T00:00:00.000Z',
+      });
+      const result = runTool(['drift', 'reconcile', '--raw'], tmpDir);
+      assert.strictEqual(result.status, 0, result.stderr);
+      const out = JSON.parse(result.stdout.trim());
+      assert.ok(Array.isArray(out.decision?.applied_changes));
+      assert.ok(fs.existsSync(path.join(tmpDir, '.planning', 'drift', 'latest-reconciliation.json')));
     } finally {
       cleanup(tmpDir);
     }

@@ -16,7 +16,7 @@ describe('command governance policy', () => {
     });
   });
 
-  test('policy resolves hard-gated planning workflows and recovery diagnostics', () => {
+  test('policy resolves hard-gated planning workflows and recovery paths', () => {
     const tmpDir = createTempProject();
     try {
       const policyDir = path.join(tmpDir, '.planning', 'policy');
@@ -39,6 +39,12 @@ describe('command governance policy', () => {
         subcommand: 'status',
       });
       assert.strictEqual(recoveryRoute.classification, 'recovery_only');
+
+      const reconcileRoute = commandGovernance.resolveCommandGovernance(tmpDir, {
+        command: 'drift',
+        subcommand: 'reconcile',
+      });
+      assert.strictEqual(reconcileRoute.classification, 'recovery_only');
     } finally {
       cleanup(tmpDir);
     }

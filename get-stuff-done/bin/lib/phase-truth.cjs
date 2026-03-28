@@ -477,6 +477,93 @@ function evaluateInvariant(invariant, context) {
       );
     }
 
+    case 'reconciliation_artifact_fresh': {
+      const driftGeneratedAt = context.driftReport?.generated_at ? Date.parse(context.driftReport.generated_at) : null;
+      const reconciliationTimestamp = context.reconciliationArtifact?.timestamp ? Date.parse(context.reconciliationArtifact.timestamp) : null;
+      const hasFreshOrdering = Number.isFinite(driftGeneratedAt)
+        && Number.isFinite(reconciliationTimestamp)
+        && reconciliationTimestamp >= driftGeneratedAt;
+      if (hasFreshOrdering) {
+        return buildInvariantResult(
+          invariant,
+          'PASS',
+          [...driftEvidence],
+          null,
+          null
+        );
+      }
+      return buildInvariantResult(
+        invariant,
+        (context.driftReport || context.reconciliationArtifact) ? 'FAIL' : 'MISSING',
+        [...driftEvidence],
+        'The reconciliation artifact is missing or older than the current drift report, so current reconciliation closure is not yet provable.',
+        (context.driftReport || context.reconciliationArtifact) ? 'logic' : 'missing_input'
+      );
+    }
+
+    case 'preview_entrypoint_runnable': {
+      const previewSurfaceProved = /drift preview --raw/.test(context.verificationText || '');
+      if (previewSurfaceProved) {
+        return buildInvariantResult(
+          invariant,
+          'PASS',
+          verificationEvidence,
+          null,
+          null
+        );
+      }
+      return buildInvariantResult(
+        invariant,
+        context.verificationState.exists ? 'FAIL' : 'MISSING',
+        verificationEvidence,
+        'The current verification artifact does not directly prove the sanctioned `drift preview --raw` surface.',
+        context.verificationState.exists ? 'logic' : 'missing_input'
+      );
+    }
+
+    case 'reconcile_entrypoint_runnable': {
+      const reconcileSurfaceProved = /drift reconcile --raw/.test(context.verificationText || '');
+      if (reconcileSurfaceProved && context.reconciliationArtifact) {
+        return buildInvariantResult(
+          invariant,
+          'PASS',
+          [...verificationEvidence, ...driftEvidence],
+          null,
+          null
+        );
+      }
+      return buildInvariantResult(
+        invariant,
+        (context.verificationState.exists || context.reconciliationArtifact) ? 'FAIL' : 'MISSING',
+        [...verificationEvidence, ...driftEvidence],
+        'The sanctioned `drift reconcile --raw` mutation path is not yet directly evidenced by the current verification artifact and reconciliation output.',
+        (context.verificationState.exists || context.reconciliationArtifact) ? 'logic' : 'missing_input'
+      );
+    }
+
+    case 'reconciliation_mutation_recorded': {
+      const reconciliation = context.reconciliationArtifact;
+      const hasRecordedMutationShape = Array.isArray(reconciliation?.applied_changes)
+        && Array.isArray(reconciliation?.unchanged)
+        && Array.isArray(reconciliation?.reverification_required);
+      if (hasRecordedMutationShape) {
+        return buildInvariantResult(
+          invariant,
+          'PASS',
+          driftEvidence,
+          null,
+          null
+        );
+      }
+      return buildInvariantResult(
+        invariant,
+        reconciliation ? 'FAIL' : 'MISSING',
+        driftEvidence,
+        'The machine-readable reconciliation artifact is absent or does not expose the sanctioned mutation record shape.',
+        reconciliation ? 'logic' : 'missing_input'
+      );
+    }
+
     case 'verification_integrity': {
       const verificationExists = context.verificationState.exists;
       const verificationValid = context.verificationState.valid_contract && context.verificationState.final_status !== 'INVALID';
@@ -494,8 +581,8 @@ function evaluateInvariant(invariant, context) {
         verificationExists ? 'FAIL' : 'MISSING',
         verificationEvidence,
         verificationExists
-          ? 'The current Phase 75 verification artifact is present but does not yet provide a usable same-area verification verdict.'
-          : 'Phase 75 verification evidence is absent, so truth synthesis cannot consume it.',
+          ? 'The current phase verification artifact is present but does not yet provide a usable same-area verification verdict.'
+          : 'Current phase verification evidence is absent, so truth synthesis cannot consume it.',
         verificationExists ? 'logic' : 'missing_input'
       );
     }
@@ -774,7 +861,7 @@ function derivePhaseTruth(cwd, phase, options = {}) {
   const reconciliation = collectReconciliationEffects(cwd, phaseInfo.phase_number);
   const degraded = collectDegradedEffects(cwd);
   const invariantContract = loadInvariantContract(cwd, phaseInfo.phase_number);
-  const useInvariantClosure = invariantContract.valid && invariantContract.contract?.enforcement_area === 'Model-Facing Memory Truth Closure';
+  const useInvariantClosure = invariantContract.valid && Boolean(invariantContract.contract?.enforcement_area);
   const invariantAudit = useInvariantClosure ? derivePhaseInvariantAudit(cwd, phaseInfo.phase_number, options) : null;
   const strict = shouldUseStrictMode(phaseInfo.phase_number, options);
 

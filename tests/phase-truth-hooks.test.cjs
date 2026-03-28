@@ -97,6 +97,49 @@ function setupInvariantClosureProject(tmpDir) {
   }, null, 2));
 }
 
+function setupReconciliationInvariantClosureProject(tmpDir) {
+  writeFile(tmpDir, '.planning/ROADMAP.md', `## Milestones\n- [ ] **v0.7.0 Truth**\n\n## v0.7.0 Truth\n\n- [ ] **Phase 74: State Reconciliation Layer**\n\n### Phase 74: State Reconciliation Layer\n\n**Goal:** Reconcile detected inconsistencies deterministically.\n**Requirements**: TRUTH-DRIFT-02\n**Depends on:** Phase 73\n**Status**: [Planned]\n\nPlans:\n- [ ] 74-01-PLAN.md — reconcile state\n`);
+  writeFile(tmpDir, '.planning/REQUIREMENTS.md', `TRUTH-DRIFT-02: Reconciliation truth must be machine-readable and reproducible. | source: test\n`);
+  writeFile(tmpDir, '.planning/STATE.md', `---\ncurrent_phase: 74\n---\n# State\n`);
+  writeFile(tmpDir, '.planning/phases/74-state-reconciliation-layer/74-01-PLAN.md', '# Plan\n');
+  writeFile(tmpDir, '.planning/phases/74-state-reconciliation-layer/74-01-SUMMARY.md', `---\nphase: 74\nplan: 01\nprovides:\n  - deterministic reconciliation surfaces\n---\n\n# Summary\n`);
+  writeFile(tmpDir, '.planning/phases/74-state-reconciliation-layer/74-VERIFICATION.md', `---\nphase: "74"\nverified: 2026-03-28T00:00:00Z\nstatus: VALID\nscore: 1/1 requirements verified\n---\n\n# Verification\n\n## Observable Truths\n\n| # | Truth | Status | Evidence |\n|---|---|---|---|\n| 1 | Preview and reconcile surfaces are directly reproducible. | VALID | \`node get-stuff-done/bin/gsd-tools.cjs drift preview --raw\`, \`node get-stuff-done/bin/gsd-tools.cjs drift reconcile --raw\` |\n\n## Requirement Coverage\n\n| Requirement | Status | Evidence | Gap |\n|---|---|---|---|\n| TRUTH-DRIFT-02 | VALID | \`node get-stuff-done/bin/gsd-tools.cjs drift preview --raw\`, \`node get-stuff-done/bin/gsd-tools.cjs drift reconcile --raw\`, \`.planning/drift/latest-reconciliation.json\` | - |\n\n## Anti-Pattern Scan\n\n| File | Pattern | Classification | Impact |\n|---|---|---|---|\n| None | - | - | - |\n\n## Drift Analysis\n\n\`\`\`json\n[]\n\`\`\`\n\n## Final Status\n\n\`\`\`json\n{\"status\":\"VALID\",\"reason\":\"Reconciliation closure invariants are satisfied.\"}\n\`\`\`\n`);
+  writeFile(tmpDir, '.planning/phases/74-state-reconciliation-layer/74-INVARIANTS.yaml', JSON.stringify({
+    phase: '74',
+    enforcement_area: 'Reconciliation Truth Closure',
+    invariants: [
+      { name: 'reconciliation_artifact_fresh', affects_final_truth_synthesis: true, expected_evidence_surfaces: [] },
+      { name: 'preview_entrypoint_runnable', affects_final_truth_synthesis: true, expected_evidence_surfaces: [] },
+      { name: 'reconcile_entrypoint_runnable', affects_final_truth_synthesis: true, expected_evidence_surfaces: [] },
+      { name: 'reconciliation_mutation_recorded', affects_final_truth_synthesis: true, expected_evidence_surfaces: [] },
+      { name: 'verification_integrity', affects_final_truth_synthesis: true, expected_evidence_surfaces: [] }
+    ]
+  }, null, 2));
+  writeFile(tmpDir, '.planning/drift/latest-report.json', JSON.stringify({
+    schema: 'gsd_drift_report',
+    generated_at: '2026-03-28T00:00:00Z',
+    findings: [],
+    summary: { active: 0, critical: 0, major: 0, minor: 0 }
+  }, null, 2));
+  writeFile(tmpDir, '.planning/drift/latest-reconciliation.json', JSON.stringify({
+    timestamp: '2026-03-28T00:00:01Z',
+    applied_changes: [],
+    unchanged: [],
+    reverification_required: [],
+    summary: { critical: 0, major: 0, minor: 0 }
+  }, null, 2));
+  writeFile(tmpDir, '.planning/health/latest-degraded-state.json', JSON.stringify({
+    aggregate_state: 'UNSAFE',
+    subsystems: {
+      model_facing_memory: { canonical_state: 'UNSAFE', reason: 'canonical_postgres_memory_unavailable' }
+    },
+    blocked_workflows: [
+      { workflow: 'context:plan-phase', subsystem: 'model_facing_memory', reason: 'canonical_postgres_memory_unavailable' },
+      { workflow: 'context:execute-plan', subsystem: 'model_facing_memory', reason: 'canonical_postgres_memory_unavailable' }
+    ]
+  }, null, 2));
+}
+
 describe('phase truth regeneration hooks', () => {
   let tmpDir;
 
@@ -159,6 +202,21 @@ describe('phase truth regeneration hooks', () => {
     assert.match(result.output, /75-TRUTH\.yaml$/);
 
     const rawTruth = fs.readFileSync(path.join(tmpDir, '.planning/phases/75-degraded-mode-enforcement/75-TRUTH.yaml'), 'utf-8');
+    assert.match(rawTruth, /final_status: "VALID"/);
+    assert.doesNotMatch(rawTruth, /Current degraded truth posture is UNSAFE/);
+    assert.doesNotMatch(rawTruth, /context:plan-phase blocked by model_facing_memory/);
+  });
+
+  test('phase truth uses generic invariant closure for reconciliation truth', () => {
+    cleanup(tmpDir);
+    tmpDir = createTempProject();
+    setupReconciliationInvariantClosureProject(tmpDir);
+
+    const result = runGsdTools(['phase-truth', 'generate', '74', '--raw'], tmpDir);
+    assert.ok(result.success, result.error);
+    assert.match(result.output, /74-TRUTH\.yaml$/);
+
+    const rawTruth = fs.readFileSync(path.join(tmpDir, '.planning/phases/74-state-reconciliation-layer/74-TRUTH.yaml'), 'utf-8');
     assert.match(rawTruth, /final_status: "VALID"/);
     assert.doesNotMatch(rawTruth, /Current degraded truth posture is UNSAFE/);
     assert.doesNotMatch(rawTruth, /context:plan-phase blocked by model_facing_memory/);

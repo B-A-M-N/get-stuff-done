@@ -33,7 +33,7 @@
     { "command": "drift", "subcommand": "report", "class": "recovery_only" },
     { "command": "drift", "subcommand": "status", "class": "recovery_only" },
     { "command": "drift", "subcommand": "preview", "class": "recovery_only" },
-    { "command": "drift", "subcommand": "reconcile", "class": "hard_gated_state_transition" },
+    { "command": "drift", "subcommand": "reconcile", "class": "recovery_only" },
     { "command": "health", "subcommand": "degraded-mode", "class": "recovery_only" },
 
     { "command": "state", "subcommand": "json", "class": "warn_only" },

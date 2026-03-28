@@ -1,9 +1,9 @@
 phase: "74"
 title: "State Reconciliation Layer"
-generated_at: "2026-03-28T00:24:41.740Z"
+generated_at: "2026-03-28T06:15:09.005Z"
 strict: false
 inputs:
-  verification: null
+  verification: ".planning/phases/74-state-reconciliation-layer/74-VERIFICATION.md"
   summaries:
     - ".planning/phases/74-state-reconciliation-layer/74-01-SUMMARY.md"
   drift_reports:
@@ -32,32 +32,18 @@ claimed_outcomes:
 observable_evidence:
   - type: "file"
     ref: ".planning/phases/74-state-reconciliation-layer/74-01-SUMMARY.md"
+  - type: "file"
+    ref: ".planning/phases/74-state-reconciliation-layer/74-VERIFICATION.md"
   - type: "command"
     ref: "phase-truth generate 74"
 gaps:
-  - type: "verification_gap"
-    description: "Verification artifact is missing."
-  - type: "degraded_state_caveat"
-    description: "Current degraded truth posture is UNSAFE."
-  - type: "workflow_block"
-    description: "context:plan-phase blocked by planning_server: planning_server_unavailable"
-  - type: "workflow_block"
-    description: "context:execute-plan blocked by planning_server: planning_server_unavailable"
-  - type: "workflow_block"
-    description: "verify:integrity blocked by drift_truth: drift_truth_stale"
-  - type: "workflow_block"
-    description: "verify:workflow-readiness blocked by drift_truth: drift_truth_stale"
+  []
 drift_effects:
   []
 reconciliation_effects:
   []
 escalations:
   []
-final_status: "CONDITIONAL"
+final_status: "VALID"
 status_reason:
-  - "Verification artifact is missing."
-  - "Current degraded truth posture is UNSAFE."
-  - "context:plan-phase blocked by planning_server: planning_server_unavailable"
-  - "context:execute-plan blocked by planning_server: planning_server_unavailable"
-  - "verify:integrity blocked by drift_truth: drift_truth_stale"
-  - "verify:workflow-readiness blocked by drift_truth: drift_truth_stale"
+  - "All claimed outcomes are backed and no unresolved gaps or downgrades remain."
