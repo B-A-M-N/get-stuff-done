@@ -144,6 +144,7 @@ function renderTable(headers, rows) {
 }
 
 function buildRetroVerificationArtifact(input = {}) {
+  // This helper only assembles explicit evidence into the Phase 72 contract.
   const requirementRows = (Array.isArray(input.requirement_rows) ? input.requirement_rows : []).map(mapRequirementRow);
   const observableTruths = (Array.isArray(input.observable_truths) ? input.observable_truths : []).map(mapTruthRow);
   const antiPatterns = Array.isArray(input.anti_patterns) && input.anti_patterns.length > 0
@@ -289,4 +290,4 @@ module.exports = {
   renderRetroVerificationMarkdown,
 };
 
-// GSD-AUTHORITY: 80-01-1:1255ca43a02dc0632872ce356c1a44f5af96c74b0b9ff7897fa616f5f3c0e085
+// GSD-AUTHORITY: 80-01-1:9725296b2691aecc5677f082bf1a4b1cb16e94a350f21133a793ba5a19e5f911
