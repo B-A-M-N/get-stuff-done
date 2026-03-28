@@ -497,6 +497,36 @@ function runMixedMissingCommitAndUndeclaredScenario(scenario, options) {
   });
 }
 
+function runMixedPartialAndFakeScenario(scenario, options) {
+  return withScenarioRepo(options, scenario.id, (cwd) => {
+    const summaryPath = seedInvalidSummary(cwd, 'partial');
+    const verificationPath = seedInvalidVerification(cwd, 'forged');
+    const verifySummary = runCli(cwd, ['verify', 'summary', summaryPath, '--raw']);
+    const verifyArtifact = runCli(cwd, ['verify', 'verification-artifact', verificationPath, '--raw']);
+    return finalizeScenario(scenario, cwd, [verifySummary, verifyArtifact], {
+      actual_outcome: 'INVALID',
+      observed_truth_status: 'INVALID',
+      artifacts: [toRel(cwd, summaryPath), toRel(cwd, verificationPath)],
+      notes: ['partial execution compounded with forged verification'],
+    });
+  });
+}
+
+function runMixedDeclaredAndUndeclaredDegradationScenario(scenario, options) {
+  return withScenarioRepo(options, scenario.id, (cwd) => {
+    staleTruthArtifacts(cwd);
+    const firecrawl = runCli(cwd, ['firecrawl', 'check', '--raw']);
+    fs.rmSync(path.join(cwd, '.planning', 'health', 'latest-degraded-state.json'), { force: true });
+    const integrity = runCli(cwd, ['verify', 'integrity', '--phase', '79', '--plan', '01', '--raw']);
+    return finalizeScenario(scenario, cwd, [firecrawl, integrity], {
+      actual_outcome: 'INVALID',
+      observed_truth_status: 'INVALID',
+      artifacts: ['.planning/drift/latest-report.json'],
+      notes: ['retrieval degradation is explicit while memory degradation remains undeclared'],
+    });
+  });
+}
+
 function runMixedRetrievalAndMemoryScenario(scenario, options) {
   return withScenarioRepo(options, scenario.id, (cwd) => {
     writeJson(path.join(cwd, '.planning', 'phases', '79-end-to-end-integrity-gauntlet', 'retrieval-posture.json'), {
@@ -552,6 +582,8 @@ const EXECUTORS = {
   checkpointBlock: runCheckpointBlockScenario,
   mixedFakeAndDrift: runMixedFakeAndDriftScenario,
   mixedMissingCommitAndUndeclared: runMixedMissingCommitAndUndeclaredScenario,
+  mixedPartialAndFake: runMixedPartialAndFakeScenario,
+  mixedDeclaredAndUndeclaredDegradation: runMixedDeclaredAndUndeclaredDegradationScenario,
   mixedRetrievalAndMemory: runMixedRetrievalAndMemoryScenario,
   planeCapability: runPlaneCapabilityScenario,
 };
@@ -606,9 +638,42 @@ function runDeterministicGauntlet(options = {}) {
   };
 }
 
+function getLiveCapabilityStatuses(catalog) {
+  return catalog
+    .filter((scenario) => scenario.mode_support.includes('live'))
+    .map((scenario) => {
+      if (scenario.surfaces.includes('plane')) {
+        const available = Boolean(process.env.PLANE_API_KEY || process.env.PLANE_TOKEN || process.env.PLANE_BASE_URL);
+        return {
+          id: scenario.id,
+          mode: 'live',
+          availability: available ? 'available' : 'unavailable',
+          reason: available ? 'Plane configuration present.' : 'Plane configuration not present in environment.',
+        };
+      }
+      if (scenario.surfaces.includes('firecrawl')) {
+        const available = Boolean(process.env.FIRECRAWL_API_URL || process.env.FIRECRAWL_API_KEY);
+        return {
+          id: scenario.id,
+          mode: 'live',
+          availability: available ? 'available' : 'unavailable',
+          reason: available ? 'Firecrawl configuration present.' : 'Firecrawl live configuration not present in environment.',
+        };
+      }
+      return {
+        id: scenario.id,
+        mode: 'live',
+        availability: 'unavailable',
+        reason: 'Live capability not configured for this environment.',
+      };
+    });
+}
+
 function renderSpec(catalog) {
   const lines = [
     '# Phase 79 Integrity Gauntlet Spec',
+    '',
+    'This catalog is the authoritative hostile contract for Phase 79.',
     '',
     '| Scenario | Failure Class | Chain | Surfaces | Expected | Modes |',
     '|----------|---------------|-------|----------|----------|-------|',
@@ -617,10 +682,19 @@ function renderSpec(catalog) {
     lines.push(`| ${scenario.id} | ${scenario.failure_class} | ${scenario.failure_chain} | ${scenario.surfaces.join(', ')} | ${scenario.expected_outcome} | ${scenario.mode_support.join(', ')} |`);
   }
   lines.push('');
+  lines.push('## Required Surface Coverage');
+  lines.push('');
+  lines.push('- Authoritative context-build / Firecrawl posture: `firecrawl-context-governance-bypass`, `retrieval-truth-posture-downgrade`, `mixed-declared-firecrawl-and-undeclared-memory`');
+  lines.push('- Retrieval-facing truth posture: `declared-firecrawl-degradation`, `retrieval-truth-posture-downgrade`, `mixed-retrieval-downgrade-and-memory-contradiction`');
+  lines.push('- Memory-truth contradictions: `memory-truth-contradiction`, `drift-reconciliation-trigger`, `mixed-retrieval-downgrade-and-memory-contradiction`');
+  lines.push('- Declared degradation: `declared-memory-degradation`, `declared-firecrawl-degradation`');
+  lines.push('- Undeclared degradation: `undeclared-memory-degradation`, `mixed-missing-commit-and-undeclared-degradation`, `mixed-declared-firecrawl-and-undeclared-memory`');
+  lines.push('- Plane-configured path when available: `plane-configured-truth-path`');
+  lines.push('');
   return lines.join('\n');
 }
 
-function renderResults(result) {
+function renderResults(result, liveStatuses = []) {
   const lines = [
     '# Phase 79 Integrity Gauntlet Results',
     '',
@@ -644,27 +718,51 @@ function renderResults(result) {
     }
     lines.push('');
   }
+
+  lines.push('## Capability-Gated Live Coverage');
+  lines.push('');
+  lines.push('| Scenario | Mode | Availability | Reason |');
+  lines.push('|----------|------|--------------|--------|');
+  for (const entry of liveStatuses) {
+    lines.push(`| ${entry.id} | ${entry.mode} | ${entry.availability} | ${entry.reason} |`);
+  }
+  lines.push('');
   return lines.join('\n');
 }
 
 function renderCoverageMap(catalog) {
+  const requirementMap = {
+    fake_verification: ['TRUTH-GAUNTLET-01', 'TRUTH-BYPASS-01'],
+    missing_commits: ['TRUTH-GAUNTLET-01', 'TRUTH-BYPASS-01'],
+    partial_execution: ['TRUTH-GAUNTLET-01', 'TRUTH-BYPASS-01'],
+    degraded_subsystem: ['TRUTH-DEGRADE-01', 'TRUTH-GAUNTLET-01'],
+    drift_contradiction: ['TRUTH-DRIFT-02', 'TRUTH-GAUNTLET-01'],
+  };
   const byClass = new Map();
   for (const scenario of catalog) {
-    const bucket = byClass.get(scenario.failure_class) || { single: 0, mixed: 0, ids: [] };
+    const bucket = byClass.get(scenario.failure_class) || { single: 0, mixed: 0, ids: [], surfaces: new Set() };
     bucket[scenario.failure_chain === 'mixed' ? 'mixed' : 'single'] += 1;
     bucket.ids.push(scenario.id);
+    scenario.surfaces.forEach((surface) => bucket.surfaces.add(surface));
     byClass.set(scenario.failure_class, bucket);
   }
 
   const lines = [
     '# Phase 79 Coverage Map',
     '',
-    '| Failure Class | Single | Mixed | Scenarios |',
-    '|---------------|--------|-------|-----------|',
+    '| Failure Class | Requirements | Single | Mixed | Scenarios | Surfaces |',
+    '|---------------|--------------|--------|-------|-----------|----------|',
   ];
   for (const [failureClass, bucket] of byClass.entries()) {
-    lines.push(`| ${failureClass} | ${bucket.single} | ${bucket.mixed} | ${bucket.ids.join(', ')} |`);
+    lines.push(`| ${failureClass} | ${requirementMap[failureClass].join(', ')} | ${bucket.single} | ${bucket.mixed} | ${bucket.ids.join(', ')} | ${Array.from(bucket.surfaces).join(', ')} |`);
   }
+  lines.push('');
+  lines.push('## Explicit Requirement Notes');
+  lines.push('');
+  lines.push('- Retrieval-facing truth posture is covered by scenarios that include `retrieval-posture` surfaces.');
+  lines.push('- Authoritative context-build coverage is covered by scenarios that include `context-build` surfaces.');
+  lines.push('- Memory truth contradiction coverage is covered by scenarios that include `memory-truth` plus either `drift-report` or `degraded-state`.');
+  lines.push('- Plane-configured coverage is preserved as capability-gated live coverage through `plane-configured-truth-path`.');
   lines.push('');
   return lines.join('\n');
 }
@@ -692,12 +790,13 @@ function renderDriftReport(result) {
 function writeGauntletArtifacts(cwd, options = {}) {
   const phaseDir = options.phaseDir || path.join(cwd, '.planning', 'phases', '79-end-to-end-integrity-gauntlet');
   const catalog = getScenarioCatalog();
-  const result = runDeterministicGauntlet(options);
+  const liveStatuses = getLiveCapabilityStatuses(catalog);
+  const result = runDeterministicGauntlet({ ...options, cwd: options.scenarioCwd || null });
   writeFile(path.join(phaseDir, '79-GAUNTLET-SPEC.md'), renderSpec(catalog));
-  writeFile(path.join(phaseDir, '79-GAUNTLET-RESULTS.md'), renderResults(result));
+  writeFile(path.join(phaseDir, '79-GAUNTLET-RESULTS.md'), renderResults(result, liveStatuses));
   writeFile(path.join(phaseDir, '79-COVERAGE-MAP.md'), renderCoverageMap(catalog));
   writeFile(path.join(phaseDir, '79-DRIFT-REPORT.md'), renderDriftReport(result));
-  return result;
+  return { ...result, live_statuses: liveStatuses };
 }
 
 module.exports = {
@@ -710,4 +809,4 @@ module.exports = {
   renderDriftReport,
 };
 
-// GSD-AUTHORITY: 79-01-1:ad2832e6acfa475c35ea118744b864de41a62633ec957182701fbc4cbbf6d416
+// GSD-AUTHORITY: 79-01-2:c87222af9d8222a5bf892cfe426ef0f740f0ae26618956ede5c6bde90a144b89

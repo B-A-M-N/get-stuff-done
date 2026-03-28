@@ -7,6 +7,7 @@ const path = require('path');
 const {
   runDeterministicGauntlet,
   ensureDeterministicRuntime,
+  writeGauntletArtifacts,
 } = require('../get-stuff-done/bin/lib/integrity-gauntlet.cjs');
 const { getScenarioCatalog } = require('../get-stuff-done/bin/lib/integrity-gauntlet-scenarios.cjs');
 const { createTempGitProject, cleanup, runGsdTools } = require('./helpers.cjs');
@@ -122,4 +123,68 @@ describe('integrity gauntlet CLI wiring', () => {
   });
 });
 
-// GSD-AUTHORITY: 79-01-1:a5d000fb8b65517e5e7321c22493af9770cbfb57fe5aa227e091df71af1e4445
+describe('integrity gauntlet artifacts', () => {
+  test('artifact family is emitted with coverage and drift reporting', () => {
+    const projectDir = createTempGitProject();
+    try {
+      const phaseDir = path.join(
+        projectDir,
+        '.planning',
+        'phases',
+        '79-end-to-end-integrity-gauntlet'
+      );
+      const result = writeGauntletArtifacts(projectDir, {
+        phaseDir,
+      });
+
+      assert.ok(result.results.length >= 15, 'deterministic gauntlet should execute at least 15 scenarios');
+
+      const specPath = path.join(phaseDir, '79-GAUNTLET-SPEC.md');
+      const resultsPath = path.join(phaseDir, '79-GAUNTLET-RESULTS.md');
+      const coveragePath = path.join(phaseDir, '79-COVERAGE-MAP.md');
+      const driftPath = path.join(phaseDir, '79-DRIFT-REPORT.md');
+
+      [specPath, resultsPath, coveragePath, driftPath].forEach((filePath) => {
+        assert.ok(require('fs').existsSync(filePath), `expected artifact ${filePath}`);
+      });
+
+      const spec = require('fs').readFileSync(specPath, 'utf8');
+      assert.match(spec, /context-build/i);
+      assert.match(spec, /firecrawl/i);
+      assert.match(spec, /retrieval-facing truth posture|retrieval-posture/i);
+      assert.match(spec, /Plane-configured/i);
+
+      const resultsDoc = require('fs').readFileSync(resultsPath, 'utf8');
+      assert.match(resultsDoc, /Capability-Gated Live Coverage/);
+      assert.match(resultsDoc, /plane-configured-truth-path/);
+      assert.match(resultsDoc, /unavailable|available/);
+
+      const coverage = require('fs').readFileSync(coveragePath, 'utf8');
+      ['fake_verification', 'missing_commits', 'partial_execution', 'degraded_subsystem', 'drift_contradiction']
+        .forEach((failureClass) => assert.match(coverage, new RegExp(`\\| ${failureClass} \\|`)));
+      ['TRUTH-GAUNTLET-01', 'TRUTH-DRIFT-02', 'TRUTH-DEGRADE-01', 'TRUTH-BYPASS-01']
+        .forEach((reqId) => assert.match(coverage, new RegExp(reqId)));
+
+      const catalog = getScenarioCatalog();
+      const bucketed = new Map();
+      for (const scenario of catalog) {
+        const bucket = bucketed.get(scenario.failure_class) || { single: 0, mixed: 0 };
+        bucket[scenario.failure_chain === 'mixed' ? 'mixed' : 'single'] += 1;
+        bucketed.set(scenario.failure_class, bucket);
+      }
+      ['fake_verification', 'missing_commits', 'partial_execution', 'degraded_subsystem', 'drift_contradiction']
+        .forEach((failureClass) => {
+          const bucket = bucketed.get(failureClass);
+          assert.ok(bucket.single >= 2, `${failureClass} should have at least two single-failure scenarios`);
+          assert.ok(bucket.mixed >= 1, `${failureClass} should have at least one mixed-failure scenario`);
+        });
+
+      const drift = require('fs').readFileSync(driftPath, 'utf8');
+      assert.match(drift, /undeclared-memory-degradation|retrieval-truth-posture-downgrade|memory-truth-contradiction/);
+    } finally {
+      cleanup(projectDir);
+    }
+  });
+});
+
+// GSD-AUTHORITY: 79-01-2:7a5835c3b92ce604148d72dca6798b20ee6332e2b91c36a2ea486d7f197dc6d2

@@ -164,6 +164,26 @@ const SCENARIOS = [
     executor: 'mixedMissingCommitAndUndeclared',
   },
   {
+    id: 'mixed-partial-execution-and-fake-verification',
+    title: 'Partial execution combined with forged verification is rejected',
+    failure_class: 'partial_execution',
+    failure_chain: 'mixed',
+    expected_outcome: 'INVALID',
+    surfaces: ['summary', 'verification', 'task-log'],
+    mode_support: ['deterministic'],
+    executor: 'mixedPartialAndFake',
+  },
+  {
+    id: 'mixed-declared-firecrawl-and-undeclared-memory',
+    title: 'Declared retrieval degradation plus undeclared memory degradation is invalid',
+    failure_class: 'degraded_subsystem',
+    failure_chain: 'mixed',
+    expected_outcome: 'INVALID',
+    surfaces: ['firecrawl', 'memory-truth', 'degraded-state', 'retrieval-posture'],
+    mode_support: ['deterministic', 'live'],
+    executor: 'mixedDeclaredAndUndeclaredDegradation',
+  },
+  {
     id: 'mixed-retrieval-downgrade-and-memory-contradiction',
     title: 'Retrieval downgrade compounded with memory contradiction is rejected',
     failure_class: 'drift_contradiction',
@@ -199,4 +219,4 @@ module.exports = {
   getScenarioCatalog,
 };
 
-// GSD-AUTHORITY: 79-01-1:bacb0b68ae465ddc3e95a54f9986529981ef22a43ae7f4f072f5d1bef5f1dda9
+// GSD-AUTHORITY: 79-01-2:ddfe40a5dc3dac32dc486d727f14d00f2f1d997e0f118098931e58d2bd45849e
