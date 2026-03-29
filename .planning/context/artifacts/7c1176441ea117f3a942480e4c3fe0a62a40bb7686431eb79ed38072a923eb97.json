@@ -1,0 +1,13 @@
+{
+  "id": "7c1176441ea117f3a942480e4c3fe0a62a40bb7686431eb79ed38072a923eb97",
+  "source_uri": ".planning/phases/73-drift-detection-engine/73-TRUTH.md",
+  "type": "internal",
+  "content_markdown": "# Phase 73: Drift Detection Engine — Truth\n\n**Generated:** 2026-03-28T21:33:43.053Z\n**Final Status:** CONDITIONAL\n\n## Status Reasons\n\n- Current degraded truth posture is UNSAFE.\n- context:plan-phase blocked by model_facing_memory: canonical_postgres_memory_unavailable\n- context:execute-plan blocked by model_facing_memory: canonical_postgres_memory_unavailable\n- verify:integrity blocked by drift_truth: drift_truth_stale\n- verify:workflow-readiness blocked by drift_truth: drift_truth_stale\n\n## Inputs\n\n- Verification: .planning/phases/73-drift-detection-engine/73-VERIFICATION.md\n- Summaries: .planning/phases/73-drift-detection-engine/73-01-SUMMARY.md, .planning/phases/73-drift-detection-engine/73-02-SUMMARY.md\n- Drift reports: .planning/drift/latest-report.json\n- Reconciliation: .planning/drift/latest-reconciliation.json\n- Degraded state: .planning/health/latest-degraded-state.json\n\n## Claimed Outcomes\n\n- Detect spec, implementation, verification, and execution drift automatically and surface it through a dedicated CLI path.\n- catalog-anchored runtime drift scan engine\n- predicted-effect and affected-truth annotations\n- latest-report persistence contract for downstream consumers\n- drift scan, report, and canonical status CLI surfaces\n- operator health visibility for active drift truth\n- severity-based scan exit behavior for pipelines\n\n## Observable Evidence\n\n- file: .planning/phases/73-drift-detection-engine/73-01-SUMMARY.md\n- file: .planning/phases/73-drift-detection-engine/73-02-SUMMARY.md\n- file: .planning/phases/73-drift-detection-engine/73-VERIFICATION.md\n- command: phase-truth generate 73\n\n## Gaps\n\n- degraded_state_caveat: Current degraded truth posture is UNSAFE.\n- workflow_block: context:plan-phase blocked by model_facing_memory: canonical_postgres_memory_unavailable\n- workflow_block: context:execute-plan blocked by model_facing_memory: canonical_postgres_memory_unavailable\n- workflow_block: verify:integrity blocked by drift_truth: drift_truth_stale\n- workflow_block: verify:workflow-readiness blocked by drift_truth: drift_truth_stale\n\n## Drift Effects\n\n- None\n\n## Reconciliation Effects\n\n- None\n",
+  "content_hash": "5aeb00d7ce8b59e859c782bab3912900603f8d66f3c10c6853ed05dd9b887549",
+  "normalized_at": "2026-03-29T18:41:57.414Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  }
+}

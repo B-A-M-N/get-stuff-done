@@ -1,0 +1,13 @@
+{
+  "id": "2562047fe219dc6772eac046cf518bdee9216ec4d3c4282b64c9f04f04f500e6",
+  "source_uri": ".planning/phases/82-drift-remediation-canonical-restoration/82-01-PLAN.md",
+  "type": "internal",
+  "content_markdown": "---\nphase: 82\ntitle: Restore Postgres canonical memory and refresh health\nplan: 01\ntype: execute\nwave: 1\ndepends_on: []\nautonomous: true\n---\n\n### Acceptance\n\n- Postgres service running and accessible\n\n### Verification\n\n`shell: gsd-tools health check`\n",
+  "content_hash": "b10f23e3270c8814951eeb8793ebe098f0932aba0956b803c8942ce4c9cb80ff",
+  "normalized_at": "2026-03-29T18:41:56.981Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  }
+}

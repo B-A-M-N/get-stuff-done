@@ -1,0 +1,13 @@
+{
+  "id": "0c83f0f876f684a8d510ac0b3fe4ac9db35acc939339de5c7000af460d57b4ff",
+  "source_uri": ".planning/phases/74-state-reconciliation-layer/74-TRUTH.md",
+  "type": "internal",
+  "content_markdown": "# Phase 74: State Reconciliation Layer — Truth\n\n**Generated:** 2026-03-28T20:37:04.835Z\n**Final Status:** VALID\n\n## Status Reasons\n\n- All claimed outcomes are backed and no unresolved gaps or downgrades remain.\n\n## Inputs\n\n- Verification: .planning/phases/74-state-reconciliation-layer/74-VERIFICATION.md\n- Summaries: .planning/phases/74-state-reconciliation-layer/74-01-SUMMARY.md\n- Drift reports: .planning/drift/latest-report.json\n- Reconciliation: .planning/drift/latest-reconciliation.json\n- Degraded state: .planning/health/latest-degraded-state.json\n\n## Claimed Outcomes\n\n- Reconcile detected inconsistencies deterministically by downgrading truth status, marking conditional validity, and requiring re-verification where needed.\n- deterministic reconciliation adapter and rule engine\n- canonical preview and reconcile CLI surfaces\n- machine-readable reconciliation artifact plus sanctioned state mutations\n\n## Observable Evidence\n\n- file: .planning/phases/74-state-reconciliation-layer/74-01-SUMMARY.md\n- file: .planning/phases/74-state-reconciliation-layer/74-VERIFICATION.md\n- command: phase-truth generate 74\n\n## Gaps\n\n- None\n\n## Drift Effects\n\n- None\n\n## Reconciliation Effects\n\n- None\n",
+  "content_hash": "e94ee9de0a4e1508ad080f0ffb4ae4837da96184fa84b4e3850a110d967553eb",
+  "normalized_at": "2026-03-29T18:41:57.374Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  }
+}

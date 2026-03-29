@@ -4,7 +4,7 @@
   "type": "internal",
   "content_markdown": "---\nphase: 45\nstatus: retired\nretired: 2026-03-26\nsuperseded_by:\n\n  - phase: 47\n    scope: plane foundation\n\n  - phase: 48\n    scope: plane comment sync\n---\n\n# Phase 45 Retirement\n\nPhase 45 is retired and should not be executed as originally written.\n\n## Why\n\n- The original `STATE.md -> Plane` mirroring scope was never implemented.\n- The only surviving useful artifact, `plane-client.cjs`, was expanded later by Phase 47 into the actual Plane foundation used by the repo.\n- Phase 48 then added the checkpoint and summary comment-sync surfaces that Phase 45 never reached.\n\n## Decision\n\n- Treat the old Phase 45 plan as obsolete in its original form.\n- Do not backfill Phase 45 just to satisfy numeric sequencing.\n- Any future need for `STATE.md -> Plane` metadata mirroring should be introduced as new scoped work, not by reopening the original 45-01 plan.\n\n## Result\n\nThe next real Plane-line continuation after Phase 48 is Phase 49, not a retroactive Phase 45 execution.\n",
   "content_hash": "a6891b757a38881af5443a0b204d268910d798a55aeac3a917b5707f46bcd91f",
-  "normalized_at": "2026-03-28T03:46:21.585Z",
+  "normalized_at": "2026-03-29T18:41:58.018Z",
   "provenance": {
     "producer": "internal-normalizer",
     "producer_version": "1.1.0",

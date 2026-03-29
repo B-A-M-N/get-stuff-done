@@ -1,0 +1,13 @@
+{
+  "id": "f8678214ea5c078a0573fa17d41a817c6e0161a891cc8c7a60ea5c8f19076911",
+  "source_uri": ".planning/phases/78-phase-truth-contracts/78-TRUTH.md",
+  "type": "internal",
+  "content_markdown": "# Phase 78: Phase Truth Contracts — Truth\n\n**Generated:** 2026-03-28T21:33:44.088Z\n**Final Status:** CONDITIONAL\n\n## Status Reasons\n\n- Current degraded truth posture is UNSAFE.\n- context:plan-phase blocked by model_facing_memory: canonical_postgres_memory_unavailable\n- context:execute-plan blocked by model_facing_memory: canonical_postgres_memory_unavailable\n- verify:integrity blocked by drift_truth: drift_truth_stale\n- verify:workflow-readiness blocked by drift_truth: drift_truth_stale\n\n## Inputs\n\n- Verification: .planning/phases/78-phase-truth-contracts/78-VERIFICATION.md\n- Summaries: .planning/phases/78-phase-truth-contracts/78-01-SUMMARY.md, .planning/phases/78-phase-truth-contracts/78-02-SUMMARY.md\n- Drift reports: .planning/drift/latest-report.json\n- Reconciliation: .planning/drift/latest-reconciliation.json\n- Degraded state: .planning/health/latest-degraded-state.json\n\n## Claimed Outcomes\n\n- Standardize phase-level truth artifacts so every phase reports claimed outcomes, observable evidence, gaps, and final validity status.\n- machine-authoritative phase truth derivation contract\n- direct `phase-truth generate <phase>` CLI surface\n- automatic truth regeneration after verification, reconciliation, and phase completion\n- backfilled phase truth artifacts for phases 70 through 77\n- current-truth phase status projection across the truth-hardening milestone\n\n## Observable Evidence\n\n- file: .planning/phases/78-phase-truth-contracts/78-01-SUMMARY.md\n- file: .planning/phases/78-phase-truth-contracts/78-02-SUMMARY.md\n- file: .planning/phases/78-phase-truth-contracts/78-VERIFICATION.md\n- command: phase-truth generate 78\n\n## Gaps\n\n- degraded_state_caveat: Current degraded truth posture is UNSAFE.\n- workflow_block: context:plan-phase blocked by model_facing_memory: canonical_postgres_memory_unavailable\n- workflow_block: context:execute-plan blocked by model_facing_memory: canonical_postgres_memory_unavailable\n- workflow_block: verify:integrity blocked by drift_truth: drift_truth_stale\n- workflow_block: verify:workflow-readiness blocked by drift_truth: drift_truth_stale\n\n## Drift Effects\n\n- None\n\n## Reconciliation Effects\n\n- None\n",
+  "content_hash": "64cfe789d0067abfccd9715d51648406a7395049aa91dcc803ccfe02bfccb07c",
+  "normalized_at": "2026-03-29T18:41:57.201Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  }
+}

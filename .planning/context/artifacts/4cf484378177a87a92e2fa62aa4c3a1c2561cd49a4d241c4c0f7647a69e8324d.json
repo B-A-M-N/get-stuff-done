@@ -4,7 +4,7 @@
   "type": "internal",
   "content_markdown": "---\nphase: 28\nplan: 01\ntype: standard\nstatus: complete\ndate: 2026-03-21\nrequirements_completed:\n\n  - ENFORCE-01\n  - ENFORCE-02\n\n---\n\n# Summary 28-01: Search Purge and Schema Hardening\n\nPurged deprecated search tools and hardened the execution summary schema.\n\n## Accomplishments\n\n- Removed `WebSearch` and `WebFetch` tools from all agent prompts.\n- Made Firecrawl the exclusive external fetch mechanism.\n- Removed deprecated `websearch` CLI command.\n- Updated `executionSummarySchema` to mandate `context_artifact_ids` for Phase 28+.\n- Updated `templates/summary.md` to include `context_artifact_ids`.\n\n## Evidence\n\n- `tests/summary-contract.test.cjs` passes with backward compatibility for older phases.\n- Agent prompts instruct exclusive use of Firecrawl or explicitly fail.\n",
   "content_hash": "f16ee78b0ac07d27259127be903237612a108d3b109fc4e3a59bf92f2413d14c",
-  "normalized_at": "2026-03-28T03:46:21.702Z",
+  "normalized_at": "2026-03-29T18:41:58.187Z",
   "provenance": {
     "producer": "internal-normalizer",
     "producer_version": "1.1.0",

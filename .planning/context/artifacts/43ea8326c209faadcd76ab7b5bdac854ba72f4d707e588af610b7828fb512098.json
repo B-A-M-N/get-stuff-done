@@ -4,7 +4,7 @@
   "type": "internal",
   "content_markdown": "# Invariance Contract — Context Control Layer\n\n## I1\n\nAll sanctioned external context retrieval must traverse Firecrawl.\n\n## I2\n\nAll agent-visible context must resolve to a canonical normalized artifact.\n\n## I3\n\nNo silent fallback from Firecrawl to raw retrieval is permitted.\n\n## I4\n\nInternal and external context artifacts must conform to the same top-level normalization contract.\n\n## I5\n\nEvery execution phase must record the exact context artifacts used.\n\n## I6\n\nCLI primitives are mandatory and order-enforced.\n\n## I7\n\nIf required context cannot be normalized, the system must fail loudly or enter explicit degraded mode.\n\n## I8\n\nSemantic search results are references to canonical truth, never truth themselves.\n\n## I9\n\nRepeated identical retrieval tasks must be measurably stable within declared tolerance.\n\n## I10\n\nAny new retrieval path introduced in code must be detected by audit tooling and classified before release.\n",
   "content_hash": "22d08a2d747ff98a4396d9f167d27e311d4f4daec789df90d57807886a169417",
-  "normalized_at": "2026-03-28T03:46:22.466Z",
+  "normalized_at": "2026-03-29T18:41:59.192Z",
   "provenance": {
     "producer": "internal-normalizer",
     "producer_version": "1.1.0",

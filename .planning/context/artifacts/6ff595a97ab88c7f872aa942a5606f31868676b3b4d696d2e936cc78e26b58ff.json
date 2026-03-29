@@ -4,7 +4,7 @@
   "type": "internal",
   "content_markdown": "---\nphase: 24\nplan: 03\ntype: standard\nstatus: complete\ndate: 2026-03-21\nrequirements_completed:\n\n  - CLI-INTEGRATION\n\n---\n\n# Summary 24-03: CLI Integration\n\nIntegrated the canonical context artifact system into the `gsd-tools` CLI.\n\n## Accomplishments\n\n- Implemented `context read` subcommand to retrieve and bundle artifacts by ID.\n- Implemented `context normalize` subcommand to transform raw files into canonical artifacts.\n- Maintained backward compatibility for `context build` workflow snapshots.\n- Verified end-to-end flow from raw file to persistent artifact to bundled output.\n\n## Evidence\n\n- CLI command `context normalize --source \"X\" --file \"Y\"` produces a valid artifact ID.\n- CLI command `context read <ID>` returns the normalized artifact content.\n",
   "content_hash": "25278863840b23212651c79a1e7faf4246d0a588a2b67a1b5d1612baeef2c81a",
-  "normalized_at": "2026-03-28T03:46:21.805Z",
+  "normalized_at": "2026-03-29T18:41:58.320Z",
   "provenance": {
     "producer": "internal-normalizer",
     "producer_version": "1.1.0",

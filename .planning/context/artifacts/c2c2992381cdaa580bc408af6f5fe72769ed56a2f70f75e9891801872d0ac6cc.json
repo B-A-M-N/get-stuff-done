@@ -4,7 +4,7 @@
   "type": "internal",
   "content_markdown": "---\nphase: \"07\"\nplan: \"01\"\nstatus: \"Complete\"\ncompleted: \"2026-03-16\"\nrequirements:\n\n  - \"FR-02\"\n  - \"FR-03\"\n\n---\n\n# SUMMARY: 07-01 - Preserve ITL-derived research cues in context artifacts\n\n## Outcome\n\nThe canonical context contract now preserves narrative-intake summaries and ITL-derived research cues in a downstream-safe form, while keeping confirmed implementation decisions distinct from inferred assumptions and open questions.\n\n## Implemented\n\n- Updated `get-stuff-done/workflows/discuss-phase.md` so the written CONTEXT contract now includes a dedicated `Research Cues` section.\n- Updated `get-stuff-done/templates/context.md` so phase context files explicitly distinguish:\n  - confirmed implementation decisions,\n  - optional narrative-intake summary themes,\n  - interpreted assumptions,\n  - open questions for research,\n  - emphasis cues for downstream investigation.\n- Kept the artifact compact and avoided raw ITL payloads in CONTEXT.md.\n\n## Verification\n\n- `node --test tests/dostuff.test.cjs`\n- `rg -n \"Research Cues|Narrative Intake Summary\" get-stuff-done/templates/context.md get-stuff-done/workflows/discuss-phase.md`\n\n## Notes\n\n- The decision-vs-assumption boundary is now explicit in the context artifact rather than implicit in workflow prose.\n",
   "content_hash": "cc3f9f332e934f3e0190fa37632b0e0adcb7e2df390fd3182b3a0023a0c63312",
-  "normalized_at": "2026-03-28T03:46:22.248Z",
+  "normalized_at": "2026-03-29T18:41:58.915Z",
   "provenance": {
     "producer": "internal-normalizer",
     "producer_version": "1.1.0",

@@ -4,7 +4,7 @@
   "type": "internal",
   "content_markdown": "# SUMMARY: 14-01 - Create a standalone ITL package with a clean public API\n\n## Outcome\n\nCreated a standalone ITL package under `packages/itl` with a clean public API centered on narrative interpretation.\n\n## What Changed\n\n- Added [packages/itl/package.json](/home/bamn/get-stuff-done/packages/itl/package.json) as a dedicated package boundary.\n- Added [packages/itl/index.cjs](/home/bamn/get-stuff-done/packages/itl/index.cjs) with a standalone public API:\n  - `interpret_narrative(input_text, context_data)`\n  - `build_provider_request(input_text, context_data)`\n  - `get_supported_providers()`\n  - canonical schemas\n- Added [packages/itl/index.d.ts](/home/bamn/get-stuff-done/packages/itl/index.d.ts) so the package is TypeScript-friendly without requiring TypeScript at runtime.\n\n## Verification\n\n- `node --test tests/itl-package.test.cjs`\n- `npm run test:coverage`\n\n## Notes\n\nThe standalone package is self-contained and does not depend on `.planning/` or workflow markdown.\n",
   "content_hash": "3396a244bc2900bccd745008080b955f4de9aff0909cac75cc60e00227ecab55",
-  "normalized_at": "2026-03-28T03:46:22.111Z",
+  "normalized_at": "2026-03-29T18:41:58.746Z",
   "provenance": {
     "producer": "internal-normalizer",
     "producer_version": "1.1.0",

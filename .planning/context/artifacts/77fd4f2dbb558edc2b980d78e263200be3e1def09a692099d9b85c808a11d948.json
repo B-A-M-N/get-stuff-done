@@ -4,7 +4,7 @@
   "type": "internal",
   "content_markdown": "```javascript\n/**\n * Phase Input Validator\n * Validates phase input artifacts (objective, tasks, acceptance criteria)\n */\nmodule.exports = {\n  name: 'phase_input_validator',\n\n  validate(content) {\n    try {\n      const obj = JSON.parse(content);\n      // Phase input should have phase, plan, tasks array\n      if (obj.phase === undefined) return { valid: false, error: 'missing phase' };\n      if (obj.plan === undefined) return { valid: false, error: 'missing plan' };\n      if (!Array.isArray(obj.tasks)) return { valid: false, error: 'tasks must be array' };\n      // All tasks must have id and title\n      for (const t of obj.tasks) {\n        if (!t.id) return { valid: false, error: 'task missing id' };\n        if (!t.title) return { valid: false, error: `task ${t.id} missing title` };\n      }\n      return { valid: true };\n    } catch (err) {\n      return { valid: false, error: err.message };\n    }\n  },\n};\n\n```",
   "content_hash": "dfa5881339d5b307605531bf435fe3944727400b393fce1c15573c8f4ad77e8f",
-  "normalized_at": "2026-03-28T03:46:22.536Z",
+  "normalized_at": "2026-03-29T18:41:59.254Z",
   "provenance": {
     "producer": "internal-normalizer",
     "producer_version": "1.1.0",

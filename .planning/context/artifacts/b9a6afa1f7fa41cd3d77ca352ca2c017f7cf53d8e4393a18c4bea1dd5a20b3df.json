@@ -4,7 +4,7 @@
   "type": "internal",
   "content_markdown": "# Milestone Audit\n\n## Scope\n\nAudit of the completed Intent Translation Layer milestone after Phase 14.\n\n## Result\n\nPass, with bookkeeping cleanup applied during audit.\n\n## Findings\n\n- All roadmap phases `1` through `14` are now complete.\n- Requirements traceability is now consistent with the completed phase history.\n- Coverage gate passes at `100%` line coverage for:\n  - `get-stuff-done/bin/lib/itl*.cjs`\n  - `packages/itl/**/*.cjs`\n- Standalone package extraction is present at `packages/itl` with:\n  - `interpret_narrative(input_text, context_data)`\n  - provider request building\n  - provider enumeration\n  - TypeScript declarations\n\n## Audit Corrections Applied\n\n- Marked `CP-01`, `TR-04`, `TR-05`, `TR-08`, and `TR-09` complete in [REQUIREMENTS.md](/home/bamn/get-stuff-done/.planning/REQUIREMENTS.md).\n- Corrected stale unchecked plan entries for Phase 10 in [ROADMAP.md](/home/bamn/get-stuff-done/.planning/ROADMAP.md).\n\n## Remaining Risks\n\n- Live-provider parity is still validated primarily through deterministic fixtures and adapter contracts, not mandatory online smoke tests.\n- Milestone archival and release-style closeout have not been performed yet.\n\n## Recommended Next Step\n\n- Run milestone completion/archival flow.\n",
   "content_hash": "00eeb19cd2d2b22f47797fee98b679e00d2cf8d40f30d83c0d1a8a0098fbf3db",
-  "normalized_at": "2026-03-28T03:46:20.768Z",
+  "normalized_at": "2026-03-29T18:41:56.892Z",
   "provenance": {
     "producer": "internal-normalizer",
     "producer_version": "1.1.0",

@@ -4,7 +4,7 @@
   "type": "internal",
   "content_markdown": "---\nphase: 27\nplan: 03\ntype: standard\nstatus: complete\ndate: 2026-03-21\nrequirements_completed:\n\n  - BRAIN-SERVER-LOCAL\n\n---\n\n# Summary 27-03: Local Planning Server\n\nImplemented a project-isolated Local Planning Server to serve as the context sensor for the independent Second Brain.\n\n## Accomplishments\n\n- Created `planning-server.cjs` listening on port 3011, restricted to the current project's `.planning/` directory.\n- Implemented `/v1/extract` endpoint for structured context retrieval and normalization.\n- Integrated server startup with the Pulse broker (`server.started` event).\n- Updated `internal-normalizer.cjs` to consume context from the local API when available, ensuring Internal Parity via a controlled interface.\n- Added `gsd-tools serve` command to manage the local server instance.\n\n## Evidence\n\n- Server verified to emit RabbitMQ events on startup.\n- Normalizer confirmed to fetch via port 3011 when the server is active.\n",
   "content_hash": "bb58f97996862f0aee604296b0e4d0a4c758a477d6936b528740b4c16f472fe7",
-  "normalized_at": "2026-03-28T03:46:21.721Z",
+  "normalized_at": "2026-03-29T18:41:58.205Z",
   "provenance": {
     "producer": "internal-normalizer",
     "producer_version": "1.1.0",

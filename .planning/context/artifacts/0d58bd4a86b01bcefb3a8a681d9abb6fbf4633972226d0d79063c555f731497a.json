@@ -4,7 +4,7 @@
   "type": "internal",
   "content_markdown": "---\nphase: \"02\"\nplan: \"02\"\nname: \"Integrate ITL into dostuff and add adversarial coverage\"\nrequirements_completed:\n\n  - \"FR-02\"\n  - \"FR-03\"\n  - \"FR-04\"\n  - \"FR-05\"\n  - \"FR-06\"\n  - \"FR-07\"\n  - \"TR-06\"\n\n---\n\n# Phase 2 Plan 02 Summary\n\n## One-Line Summary\n\nIntegrated the ITL into the `dostuff` command/workflow contract and added focused coverage for narrative interpretation, ambiguity handling, and audit persistence.\n\n## Work Completed\n\n- Upgraded `dostuff` documentation/workflow semantics from a simple router to an interpretation-first entry point.\n- Added tests for ITL extraction, ambiguity scoring, deterministic summaries, and audit readback.\n- Updated `dostuff` tests to assert interpretation-summary and ambiguity-aware routing behavior.\n- Verified the latest persisted interpretation can be read back through the ITL audit layer.\n\n## Key Files\n\n- `commands/gsd/dostuff.md`\n- `get-stuff-done/workflows/dostuff.md`\n- `tests/dostuff.test.cjs`\n- `tests/itl.test.cjs`\n\n## Verification\n\n- `node --test tests/dostuff.test.cjs`\n- `node --test tests/itl.test.cjs`\n\n## Notes\n\n- The command/workflow contract is now ready for later integration into `/gsd:new-project` and other workflows.\n",
   "content_hash": "5290b65a0a527606121e0a28e61b19b8e8949ecefc67cc6df5c50ec3021d6549",
-  "normalized_at": "2026-03-28T03:46:22.336Z",
+  "normalized_at": "2026-03-29T18:41:59.033Z",
   "provenance": {
     "producer": "internal-normalizer",
     "producer_version": "1.1.0",

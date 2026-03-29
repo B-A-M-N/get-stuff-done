@@ -1,0 +1,13 @@
+{
+  "id": "3a1d1d8d220b44130b306da8f83bcf0dd6da6921e5d223b96d2cc641ad79507d",
+  "source_uri": ".planning/phases/80.1-memory-truth-reproval-closure/80.1-VALIDATION.md",
+  "type": "internal",
+  "content_markdown": "---\nphase: \"80.1\"\nvalidation_type: \"nyquist_compliance\"\nnyquist_compliant: true\nstatus: \"compliant\"\n---\n\n# Phase 80.1 Nyquist Validation\n\n## Summary\n\nPhase 80.1 closure artifacts meet all Nyquist verification requirements:\n\n- ✅ **VERIFICATION.md** exists with explicit status, evidence, and verification commands\n- ✅ **TRUTH.yaml** exists with complete schema (final_status, gaps, closure_context, status_reason)\n- ✅ **Phase-invariant integrity**: repair work proven via downstream Phase 75 and Phase 74 closure\n- ✅ **Evidence linkage**: all claimed outcomes trace to machine-readable artifacts\n\n## Compliance Check\n\n```bash\n\n# VERIFICATION exists and has required frontmatter\n\ngrep -q \"status: VALID\" .planning/phases/80.1-memory-truth-reproval-closure/80.1-VERIFICATION.md\ngrep -q \"phase: \\\"80.1\\\"\" .planning/phases/80.1-memory-truth-reproval-closure/80.1-VERIFICATION.md\n\n# TRUTH exists and has final_status\n\ngrep -q \"final_status: \\\"VALID\\\"\" .planning/phases/80.1-memory-truth-reproval-closure/80.1-TRUTH.yaml\ngrep -q \"closure_context:\" .planning/phases/80.1-memory-truth-reproval-closure/80.1-TRUTH.yaml\n```\n\n## Artifact Provenance\n\nAll artifacts produced based on actual executed plans:\n\n- `80.1-01-SUMMARY.md` → invariant contract + blocker audit\n- `80.1-02-SUMMARY.md` → logic repair and truth synthesis fix\n- `80.1-03-SUMMARY.md` → explicit regeneration of Phase 75 and Phase 74 closure\n\nThe audit trail is complete, machine-readable, and verifiable.\n\n**Nyquist Compliant**: true\n",
+  "content_hash": "f77cdb1bdc834bb4875988311462b4d5d41df66b2798030909010a0084608430",
+  "normalized_at": "2026-03-29T18:41:57.040Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  }
+}

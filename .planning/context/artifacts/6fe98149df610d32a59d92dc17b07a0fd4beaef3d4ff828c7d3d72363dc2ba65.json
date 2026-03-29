@@ -1,0 +1,13 @@
+{
+  "id": "6fe98149df610d32a59d92dc17b07a0fd4beaef3d4ff828c7d3d72363dc2ba65",
+  "source_uri": ".planning/phases/81-audit-traceability-nyquist-closure/81-TRUTH.md",
+  "type": "internal",
+  "content_markdown": "# Phase 81: Audit Traceability & Nyquist Closure — Truth\n\n**Generated:** 2026-03-29T05:06:57.092Z\n**Final Status:** VALID\n\n## Status Reasons\n\n- All claimed outcomes are backed and no unresolved gaps or downgrades remain.\n\n## Inputs\n\n- Verification: .planning/phases/81-audit-traceability-nyquist-closure/81-VERIFICATION.md\n- Summaries: .planning/phases/81-audit-traceability-nyquist-closure/81-01-SUMMARY.md, .planning/phases/81-audit-traceability-nyquist-closure/81-02-SUMMARY.md, .planning/phases/81-audit-traceability-nyquist-closure/81-03-SUMMARY.md\n- Drift reports: .planning/drift/latest-report.json\n- Reconciliation: .planning/drift/latest-reconciliation.json\n- Degraded state: .planning/health/latest-degraded-state.json\n\n## Claimed Outcomes\n\n- Repair milestone bookkeeping drift after Phase 79, backfill missing validation surfaces for phases 73 through 79, and restore milestone auditability before archival.\n- reconciled requirements ownership mapping\n- synced ROADMAP.md and STATE.md for milestone completion\n- final milestone audit (PASS)\n\n## Observable Evidence\n\n- file: .planning/phases/81-audit-traceability-nyquist-closure/81-01-SUMMARY.md\n- file: .planning/phases/81-audit-traceability-nyquist-closure/81-02-SUMMARY.md\n- file: .planning/phases/81-audit-traceability-nyquist-closure/81-03-SUMMARY.md\n- file: .planning/phases/81-audit-traceability-nyquist-closure/81-VERIFICATION.md\n- command: phase-truth generate 81\n\n## Gaps\n\n- None\n\n## Drift Effects\n\n- None\n\n## Reconciliation Effects\n\n- None\n",
+  "content_hash": "591677cf269e90e2132aee03ef30d8d134deba53ac1c12e6a19a3f35b360a683",
+  "normalized_at": "2026-03-29T18:41:56.996Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  }
+}
