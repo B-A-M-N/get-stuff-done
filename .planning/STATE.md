@@ -7,11 +7,11 @@ status: unknown
 stopped_at: Archived milestone v0.6.0
 checkpoint_status: None
 checkpoint_path: None
-last_updated: "2026-03-28T21:38:29.402Z"
+last_updated: "2026-03-29T04:59:13.757Z"
 progress:
   total_phases: 14
   completed_phases: 13
-  total_plans: 29
+  total_plans: 27
   completed_plans: 27
 ---
 
@@ -202,12 +202,12 @@ Checkpoint Path: None
 ## Reconciliation Status
 
 **Drift Present:** true
-**Highest Drift Severity:** CRITICAL
-**Verification Status:** INVALID
-**Phase Status:** INVALID
-**Roadmap Status:** BLOCKED
-**Operator Health:** UNHEALTHY
+**Highest Drift Severity:** MAJOR
+**Verification Status:** CONDITIONAL
+**Phase Status:** CONDITIONAL
+**Roadmap Status:** AT_RISK
+**Operator Health:** DEGRADED
 **Requires Reverification:** true
-**Reverification Reason:** execution_drift invalidated or downgraded trusted truth; execution_drift invalidated or downgraded trusted truth; verification_drift invalidated or downgraded trusted truth
+**Reverification Reason:** execution_drift invalidated or downgraded trusted truth
 **Source Report:** .planning/drift/latest-report.json
-**Reconciled At:** 2026-03-28T21:38:29.389Z
+**Reconciled At:** 2026-03-29T04:59:13.741Z

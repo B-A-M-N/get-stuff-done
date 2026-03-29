@@ -1,6 +1,6 @@
 phase: "81"
 title: "Audit Traceability & Nyquist Closure"
-generated_at: "2026-03-28T21:38:00.104Z"
+generated_at: "2026-03-29T05:06:57.092Z"
 strict: true
 inputs:
   verification: ".planning/phases/81-audit-traceability-nyquist-closure/81-VERIFICATION.md"
@@ -45,46 +45,13 @@ observable_evidence:
   - type: "command"
     ref: "phase-truth generate 81"
 gaps:
-  - type: degraded_environment
-    description: "canonical Postgres memory unavailable"
-    subsystem: "model_facing_memory"
-    impact: "prevents non-degraded truth regeneration; blocks plan/execute workflows in trusted mode"
-    blocking: false
-    remediation: "restore Postgres service and re-run drift reconciliation"
-    evidence: ".planning/health/latest-degraded-state.json"
-  - type: external_drift
-    description: "CRITICAL drift in Phase 70 (open-brain-runtime-split, planning-server-integrity-claims)"
-    subsystem: "drift_truth"
-    impact: "would prevent system-wide closure in non-degraded mode"
-    blocking: false
-    remediation: "Phase 82: resolve Phase 70 drift, refresh reconciliation truth"
-    evidence: ".planning/drift/latest-report.json"
-drift_effects: []
-reconciliation_effects: []
-escalations: []
-degraded_closure_rationale: |
-  Milestone closure admitted under degraded-mode policy.
-
-  Closure-critical phases (79, 80, 80.1) are VALID and internally consistent.
-  Closure artifact chain (inventory → diff → manifest → verification) is complete and validated.
-  All requirements and roadmap traceability has been reconciled with zero gaps in closure path.
-
-  Remaining issues are:
-  - Canonical Postgres memory is offline (model-facing memory subsystem degraded)
-  - Active CRITICAL drift in Phase 70 is known but out-of-scope for this closure cycle
-
-  These gaps are **documented and excused** under the degraded-closure admissibility policy,
-  which accepts CONDITIONAL status when:
-  - Core closure chain integrity is preserved
-  - No silent bypass or corruption occurred
-  - A follow-on phase (82) is planned to restore non-degraded truth
-
-  This Phase 81 closure would be BLOCKED in non-degraded operational mode.
-  Presently, degraded-mode behavior is fail-closed and non-corrupting, so admission is safe.
-final_status: "CONDITIONAL"
+  []
+drift_effects:
+  []
+reconciliation_effects:
+  []
+escalations:
+  []
+final_status: "VALID"
 status_reason:
-  - "Current degraded truth posture is UNSAFE."
-  - "context:plan-phase blocked by model_facing_memory: canonical_postgres_memory_unavailable"
-  - "context:execute-phase blocked by model_facing_memory: canonical_postgres_memory_unavailable"
-  - "verify:integrity blocked by drift_truth: drift_truth_stale"
-  - "verify:workflow-readiness blocked by drift_truth: drift_truth_stale"
+  - "All claimed outcomes are backed and no unresolved gaps or downgrades remain."

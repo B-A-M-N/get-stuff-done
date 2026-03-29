@@ -1,14 +1,14 @@
 {
   "schema": "gsd_drift_report",
-  "generated_at": "2026-03-28T21:38:25.004Z",
+  "generated_at": "2026-03-29T04:56:35.475Z",
   "catalog_source": ".planning/phases/70-drift-surface-mapping/drift_catalog.yaml",
-  "catalog_hash": "c76e5f7c9d3453f2aaa3156b34fcdf52c7f455508907217ca6d160a9a0131581",
+  "catalog_hash": "71622ea80dbed2de47fdd0f9d40fe18339e9ea68427a3a28c8d7d62d5e58cd2e",
   "source_head": "unknown",
   "summary": {
-    "active": 3,
-    "healthy": 3,
+    "active": 1,
+    "healthy": 5,
     "historical": 1,
-    "critical": 2,
+    "critical": 0,
     "major": 1,
     "minor": 0,
     "missing_surface": 0,
@@ -50,9 +50,9 @@
             "milestone_name": "Truth Enforcement & Drift Elimination",
             "milestone_slug": "truth-enforcement-drift-elimination",
             "clarification_status": "none",
-            "phase_count": 13,
+            "phase_count": 14,
             "completed_phases": 13,
-            "all_phases_complete": true,
+            "all_phases_complete": false,
             "archived_milestones": [],
             "archive_count": 0,
             "project_exists": true,
@@ -111,9 +111,9 @@
             "milestone_name": "Truth Enforcement & Drift Elimination",
             "milestone_slug": "truth-enforcement-drift-elimination",
             "clarification_status": "none",
-            "phase_count": 13,
+            "phase_count": 14,
             "completed_phases": 13,
-            "all_phases_complete": true,
+            "all_phases_complete": false,
             "archived_milestones": [],
             "archive_count": 0,
             "project_exists": true,
@@ -124,32 +124,15 @@
           }
         },
         {
-          "type": "command",
-          "ref": "node /home/bamn/.codex/get-shit-done/bin/gsd-tools.cjs init milestone-op --raw",
-          "exit_code": 0,
-          "observed": {
-            "commit_docs": true,
-            "milestone_version": "v0.7.0",
-            "milestone_name": "Truth Enforcement & Drift Elimination",
-            "milestone_slug": "truth-enforcement-drift-elimination",
-            "clarification_status": "none",
-            "phase_count": 13,
-            "completed_phases": 13,
-            "all_phases_complete": true,
-            "archived_milestones": [],
-            "archive_count": 0,
-            "project_exists": true,
-            "roadmap_exists": true,
-            "state_exists": true,
-            "archive_exists": false,
-            "phases_dir_exists": true
-          }
+          "type": "absence",
+          "ref": "installed_cli",
+          "observed": "missing"
         }
       ],
       "implementation": {
         "paths": [
           "get-stuff-done/bin/lib/init.cjs",
-          "/home/bamn/.codex/get-shit-done/bin/gsd-tools.cjs"
+          ".codex/<missing>/bin/gsd-tools.cjs"
         ]
       },
       "notes": "This captures installed-runtime truth separately from repo-local truth because closeout drift previously hid there.",
@@ -175,10 +158,10 @@
       "claim": "Repo-local and installed runtime Open Brain status surfaces must agree when reporting current backend truth.",
       "surface_category": "runtime_surface",
       "drift_type": "execution_drift",
-      "surface_state": "active_drift",
-      "activity_status": "active",
-      "severity": "CRITICAL",
-      "confidence": "high",
+      "surface_state": "healthy",
+      "activity_status": "healthy",
+      "severity": "MINOR",
+      "confidence": "medium",
       "evidence": [
         {
           "type": "command",
@@ -208,54 +191,33 @@
           }
         },
         {
-          "type": "command",
-          "ref": "node /home/bamn/.codex/get-shit-done/bin/gsd-tools.cjs brain open-status --raw",
-          "exit_code": 0,
-          "observed": {
-            "available": false,
-            "degraded": true,
-            "blocked": false,
-            "reason": "postgres_unavailable",
-            "detail": "Open Brain storage unavailable; continuing without semantic recall.",
-            "status": "degraded",
-            "storage_ready": false,
-            "embedding_ready": false,
-            "schema": "gsd_open_brain",
-            "sidecar_only": true,
-            "execution_truth_owner": "second_brain",
-            "backend_state": {
-              "configured_backend": "sqlite",
-              "active_backend": "sqlite",
-              "degraded": true,
-              "degraded_reason": "postgres_unavailable",
-              "warning_emitted": false,
-              "memory_critical_blocked": false
-            }
-          }
+          "type": "absence",
+          "ref": "installed_cli",
+          "observed": "missing"
         }
       ],
       "implementation": {
         "paths": [
           "get-stuff-done/bin/lib/open-brain.cjs",
           "get-stuff-done/bin/lib/brain-manager.cjs",
-          "/home/bamn/.codex/get-shit-done/bin/gsd-tools.cjs"
+          ".codex/<missing>/bin/gsd-tools.cjs"
         ]
       },
       "notes": "This is the live runtime/operator split surfaced during the v0.6.0 closeout repair path.",
-      "observed_drift": true,
+      "observed_drift": false,
       "historical": false,
       "affects_current_truth": true,
       "predicted_effect": {
-        "verification_status": "INVALID",
-        "phase_status": "INVALID",
-        "roadmap_status": "CONDITIONAL",
-        "operator_health": "DEGRADED"
+        "verification_status": null,
+        "phase_status": null,
+        "roadmap_status": null,
+        "operator_health": null
       },
       "affected": {
-        "verification": "INVALID",
-        "phase": "INVALID",
-        "roadmap": "CONDITIONAL",
-        "operator_health": "DEGRADED"
+        "verification": null,
+        "phase": null,
+        "roadmap": null,
+        "operator_health": null
       }
     },
     {
@@ -307,16 +269,16 @@
       "claim": "Planning Server integrity fields must not report coherence or narrative-drift values without live proof.",
       "surface_category": "verification_surface",
       "drift_type": "verification_drift",
-      "surface_state": "active_drift",
-      "activity_status": "active",
-      "severity": "CRITICAL",
-      "confidence": "high",
+      "surface_state": "healthy",
+      "activity_status": "healthy",
+      "severity": "MINOR",
+      "confidence": "medium",
       "evidence": [
         {
           "type": "code-scan",
           "ref": "get-stuff-done/bin/lib/planning-server.cjs",
           "observed": {
-            "static_integrity_claim_count": 23,
+            "static_integrity_claim_count": 0,
             "pattern": "narrative_drift_score: 1.0, coherence_check_passed: true"
           }
         }
@@ -328,20 +290,20 @@
         ]
       },
       "notes": "Static optimism in integrity-bearing responses is an active truth risk until later phases replace it with evidence-backed values.",
-      "observed_drift": true,
+      "observed_drift": false,
       "historical": false,
       "affects_current_truth": true,
       "predicted_effect": {
-        "verification_status": "INVALID",
-        "phase_status": "INVALID",
-        "roadmap_status": "CONDITIONAL",
-        "operator_health": "DEGRADED"
+        "verification_status": null,
+        "phase_status": null,
+        "roadmap_status": null,
+        "operator_health": null
       },
       "affected": {
-        "verification": "INVALID",
-        "phase": "INVALID",
-        "roadmap": "CONDITIONAL",
-        "operator_health": "DEGRADED"
+        "verification": null,
+        "phase": null,
+        "roadmap": null,
+        "operator_health": null
       }
     },
     {
@@ -485,95 +447,6 @@
   ],
   "findings": [
     {
-      "id": "phase70-open-brain-runtime-split",
-      "requirement_id": "TRUTH-DRIFT-01",
-      "claim": "Repo-local and installed runtime Open Brain status surfaces must agree when reporting current backend truth.",
-      "surface_category": "runtime_surface",
-      "drift_type": "execution_drift",
-      "surface_state": "active_drift",
-      "activity_status": "active",
-      "severity": "CRITICAL",
-      "confidence": "high",
-      "evidence": [
-        {
-          "type": "command",
-          "ref": "node get-stuff-done/bin/gsd-tools.cjs brain open-status --raw",
-          "exit_code": 0,
-          "observed": {
-            "available": false,
-            "degraded": true,
-            "blocked": false,
-            "reason": "postgres_unavailable",
-            "detail": "Open Brain storage unavailable; continuing without semantic recall.",
-            "status": "degraded",
-            "storage_ready": false,
-            "embedding_ready": false,
-            "schema": "gsd_open_brain",
-            "sidecar_only": true,
-            "execution_truth_owner": "second_brain",
-            "backend_state": {
-              "configured_backend": "sqlite",
-              "active_backend": "sqlite",
-              "degraded": false,
-              "degraded_reason": null,
-              "warning_emitted": false,
-              "memory_critical_blocked": false,
-              "degraded_details": null
-            }
-          }
-        },
-        {
-          "type": "command",
-          "ref": "node /home/bamn/.codex/get-shit-done/bin/gsd-tools.cjs brain open-status --raw",
-          "exit_code": 0,
-          "observed": {
-            "available": false,
-            "degraded": true,
-            "blocked": false,
-            "reason": "postgres_unavailable",
-            "detail": "Open Brain storage unavailable; continuing without semantic recall.",
-            "status": "degraded",
-            "storage_ready": false,
-            "embedding_ready": false,
-            "schema": "gsd_open_brain",
-            "sidecar_only": true,
-            "execution_truth_owner": "second_brain",
-            "backend_state": {
-              "configured_backend": "sqlite",
-              "active_backend": "sqlite",
-              "degraded": true,
-              "degraded_reason": "postgres_unavailable",
-              "warning_emitted": false,
-              "memory_critical_blocked": false
-            }
-          }
-        }
-      ],
-      "implementation": {
-        "paths": [
-          "get-stuff-done/bin/lib/open-brain.cjs",
-          "get-stuff-done/bin/lib/brain-manager.cjs",
-          "/home/bamn/.codex/get-shit-done/bin/gsd-tools.cjs"
-        ]
-      },
-      "notes": "This is the live runtime/operator split surfaced during the v0.6.0 closeout repair path.",
-      "observed_drift": true,
-      "historical": false,
-      "affects_current_truth": true,
-      "predicted_effect": {
-        "verification_status": "INVALID",
-        "phase_status": "INVALID",
-        "roadmap_status": "CONDITIONAL",
-        "operator_health": "DEGRADED"
-      },
-      "affected": {
-        "verification": "INVALID",
-        "phase": "INVALID",
-        "roadmap": "CONDITIONAL",
-        "operator_health": "DEGRADED"
-      }
-    },
-    {
       "id": "phase70-planning-degraded-mode-surface",
       "requirement_id": "TRUTH-CLAIM-01",
       "claim": "Planning degraded-mode checks must make fallback assumptions explicit rather than silently passing.",
@@ -612,49 +485,6 @@
       "affected": {
         "verification": "CONDITIONAL",
         "phase": "CONDITIONAL",
-        "roadmap": "CONDITIONAL",
-        "operator_health": "DEGRADED"
-      }
-    },
-    {
-      "id": "phase70-planning-server-integrity-claims",
-      "requirement_id": "TRUTH-CLAIM-01",
-      "claim": "Planning Server integrity fields must not report coherence or narrative-drift values without live proof.",
-      "surface_category": "verification_surface",
-      "drift_type": "verification_drift",
-      "surface_state": "active_drift",
-      "activity_status": "active",
-      "severity": "CRITICAL",
-      "confidence": "high",
-      "evidence": [
-        {
-          "type": "code-scan",
-          "ref": "get-stuff-done/bin/lib/planning-server.cjs",
-          "observed": {
-            "static_integrity_claim_count": 23,
-            "pattern": "narrative_drift_score: 1.0, coherence_check_passed: true"
-          }
-        }
-      ],
-      "implementation": {
-        "paths": [
-          "get-stuff-done/bin/lib/planning-server.cjs",
-          "get-stuff-done/bin/lib/context.cjs"
-        ]
-      },
-      "notes": "Static optimism in integrity-bearing responses is an active truth risk until later phases replace it with evidence-backed values.",
-      "observed_drift": true,
-      "historical": false,
-      "affects_current_truth": true,
-      "predicted_effect": {
-        "verification_status": "INVALID",
-        "phase_status": "INVALID",
-        "roadmap_status": "CONDITIONAL",
-        "operator_health": "DEGRADED"
-      },
-      "affected": {
-        "verification": "INVALID",
-        "phase": "INVALID",
         "roadmap": "CONDITIONAL",
         "operator_health": "DEGRADED"
       }

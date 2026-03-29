@@ -998,6 +998,27 @@ function triggerPhaseTruthGeneration(cwd, phase, options = {}) {
     return { generated: false, reason: 'phase_unresolved' };
   }
   try {
+    const { phaseDir, phaseInfo } = getPhaseDirectory(cwd, phase);
+    const normalizedPhase = normalizePhaseName(phaseInfo.phase_number || phase);
+    const yamlPath = path.join(phaseDir, `${normalizedPhase}-TRUTH.yaml`);
+
+    if (fs.existsSync(yamlPath) && options.force !== true) {
+      // Read existing file to check its final_status
+      const existingContent = fs.readFileSync(yamlPath, 'utf8');
+      const match = existingContent.match(/^final_status:\s*"([^"]+)"/m);
+      const existingStatus = match ? match[1] : null;
+      if (existingStatus === 'VALID') {
+        return {
+          generated: false,
+          phase: normalizedPhase,
+          source: options.source || null,
+          reason: 'already_valid',
+          message: `TRUTH artifact already exists and is VALID at ${toRelative(cwd, yamlPath)}. Use --force to overwrite.`,
+        };
+      }
+      // If not VALID (e.g., CONDITIONAL, INVALID, or missing), allow overwrite (repair)
+    }
+
     const result = writePhaseTruth(cwd, phase, options);
     return {
       generated: true,

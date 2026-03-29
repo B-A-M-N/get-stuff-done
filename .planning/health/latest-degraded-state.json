@@ -1,73 +1,44 @@
 {
   "schema": "gsd_degraded_state",
-  "generated_at": "2026-03-28T21:59:43.795Z",
+  "generated_at": "2026-03-29T05:09:28.148Z",
   "stale_after_ms": 3600000,
-  "aggregate_state": "UNSAFE",
-  "degraded": true,
+  "aggregate_state": "HEALTHY",
+  "degraded": false,
   "config_ok": true,
   "warnings": [],
   "fallbacks": [],
   "gate_pending_keys": [],
-  "blocked_workflows": [
-    {
-      "workflow": "context:plan-phase",
-      "subsystem": "model_facing_memory",
-      "canonical_state": "UNSAFE",
-      "reason": "canonical_postgres_memory_unavailable",
-      "implications": [
-        "Current truth posture cannot be treated as trustworthy for this workflow.",
-        "Continuing would require fallback or optimistic inference."
-      ],
-      "next_options": [
-        "Run diagnostic health surfaces to inspect the unsafe dependency.",
-        "Restore the canonical dependency or refresh drift/reconciliation truth."
-      ]
-    },
-    {
-      "workflow": "context:execute-plan",
-      "subsystem": "model_facing_memory",
-      "canonical_state": "UNSAFE",
-      "reason": "canonical_postgres_memory_unavailable",
-      "implications": [
-        "Current truth posture cannot be treated as trustworthy for this workflow.",
-        "Continuing would require fallback or optimistic inference."
-      ],
-      "next_options": [
-        "Run diagnostic health surfaces to inspect the unsafe dependency.",
-        "Restore the canonical dependency or refresh drift/reconciliation truth."
-      ]
-    }
-  ],
+  "blocked_workflows": [],
   "warning_workflows": [],
   "subsystems": {
     "model_facing_memory": {
-      "canonical_state": "UNSAFE",
-      "reason": "canonical_postgres_memory_unavailable",
-      "detail": "Canonical Postgres-backed model-facing memory is unavailable for truth-bearing workflows."
+      "canonical_state": "HEALTHY",
+      "reason": "canonical_postgres_memory_available",
+      "detail": null
     },
     "planning_server": {
-      "canonical_state": "UNSAFE",
-      "reason": "planning_server_unavailable",
+      "canonical_state": "HEALTHY",
+      "reason": "planning_server_ok",
       "detail": null
     },
     "drift_truth": {
       "canonical_state": "HEALTHY",
       "reason": "drift_truth_fresh",
       "detail": null,
-      "age_ms": 1278786,
+      "age_ms": 772622,
       "path": ".planning/drift/latest-report.json"
     },
     "reconciliation_truth": {
       "canonical_state": "HEALTHY",
       "reason": "reconciliation_truth_fresh",
       "detail": null,
-      "age_ms": 1274401,
+      "age_ms": 614357,
       "path": ".planning/drift/latest-reconciliation.json"
     },
     "planning_truth": {
-      "canonical_state": "UNSAFE",
-      "reason": "planning_server_unavailable",
-      "detail": "Planning Server is unavailable for truth-bearing workflows."
+      "canonical_state": "HEALTHY",
+      "reason": "planning_truth_ready",
+      "detail": null
     }
   },
   "sources": {

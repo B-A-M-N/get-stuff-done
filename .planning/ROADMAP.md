@@ -378,7 +378,7 @@ Plans:
 **Goal:** Convert the system from workflow-following correctness into mechanically enforced truth, where claims, verification, degraded mode, and execution history are all provable through observable artifacts and enforced boundaries.
 
 ### Phase 70: Drift Surface Mapping
-**Reconciliation Status:** BLOCKED
+**Reconciliation Status:** AT_RISK
 
 **Goal:** Identify and classify every location where roadmap, requirements, execution, verification, and memory truth can drift apart.
 **Requirements**: TRUTH-CLAIM-01, TRUTH-DRIFT-01
@@ -548,4 +548,5 @@ Plans:
 - [ ] 82-02-PLAN.md — resolve Phase 70 CRITICAL drift and refresh reconciliation truth
 - [ ] 82-03-PLAN.md — regenerate Phase 81 TRUTH to VALID in non-degraded mode
 - [ ] 82-04-PLAN.md — re-run full validation sweep and finalize milestone audit
-
+<!-- GSD-AUTHORITY: 70-01-1:beb0ddc7732b827583bacfcf630d45d611768d507d77971e0dfa115742ba5fb8 -->
+<!-- GSD-AUTHORITY: 70-01-1:8abfe6e4f9d5bd76f5792caba0dc1e2fa35889cd7804ee408e0b470e7bb29dc7 -->

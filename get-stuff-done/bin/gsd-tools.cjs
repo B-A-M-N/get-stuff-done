@@ -242,6 +242,31 @@
  *   init progress                      All context for progress workflow
  */
 
+// Load .env file if present (simple loader, no external dependency)
+try {
+  const fs = require('fs');
+  const path = require('path');
+  const envPath = path.join(process.cwd(), '.env');
+  if (fs.existsSync(envPath)) {
+    const content = fs.readFileSync(envPath, 'utf8');
+    const lines = content.split('\n');
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      const eqIdx = trimmed.indexOf('=');
+      if (eqIdx > 0) {
+        const key = trimmed.substring(0, eqIdx).trim();
+        const value = trimmed.substring(eqIdx + 1).trim().replace(/^["']|["']$/g, '');
+        if (key && value && !(key in process.env)) {
+          process.env[key] = value;
+        }
+      }
+    }
+  }
+} catch (e) {
+  // .env loading is best-effort
+}
+
 const fs = require('fs');
 const path = require('path');
 const { error, output, safeFs } = require('./lib/core.cjs');
