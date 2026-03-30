@@ -7,7 +7,16 @@
 - [x] **v0.5.0 Model-Facing Memory & Service Resilience** - Phases 53-54 (Completed 2026-03-27)
 - [x] **v0.6.0 Open Brain Foundations** - Phase 55 (Completed 2026-03-27)
 - [x] **v0.7.0 Truth Enforcement & Drift Elimination** - Phases 70-82 (Completed 2026-03-28). [archive](.planning/milestones/v0.7.0-ROADMAP.md)
-- [ ] **v0.8.0** - Planned
+- [ ] **v0.8.0** - Phase 12: Synthesis Retrieval & Replay (Planned)
+
+## In-Progress Milestones
+
+<details>
+<summary>v0.8.0 Synthesis Retrieval & Replay (Phase 12) — PLANNED</summary>
+
+Delivering: query API over persisted synthesis artifacts, provenance chain traversal, deterministic replay/reproduce workflow, and evidence-based ranking primitives.
+
+</details>
 
 ## Archived Milestones
 

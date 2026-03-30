@@ -1,6 +1,6 @@
 {
   "schema": "gsd_degraded_state",
-  "generated_at": "2026-03-30T14:00:41.308Z",
+  "generated_at": "2026-03-30T15:05:20.711Z",
   "stale_after_ms": 3600000,
   "aggregate_state": "UNSAFE",
   "degraded": true,
@@ -11,9 +11,9 @@
   "blocked_workflows": [
     {
       "workflow": "context:plan-phase",
-      "subsystem": "drift_truth",
+      "subsystem": "model_facing_memory",
       "canonical_state": "UNSAFE",
-      "reason": "drift_truth_stale",
+      "reason": "canonical_postgres_memory_unavailable",
       "implications": [
         "Current truth posture cannot be treated as trustworthy for this workflow.",
         "Continuing would require fallback or optimistic inference."
@@ -25,9 +25,9 @@
     },
     {
       "workflow": "context:execute-plan",
-      "subsystem": "drift_truth",
+      "subsystem": "model_facing_memory",
       "canonical_state": "UNSAFE",
-      "reason": "drift_truth_stale",
+      "reason": "canonical_postgres_memory_unavailable",
       "implications": [
         "Current truth posture cannot be treated as trustworthy for this workflow.",
         "Continuing would require fallback or optimistic inference."
@@ -69,9 +69,9 @@
   "warning_workflows": [],
   "subsystems": {
     "model_facing_memory": {
-      "canonical_state": "HEALTHY",
-      "reason": "canonical_postgres_memory_available",
-      "detail": null
+      "canonical_state": "UNSAFE",
+      "reason": "canonical_postgres_memory_unavailable",
+      "detail": "Canonical Postgres-backed model-facing memory is unavailable for truth-bearing workflows."
     },
     "planning_server": {
       "canonical_state": "HEALTHY",
@@ -82,14 +82,14 @@
       "canonical_state": "UNSAFE",
       "reason": "drift_truth_stale",
       "detail": "Drift report is stale and should be refreshed with `drift scan`.",
-      "age_ms": 70052972,
+      "age_ms": 73932365,
       "path": ".planning/drift/latest-report.json"
     },
     "reconciliation_truth": {
       "canonical_state": "UNSAFE",
       "reason": "reconciliation_truth_stale",
       "detail": "Reconciliation artifact is stale and should be refreshed with `drift reconcile`.",
-      "age_ms": 70041485,
+      "age_ms": 73920878,
       "path": ".planning/drift/latest-reconciliation.json"
     },
     "planning_truth": {
