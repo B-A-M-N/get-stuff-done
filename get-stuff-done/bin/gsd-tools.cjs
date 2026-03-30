@@ -124,6 +124,9 @@
  *   state-snapshot                     Structured parse of STATE.md
  *   phase-plan-index <phase>           Index plans with waves and status
  *   phase-truth generate <phase>       Generate N-TRUTH.yaml and N-TRUTH.md for a phase
+   replay-mission <mission_id>       Reconstruct mission synthesis state (intact/degraded)
+   verify-synthesis <artifact_id>    Verify artifact integrity (content + citations)
+   rank-synthesis <mission_id>       Rank artifacts by quality metrics [--limit N]
  *
  * Phase Operations:
  *   phase next-decimal <phase>         Calculate next decimal phase number
@@ -1550,6 +1553,31 @@ async function main() {
 
     case 'phase-plan-index': {
       phase.cmdPhasePlanIndex(cwd, args[1], raw);
+      break;
+    }
+
+    case 'replay-mission': {
+      const missionId = args[1];
+      if (!missionId) error('mission_id required');
+      getCommands().cmdReplayMission(cwd, missionId, {}, raw);
+      break;
+    }
+
+    case 'verify-synthesis': {
+      const artifactId = args[1];
+      if (!artifactId) error('artifact_id required');
+      getCommands().cmdVerifySynthesis(cwd, artifactId, {}, raw);
+      break;
+    }
+
+    case 'rank-synthesis': {
+      const missionId = args[1];
+      if (!missionId) error('mission_id required');
+      const limitIndex = args.indexOf('--limit');
+      const options = {
+        limit: limitIndex !== -1 && args[limitIndex + 1] ? parseInt(args[limitIndex + 1], 10) : 10
+      };
+      getCommands().cmdRankSynthesis(cwd, missionId, options, raw);
       break;
     }
 

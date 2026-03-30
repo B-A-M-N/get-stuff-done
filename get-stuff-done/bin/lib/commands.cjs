@@ -12,6 +12,8 @@ const checkpointPlaneSync = require('./checkpoint-plane-sync.cjs');
 const secondBrain = require('./second-brain.cjs');
 const openBrain = require('./open-brain.cjs');
 const degradedMode = require('./degraded-mode.cjs');
+const synthesisReplay = require('./synthesis-replay.cjs');
+const synthesisMetrics = require('./synthesis-metrics.cjs');
 
 function stripFrontmatter(content) {
   return String(content || '').replace(/^---\r?\n[\s\S]+?\r?\n---\r?\n?/, '');
@@ -1431,6 +1433,72 @@ async function cmdHealthDegradedMode(cwd, raw, options = {}) {
   }, raw, snapshot.degraded ? 'degraded' : 'ok');
 }
 
+// ============================================================================
+// Phase 12 Synthesis Surface Commands
+// ============================================================================
+
+/**
+ * Reconstruct mission synthesis state.
+ * Usage: gsd-tools.cjs replay-mission <mission_id> [--raw]
+ */
+async function cmdReplayMission(cwd, missionId, options, raw) {
+  if (!missionId) {
+    error('mission_id required');
+  }
+
+  try {
+    const result = await synthesisReplay.reconstructMissionState(missionId);
+    output(result, raw, JSON.stringify(result, null, 2));
+  } catch (err) {
+    error(`Failed to replay mission: ${err.message}`);
+  }
+}
+
+/**
+ * Verify artifact integrity.
+ * Usage: gsd-tools.cjs verify-synthesis <artifact_id> [--raw]
+ */
+async function cmdVerifySynthesis(cwd, artifactId, options, raw) {
+  if (!artifactId) {
+    error('artifact_id required');
+  }
+
+  try {
+    const result = await synthesisReplay.verifyArtifactIntegrity(artifactId);
+    if (result.overall === 'verified') {
+      output(result, raw, JSON.stringify(result, null, 2));
+    } else {
+      // Exit code 1 for drift/missing
+      output(result, raw, JSON.stringify(result, null, 2));
+      process.exit(1);
+    }
+  } catch (err) {
+    error(`Failed to verify synthesis: ${err.message}`);
+  }
+}
+
+/**
+ * Rank synthesis artifacts for a mission.
+ * Usage: gsd-tools.cjs rank-synthesis <mission_id> [--limit N] [--raw]
+ */
+async function cmdRankSynthesis(cwd, missionId, options, raw) {
+  if (!missionId) {
+    error('mission_id required');
+  }
+
+  const limit = options?.limit ? parseInt(options.limit, 10) : 10;
+  if (isNaN(limit) || limit <= 0) {
+    error('--limit must be a positive integer');
+  }
+
+  try {
+    const result = await synthesisMetrics.rankMissionArtifacts(missionId, limit);
+    output(result, raw, JSON.stringify(result, null, 2));
+  } catch (err) {
+    error(`Failed to rank synthesis: ${err.message}`);
+  }
+}
+
 module.exports = {
   cmdGenerateSlug,
   cmdCurrentTimestamp,
@@ -1450,6 +1518,11 @@ module.exports = {
   cmdTodoComplete,
   cmdScaffold,
   cmdStats,
+  // Phase 12 synthesis surface
+  cmdReplayMission,
+  cmdVerifySynthesis,
+  cmdRankSynthesis,
+  // Core utilities
   buildCheckpointMemoryEntry,
   buildSummaryMemoryEntry,
   writeCheckpointLifecycleMemory,
