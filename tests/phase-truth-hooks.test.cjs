@@ -11,7 +11,7 @@ function writeFile(root, relPath, content) {
 }
 
 function verificationArtifact(phase) {
-  return `---\nphase: "${phase}"\nname: "Phase ${phase}"\ncreated: 2026-03-27\nverified: 2026-03-27T00:00:00Z\nstatus: VALID\nscore: 1/1 requirements verified\n---\n\n# Verification\n\n## Observable Truths\n\n| # | Truth | Status | Evidence |\n|---|-------|--------|----------|\n| 1 | Phase truth exists | VALID | \`get-stuff-done/bin/lib/phase-truth.cjs\` |\n\n## Requirement Coverage\n\n| Requirement | Status | Evidence | Gap |\n|-------------|--------|----------|-----|\n| TRUTH-PHASE-01 | VALID | \`get-stuff-done/bin/lib/phase-truth.cjs\` | - |\n\n## Anti-Pattern Scan\n\n| File | Pattern | Classification | Impact |\n|------|---------|----------------|--------|\n| None | - | - | - |\n\n## Drift Analysis\n\n\`\`\`json\n[]\n\`\`\`\n\n## Final Status\n\n\`\`\`json\n{\"status\":\"VALID\",\"reason\":\"All evidence present.\"}\n\`\`\`\n`;
+  return `---\nphase: "${phase}"\nname: "Phase ${phase}"\ncreated: 2026-03-27\nverified: 2026-03-27T00:00:00Z\nstatus: VALID\nscore: 1/1 requirements verified\n---\n\n# Verification\n\n## Observable Truths\n\n| # | Truth | Status | Evidence |\n|---|-------|--------|----------|\n| 1 | Phase truth exists | VALID | \`get-stuff-done/bin/lib/phase-truth.cjs\` |\n\n## Requirement Coverage\n\n| Requirement | Status | Evidence | Gap |\n|-------------|--------|----------|-----|\n| TRUTH-PHASE-01 | VALID | \`get-stuff-done/bin/lib/phase-truth.cjs\` | - |\n\n## Anti-Pattern Scan\n\n| File | Pattern | Classification | Impact |\n|------|---------|----------------|--------|\n| None | - | - | - |\n\n## Drift Analysis\n\n\`\`\`json\n[]\n\`\`\`\n\n## Final Status\n\n\`\`\`json\n{"status":"VALID","reason":"All evidence present."}\n\`\`\`\n`;
 }
 
 function setupHookProject(tmpDir) {
@@ -56,7 +56,7 @@ function setupInvariantClosureProject(tmpDir) {
   writeFile(tmpDir, '.planning/phases/75-degraded-mode-enforcement/75-02-PLAN.md', '# Plan\n');
   writeFile(tmpDir, '.planning/phases/75-degraded-mode-enforcement/75-01-SUMMARY.md', `---\nphase: 75\nplan: 01\nprovides:\n  - canonical degraded-policy evaluator and artifact\n---\n\n# Summary\n`);
   writeFile(tmpDir, '.planning/phases/75-degraded-mode-enforcement/75-02-SUMMARY.md', `---\nphase: 75\nplan: 02\nprovides:\n  - top-level CLI blocking for unsafe truth-bearing workflows\n---\n\n# Summary\n`);
-  writeFile(tmpDir, '.planning/phases/75-degraded-mode-enforcement/75-VERIFICATION.md', `---\nphase: "75"\nverified: 2026-03-28T00:00:00Z\nstatus: VALID\nscore: 2/2 requirements verified\n---\n\n# Verification\n\n## Observable Truths\n\n| # | Truth | Status | Evidence |\n|---|---|---|---|\n| 1 | Model-facing memory fails closed under canonical memory loss. | VALID | \`tests/brain-mcp-degraded-mode.test.cjs\` |\n\n## Requirement Coverage\n\n| Requirement | Status | Evidence | Gap |\n|---|---|---|---|\n| TRUTH-DEGRADE-01 | VALID | \`tests/brain-health.test.cjs\` | - |\n| TRUTH-MEMORY-01 | VALID | \`tests/brain-mcp-degraded-mode.test.cjs\` | - |\n\n## Anti-Pattern Scan\n\n| File | Pattern | Classification | Impact |\n|---|---|---|---|\n| None | - | - | - |\n\n## Drift Analysis\n\n\`\`\`json\n[]\n\`\`\`\n\n## Final Status\n\n\`\`\`json\n{\"status\":\"VALID\",\"reason\":\"All same-area invariants are satisfied.\"}\n\`\`\`\n`);
+  writeFile(tmpDir, '.planning/phases/75-degraded-mode-enforcement/75-VERIFICATION.md', `---\nphase: "75"\nverified: 2026-03-28T00:00:00Z\nstatus: VALID\nscore: 2/2 requirements verified\n---\n\n# Verification\n\n## Observable Truths\n\n| # | Truth | Status | Evidence |\n|---|---|---|---|\n| 1 | Model-facing memory is blocked and degraded under canonical memory loss. | VALID | \`tests/brain-mcp-degraded-mode.test.cjs\` |\n\n## Requirement Coverage\n\n| Requirement | Status | Evidence | Gap |\n|---|---|---|---|\n| TRUTH-DEGRADE-01 | VALID | \`tests/brain-health.test.cjs\` | - |\n| TRUTH-MEMORY-01 | VALID | \`tests/brain-mcp-degraded-mode.test.cjs\` | - |\n\n## Anti-Pattern Scan\n\n| File | Pattern | Classification | Impact |\n|---|---|---|---|\n| None | - | - | - |\n\n## Drift Analysis\n\n\`\`\`json\n[]\n\`\`\`\n\n## Final Status\n\n\`\`\`json\n{"status":"VALID","reason":"All same-area invariants are satisfied."}\n\`\`\`\n`);
   writeFile(tmpDir, '.planning/phases/75-degraded-mode-enforcement/75-INVARIANTS.yaml', JSON.stringify({
     phase: '75',
     enforcement_area: 'Model-Facing Memory Truth Closure',
@@ -95,6 +95,13 @@ function setupInvariantClosureProject(tmpDir) {
       { workflow: 'context:execute-plan', subsystem: 'model_facing_memory', reason: 'canonical_postgres_memory_unavailable' }
     ]
   }, null, 2));
+  // Bypass command governance to prevent degraded state overwrite in test environment
+  writeFile(tmpDir, '.planning/policy/command-governance.yaml', JSON.stringify({
+    default_class: 'warn_only',
+    routes: [
+      { command: 'phase-truth', subcommand: 'generate', class: 'ungated_execution' }
+    ]
+  }, null, 2));
 }
 
 function setupReconciliationInvariantClosureProject(tmpDir) {
@@ -103,7 +110,7 @@ function setupReconciliationInvariantClosureProject(tmpDir) {
   writeFile(tmpDir, '.planning/STATE.md', `---\ncurrent_phase: 74\n---\n# State\n`);
   writeFile(tmpDir, '.planning/phases/74-state-reconciliation-layer/74-01-PLAN.md', '# Plan\n');
   writeFile(tmpDir, '.planning/phases/74-state-reconciliation-layer/74-01-SUMMARY.md', `---\nphase: 74\nplan: 01\nprovides:\n  - deterministic reconciliation surfaces\n---\n\n# Summary\n`);
-  writeFile(tmpDir, '.planning/phases/74-state-reconciliation-layer/74-VERIFICATION.md', `---\nphase: "74"\nverified: 2026-03-28T00:00:00Z\nstatus: VALID\nscore: 1/1 requirements verified\n---\n\n# Verification\n\n## Observable Truths\n\n| # | Truth | Status | Evidence |\n|---|---|---|---|\n| 1 | Preview and reconcile surfaces are directly reproducible. | VALID | \`node get-stuff-done/bin/gsd-tools.cjs drift preview --raw\`, \`node get-stuff-done/bin/gsd-tools.cjs drift reconcile --raw\` |\n\n## Requirement Coverage\n\n| Requirement | Status | Evidence | Gap |\n|---|---|---|---|\n| TRUTH-DRIFT-02 | VALID | \`node get-stuff-done/bin/gsd-tools.cjs drift preview --raw\`, \`node get-stuff-done/bin/gsd-tools.cjs drift reconcile --raw\`, \`.planning/drift/latest-reconciliation.json\` | - |\n\n## Anti-Pattern Scan\n\n| File | Pattern | Classification | Impact |\n|---|---|---|---|\n| None | - | - | - |\n\n## Drift Analysis\n\n\`\`\`json\n[]\n\`\`\`\n\n## Final Status\n\n\`\`\`json\n{\"status\":\"VALID\",\"reason\":\"Reconciliation closure invariants are satisfied.\"}\n\`\`\`\n`);
+  writeFile(tmpDir, '.planning/phases/74-state-reconciliation-layer/74-VERIFICATION.md', `---\nphase: "74"\nverified: 2026-03-28T00:00:00Z\nstatus: VALID\nscore: 1/1 requirements verified\n---\n\n# Verification\n\n## Observable Truths\n\n| # | Truth | Status | Evidence |\n|---|---|---|---|\n| 1 | Preview and reconcile surfaces are directly reproducible. | VALID | \`node get-stuff-done/bin/gsd-tools.cjs drift preview --raw\`, \`node get-stuff-done/bin/gsd-tools.cjs drift reconcile --raw\` |\n\n## Requirement Coverage\n\n| Requirement | Status | Evidence | Gap |\n|---|---|---|---|\n| TRUTH-DRIFT-02 | VALID | \`node get-stuff-done/bin/gsd-tools.cjs drift preview --raw\`, \`node get-stuff-done/bin/gsd-tools.cjs drift reconcile --raw\`, \`.planning/drift/latest-reconciliation.json\` | - |\n\n## Anti-Pattern Scan\n\n| File | Pattern | Classification | Impact |\n|---|---|---|---|\n| None | - | - | - |\n\n## Drift Analysis\n\n\`\`\`json\n[]\n\`\`\`\n\n## Final Status\n\n\`\`\`json\n{"status":"VALID","reason":"Reconciliation closure invariants are satisfied."}\n\`\`\`\n`);
   writeFile(tmpDir, '.planning/phases/74-state-reconciliation-layer/74-INVARIANTS.yaml', JSON.stringify({
     phase: '74',
     enforcement_area: 'Reconciliation Truth Closure',

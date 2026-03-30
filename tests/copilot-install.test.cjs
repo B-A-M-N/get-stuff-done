@@ -753,7 +753,7 @@ describe('Copilot agent conversion - real files', () => {
     const toolsLine = result.split('\n').find(l => l.startsWith('tools:'));
     assert.ok(toolsLine.includes('io.github.upstash/context7/*'), 'mcp wildcard mapped in tools');
     assert.ok(!toolsLine.includes('mcp__context7__'), 'no mcp__ prefix in tools line');
-    assert.ok(toolsLine.includes("'web'"), 'WebSearch/WebFetch deduplicated to web');
+    assert.ok(toolsLine.includes("'search'"), 'Grep/Glob deduplicated to search');
     assert.ok(toolsLine.includes("'read'"), 'Read mapped');
   });
 
