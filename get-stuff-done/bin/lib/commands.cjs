@@ -1433,69 +1433,149 @@ async function cmdHealthDegradedMode(cwd, raw, options = {}) {
   }, raw, snapshot.degraded ? 'degraded' : 'ok');
 }
 
+/**
+ * Generate structured error payload for JSON output.
+ * @param {string} type - One of: NOT_FOUND, DRIFT, MISMATCH, INVALID_INPUT, INTERNAL
+ * @param {string} message - Human-readable error description
+ * @param {object} context - Optional context (mission_id, artifact_id, field, etc.)
+ */
+function errorPayload(type, message, context = {}) {
+  return {
+    ok: false,
+    error: {
+      type,
+      message,
+      context,
+    },
+  };
+}
+
 // ============================================================================
 // Phase 12 Synthesis Surface Commands
 // ============================================================================
 
 /**
  * Reconstruct mission synthesis state.
+ * Exit codes: 0=success, 2=no artifacts found, 1=error/invalid input
  * Usage: gsd-tools.cjs replay-mission <mission_id> [--raw]
  */
 async function cmdReplayMission(cwd, missionId, options, raw) {
   if (!missionId) {
-    error('mission_id required');
+    const payload = errorPayload('INVALID_INPUT', 'mission_id required', { field: 'missionId' });
+    output(payload, raw, JSON.stringify(payload, null, 2));
+    process.exit(1);
   }
 
   try {
     const result = await synthesisReplay.reconstructMissionState(missionId);
+
+    // Exit code 2: no replayable artifacts found (resource absence)
+    if (result.artifact_count === 0) {
+      const payload = errorPayload('NOT_FOUND', `No synthesis artifacts found for mission: ${missionId}`, { mission_id: missionId });
+      output(payload, raw, JSON.stringify(payload, null, 2));
+      process.exit(2);
+    }
+
+    // Exit code 0: success (replay completed, even if degraded)
     output(result, raw, JSON.stringify(result, null, 2));
+    process.exit(0);
+
   } catch (err) {
-    error(`Failed to replay mission: ${err.message}`);
+    // Determine error type from message patterns
+    const isNotFound = err.message.includes('not found') || err.message.includes('Mission not found');
+    const payload = errorPayload(
+      isNotFound ? 'NOT_FOUND' : 'INTERNAL',
+      `Failed to replay mission: ${err.message}`,
+      { mission_id: missionId, error: err.name }
+    );
+    output(payload, raw, JSON.stringify(payload, null, 2));
+    process.exit(isNotFound ? 2 : 1);
   }
 }
 
 /**
  * Verify artifact integrity.
+ * Exit codes: 0=verified, 1=drift/mismatch, 2=artifact not found
  * Usage: gsd-tools.cjs verify-synthesis <artifact_id> [--raw]
  */
 async function cmdVerifySynthesis(cwd, artifactId, options, raw) {
   if (!artifactId) {
-    error('artifact_id required');
+    const payload = errorPayload('INVALID_INPUT', 'artifact_id required', { field: 'artifactId' });
+    output(payload, raw, JSON.stringify(payload, null, 2));
+    process.exit(1);
   }
 
   try {
     const result = await synthesisReplay.verifyArtifactIntegrity(artifactId);
+
+    if (!result.ok) {
+      // Artifact not found
+      const payload = errorPayload('NOT_FOUND', result.error || 'Artifact not found', { artifact_id: artifactId });
+      output(payload, raw, JSON.stringify(payload, null, 2));
+      process.exit(2);
+    }
+
     if (result.overall === 'verified') {
+      // Success - verified
       output(result, raw, JSON.stringify(result, null, 2));
+      process.exit(0);
     } else {
-      // Exit code 1 for drift/missing
-      output(result, raw, JSON.stringify(result, null, 2));
+      // Drift or integrity failure
+      const payload = errorPayload(
+        result.overall === 'drift' ? 'DRIFT' : 'MISMATCH',
+        result.overall === 'drift' ? 'Integrity check failed' : 'Validation mismatch',
+        {
+          artifact_id: artifactId,
+          artifact_type: result.artifact_type,
+          checks: result.checks
+        }
+      );
+      output(payload, raw, JSON.stringify(payload, null, 2));
       process.exit(1);
     }
   } catch (err) {
-    error(`Failed to verify synthesis: ${err.message}`);
+    const payload = errorPayload('INTERNAL', `Failed to verify synthesis: ${err.message}`, { artifact_id: artifactId, error: err.name });
+    output(payload, raw, JSON.stringify(payload, null, 2));
+    process.exit(1);
   }
 }
 
 /**
  * Rank synthesis artifacts for a mission.
+ * Exit codes: 0=success (even if 0 artifacts), 2=mission not found, 1=error/invalid input
  * Usage: gsd-tools.cjs rank-synthesis <mission_id> [--limit N] [--raw]
  */
 async function cmdRankSynthesis(cwd, missionId, options, raw) {
   if (!missionId) {
-    error('mission_id required');
+    const payload = errorPayload('INVALID_INPUT', 'mission_id required', { field: 'missionId' });
+    output(payload, raw, JSON.stringify(payload, null, 2));
+    process.exit(1);
   }
 
   const limit = options?.limit ? parseInt(options.limit, 10) : 10;
   if (isNaN(limit) || limit <= 0) {
-    error('--limit must be a positive integer');
+    const payload = errorPayload('INVALID_INPUT', `Invalid --limit: ${options?.limit}. Must be positive integer.`, { field: 'limit', value: options?.limit });
+    output(payload, raw, JSON.stringify(payload, null, 2));
+    process.exit(1);
   }
 
   try {
     const result = await synthesisMetrics.rankMissionArtifacts(missionId, limit);
+
+    // Empty mission is valid - still exit 0
     output(result, raw, JSON.stringify(result, null, 2));
+    process.exit(0);
+
   } catch (err) {
-    error(`Failed to rank synthesis: ${err.message}`);
+    // Determine if error indicates missing mission vs runtime failure
+    const isNotFound = err.message.includes('not found') || err.message.includes('Mission not found') || err.message.includes('no artifacts');
+    const payload = errorPayload(
+      isNotFound ? 'NOT_FOUND' : 'INTERNAL',
+      `Failed to rank synthesis: ${err.message}`,
+      { mission_id: missionId, error: err.name }
+    );
+    output(payload, raw, JSON.stringify(payload, null, 2));
+    process.exit(isNotFound ? 2 : 1);
   }
 }
 
@@ -1522,6 +1602,7 @@ module.exports = {
   cmdReplayMission,
   cmdVerifySynthesis,
   cmdRankSynthesis,
+  errorPayload,
   // Core utilities
   buildCheckpointMemoryEntry,
   buildSummaryMemoryEntry,

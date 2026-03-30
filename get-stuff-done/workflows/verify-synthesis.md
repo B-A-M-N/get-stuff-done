@@ -19,8 +19,8 @@ EXIT_CODE=$?
 if [[ $EXIT_CODE -eq 2 ]]; then
   echo "❌ Artifact not found: $ARGUMENTS"
   exit 2
-elif [[ $EXIT_CODE -ne 0 ]]; then
-  echo "❌ Drift detected"
+elif [[ $EXIT_CODE -eq 1 ]]; then
+  echo "❌ Drift or integrity failure detected"
 else
   echo "✅ Verified"
 fi

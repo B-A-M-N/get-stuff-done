@@ -12,7 +12,7 @@ None
 ```bash
 # Pass through flags after mission ID
 FLAGS=""
-if [[ "$ARGUMENTS" =~ --(json|limit) ]]; then
+if [[ "$ARGUMENTS" =~ --(raw|limit) ]]; then
   FLAGS=" $ARGUMENTS"
   MISSION_ID="${ARGUMENTS%% *}"
 else
@@ -38,18 +38,20 @@ fi
 </step>
 
 <step name="display_table">
-if command -v jq &>/dev/null && [[ -t 1 ]] && ! echo "$FLAGS" | grep -q -- '--json'; then
-  # Format as table
+if command -v jq &>/dev/null && [[ -t 1 ]] && ! echo "$FLAGS" | grep -q -- '--raw'; then
   echo "Mission: $MISSION_ID"
   echo "Total artifacts: $(echo "$RESULT" | jq -r '.total')"
   echo ""
 
-  printf "%-20s %-12s %-8s %-8s %-10s %-12s\n" "ID" "Type" "Score" "Atoms" "Sections" "Created"
-  echo "--------------------  ------------  --------  --------  ----------  -------------------"
+  printf "%-20s %7s %6s %8s %-14s %-20s\n" \
+    "ID" "Score" "Atoms" "Sections" "Type" "Created"
+  echo "--------------------  -------  ------  --------  --------------  -------------------"
 
-  echo "$RESULT" | jq -r '.ranked[] | "\(.id)  \(.type|ljust(12))  \(.score|sprintf("%.3f"))  \(.atoms|tostring|ljust(7))  \(.sections|tostring|ljust(9))  \(.created_at)"' | while IFS= read -r line; do
-    printf "%-20s %-12s %-8s %-8s %-10s %-12s\n" "${line%%$'\t'*}" ...
-  done
+  echo "$RESULT" | jq -r '.ranked[] | "\(.id)\t\(.score)\t\(.atoms)\t\(.sections)\t\(.type)\t\(.created_at)"' | \
+    while IFS=$'\t' read -r id score atoms sections type created; do
+      printf "%-20s %7.3f %6s %8s %-14s %-20s\n" \
+        "$id" "$score" "$atoms" "$sections" "$type" "$created"
+    done
 else
   # Output raw JSON
   echo "$RESULT"

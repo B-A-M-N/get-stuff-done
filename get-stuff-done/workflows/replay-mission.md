@@ -30,20 +30,25 @@ fi
 </step>
 
 <step name="display_summary">
-# Pretty-print using jq if available, otherwise show raw
-if command -v jq &>/dev/null && [[ -t 1 ]]; then
-  # Extract summary fields for quick view
+# Pretty-print using jq to extract fields, then printf for alignment
+if command -v jq &>/dev/null && [[ -t 1 ]] && ! echo "$FLAGS" | grep -q -- '--raw'; then
   echo "Mission: $ARGUMENTS"
   echo "Overall: $(echo "$RESULT" | jq -r '.overall_status')"
   echo "Artifacts: $(echo "$RESULT" | jq -r '.artifact_count')"
   echo "Total Atoms: $(echo "$RESULT" | jq -r '.total_atoms_unique')"
   echo ""
-  echo "Artifacts:"
-  echo "ID                                   Type               Created              Sections  Atoms  Citations  Status"
+
+  printf "%-35s %-20s %-20s %8s %5s %8s %-6s\n" \
+    "ID" "Type" "Created" "Sections" "Atoms" "Citations" "Status"
   echo "-----------------------------------  -----------------  -------------------  --------  -----  ---------  -------"
-  echo "$RESULT" | jq -r '.artifacts[] | "\(.id)  \(.type)  \(.created_at)  \(.sections|tostring|ljust(8))  \(.atoms|tostring|ljust(5))  \(.citations|tostring|ljust(8))  \(.integrity)"' | column -t -s $'\t'
+
+  echo "$RESULT" | jq -r '.artifacts[] | "\(.id)\t\(.type)\t\(.created_at)\t\(.sections)\t\(.atoms)\t\(.citations)\t\(.integrity)"' | \
+    while IFS=$'\t' read -r id type created sections atoms citations integrity; do
+      printf "%-35s %-20s %-20s %8s %5s %8s %-6s\n" \
+        "$id" "$type" "$created" "$sections" "$atoms" "$citations" "$integrity"
+    done
 else
-  # Fall back to raw JSON
+  # Output raw JSON (from --raw flag or no jq)
   echo "$RESULT"
 fi
 </step>
