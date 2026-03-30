@@ -1,139 +1,87 @@
-/**
- * Synthesis Replay — Reconstruct and verify synthesis artifacts.
- *
- * Ownership: Phase 12 surface layer
- * Purpose: Provide replay and integrity verification for stored synthesis artifacts.
- */
+let store = require('./synthesis-store.cjs');
+let phaseTruth = require('./phase-truth.cjs');
+const fs = require('fs');
+const path = require('path');
 
-const store = require('./synthesis-store.cjs');
+// Test hooks for dependency injection (defined unconditionally, set to no-ops in production)
+const __setStore = process.env.NODE_ENV === 'test' ? (s) => { store = s; } : () => {};
+const __setPhaseTruth = process.env.NODE_ENV === 'test' ? (p) => { phaseTruth = p; } : () => {};
 
-/**
- * Reconstruct the complete state of a mission's synthesis artifacts.
- * Validates integrity and aggregates metrics.
- *
- * @param {string} missionId
- * @returns {Promise<object>} reconstruction report
- */
-async function reconstructMissionState(missionId) {
-  if (!missionId) {
-    throw new Error('missionId is required');
-  }
+function extractGeneratedAt(content) {
+  const match = content.match(/^generated_at:\s*(.+)$/m);
+  return match ? match[1].trim() : null;
+}
 
-  // Fetch all artifacts in timeline order
-  const artifacts = await store.getMissionSynthesisTimeline(missionId);
+async function replayArtifact(artifactId, options = {}) {
+  const cwd = options.cwd || process.cwd();
+  try {
+    const artifact = await store.getArtifactWithSections(artifactId);
+    if (!artifact) {
+      return { matches: false, failure_category: 'NOT_FOUND', artifact_id: artifactId, errors: ['Artifact not found'] };
+    }
 
-  // Enrich with sections and compute per-artifact integrity
-  const enriched = await Promise.all(
-    artifacts.map(async (artifact) => {
-      const sections = await store.getSynthesisSections(artifact.id);
-
-      // Integrity check: if sections exist, verify content matches reconstruction
-      let integrity = 'intact';
-      if (sections.length > 0) {
-        const reconstructed = sections.map(s => s.section_content).join('\n\n');
-        // Normalize whitespace for comparison
-        const normalizedStored = (artifact.content || '').trim().replace(/\s+$/gm, '');
-        const normalizedReconstructed = reconstructed.trim().replace(/\s+$/gm, '');
-        if (normalizedStored !== normalizedReconstructed) {
-          integrity = 'drift';
-        }
+    const atomIds = new Set(artifact.atom_ids_used || []);
+    for (const section of artifact.sections || []) {
+      for (const atom of section.atom_ids_used || []) {
+        atomIds.add(atom);
       }
+    }
 
-      return {
-        id: artifact.id,
-        type: artifact.artifact_type,
-        created_at: artifact.created_at,
-        section_count: sections.length,
-        atom_count: artifact.atom_ids_used?.length || 0,
-        citation_count: artifact.synthesis_citations?.length || 0,
-        integrity,
-        sections
-      };
-    })
-  );
+    const missing = [];
+    for (const atom of atomIds) {
+      if (!fs.existsSync(path.join(cwd, atom))) missing.push(atom);
+    }
+    if (missing.length > 0) {
+      return { matches: false, failure_category: 'MISSING_ATOM', artifact_id: artifactId, errors: [`Missing: ${missing.join(', ')}`] };
+    }
 
-  // Aggregate metrics
-  const allAtoms = new Set(enriched.flatMap(a => a.atom_ids_used || []));
-  const artifactStatuses = enriched.map(a => a.integrity);
-  const allIntact = artifactStatuses.every(s => s === 'intact');
+    const storedTime = extractGeneratedAt(artifact.content);
+    const derived = await phaseTruth.derivePhaseTruth(cwd, artifact.mission_id, { now: storedTime });
+    const replayed = phaseTruth.renderYaml(derived) + '\n';
 
+    if (replayed.trim() === (artifact.content || '').trim()) {
+      return { matches: true, artifact_id: artifactId, failure_category: null, errors: [], replayed_content: replayed };
+    }
+    return { matches: false, failure_category: 'CONTENT_MISMATCH', artifact_id: artifactId, errors: ['Content mismatch'] };
+  } catch (err) {
+    // derivePhaseTruth throwing is a validation rejection, not an internal error
+    return { matches: false, failure_category: 'VALIDATION_REJECTION', artifact_id: artifactId, errors: [err.message] };
+  }
+}
+
+async function verifyArtifactIntegrity(artifactId) {
+  const result = await replayArtifact(artifactId);
+  return result.matches;
+}
+
+async function reconstructMissionState(missionId) {
+  if (!missionId) throw new Error('missionId required');
+  const artifacts = await store.getMissionSynthesisTimeline(missionId);
+  const results = await Promise.all(artifacts.map(a => replayArtifact(a.id)));
+  const intact = results.filter(r => r.matches).length;
   return {
     mission_id: missionId,
-    artifact_count: enriched.length,
-    total_sections: enriched.reduce((sum, a) => sum + a.section_count, 0),
-    total_atoms_unique: allAtoms.size,
-    overall_status: allIntact ? 'intact' : 'degraded',
-    artifacts: enriched.map(a => ({
+    artifact_count: artifacts.length,
+    overall_status: intact === artifacts.length ? 'intact' : 'degraded',
+    summary: { total: artifacts.length, intact, degraded: artifacts.length - intact },
+    artifacts: artifacts.map((a, i) => ({
       id: a.id,
-      type: a.type,
+      type: a.artifact_type,
       created_at: a.created_at,
-      sections: a.section_count,
-      atoms: a.atom_count,
-      citations: a.citation_count,
-      integrity: a.integrity
+      sections: a.sections?.length || 0,
+      atoms: a.atom_ids_used?.length || 0,
+      citations: a.synthesis_citations?.length || 0,
+      integrity: results[i].matches ? 'intact' : 'degraded',
+      failure_category: results[i].failure_category || null,
+      errors: results[i].errors || []
     }))
   };
 }
 
-/**
- * Verify a single artifact's integrity.
- *
- * @param {string} artifactId
- * @returns {Promise<object>} verification result { ok, overall, details }
- */
-async function verifyArtifactIntegrity(artifactId) {
-  if (!artifactId) {
-    throw new Error('artifactId is required');
-  }
-
-  const artifact = await store.getArtifactWithSections(artifactId);
-
-  if (!artifact) {
-    return {
-      ok: false,
-      error: 'Artifact not found',
-      code: 'missing',
-      overall: 'failed'
-    };
-  }
-
-  // Check required fields
-  const hasRequired = artifact.artifact_type && artifact.content && artifact.atom_ids_used;
-
-  // Content integrity: sections should reconstruct to content
-  const sections = artifact.sections || [];
-  const reconstructed = sections.map(s => s.section_content).join('\n\n');
-  const normalizedStored = (artifact.content || '').trim().replace(/\s+$/gm, '');
-  const normalizedReconstructed = reconstructed.trim().replace(/\s+$/gm, '');
-  const contentMatch = normalizedStored === normalizedReconstructed;
-
-  // Citation completeness: all atom_ids_used should appear in citations
-  const atomSet = new Set(artifact.atom_ids_used || []);
-  const citedSet = new Set(
-    (artifact.synthesis_citations || []).flatMap(c => c.atom_ids_used || [])
-  );
-  const missingCitations = [...atomSet].filter(a => !citedSet.has(a));
-  const citationsComplete = missingCitations.length === 0;
-
-  const overall = hasRequired && contentMatch && citationsComplete ? 'verified' : 'drift';
-
-  return {
-    ok: true,
-    exists: true,
-    id: artifactId,
-    artifact_type: artifact.artifact_type,
-    created_at: artifact.created_at,
-    checks: {
-      has_required_fields: hasRequired,
-      content_match: contentMatch,
-      citations_complete: citationsComplete,
-      missing_citations: missingCitations
-    },
-    overall
-  };
-}
-
 module.exports = {
+  replayArtifact,
+  verifyArtifactIntegrity,
   reconstructMissionState,
-  verifyArtifactIntegrity
+  __setStore,
+  __setPhaseTruth
 };

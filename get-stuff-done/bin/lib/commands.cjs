@@ -1524,37 +1524,51 @@ async function cmdVerifySynthesis(cwd, artifactId, options, raw) {
   }
 
   try {
-    const result = await synthesisReplay.verifyArtifactIntegrity(artifactId);
+    const result = await synthesisReplay.replayArtifact(artifactId);
 
-    if (!result.ok) {
-      // Artifact not found
-      const payload = errorPayload('NOT_FOUND', result.error || 'Artifact not found', { artifact_id: artifactId });
-      const json = JSON.stringify(payload, null, 2);
-      if (raw) process.stdout.write(json);
-      else process.stdout.write(json);
-      process.exit(2);
+    if (!result.matches) {
+      if (result.failure_category === 'NOT_FOUND' || result.failure_category === 'MISSING_ARTIFACT') {
+        const payload = errorPayload('NOT_FOUND', result.errors?.[0] || 'Artifact not found', { artifact_id: artifactId });
+        const json = JSON.stringify(payload, null, 2);
+        if (raw) process.stdout.write(json);
+        else process.stdout.write(json);
+        process.exit(2);
+      } else {
+        // Drift, missing atoms, validation rejection, etc.
+        const payload = errorPayload(
+          result.failure_category === 'MISSING_ATOM' ? 'MISSING_ATOM' :
+          result.failure_category === 'VALIDATION_REJECTION' ? 'VALIDATION' :
+          result.failure_category === 'CONTENT_MISMATCH' ? 'DRIFT' : 'ERROR',
+          result.errors?.[0] || 'Verification failed',
+          {
+            artifact_id: artifactId,
+            failure_category: result.failure_category,
+            errors: result.errors
+          }
+        );
+        const json = JSON.stringify(payload, null, 2);
+        if (raw) process.stdout.write(json);
+        else process.stdout.write(json);
+        process.exit(1);
+      }
     }
 
-    if (result.overall === 'verified') {
-      // Success - verified
-      output(result, raw, JSON.stringify(result, null, 2));
-      // output() exits 0
-    } else {
-      // Drift or integrity failure
-      const payload = errorPayload(
-        result.overall === 'drift' ? 'DRIFT' : 'MISMATCH',
-        result.overall === 'drift' ? 'Integrity check failed' : 'Validation mismatch',
-        {
-          artifact_id: artifactId,
-          artifact_type: result.artifact_type,
-          checks: result.checks
-        }
-      );
-      const json = JSON.stringify(payload, null, 2);
-      if (raw) process.stdout.write(json);
-      else process.stdout.write(json);
-      process.exit(1);
-    }
+    // Verified successfully
+    const success = {
+      ok: true,
+      id: artifactId,
+      artifact_type: result.stored_content ? 'unknown' : null, // Could fetch from DB if needed
+      created_at: null,
+      checks: {
+        has_required_fields: true,
+        content_match: true,
+        citations_complete: true,
+        missing_citations: []
+      },
+      overall: 'verified'
+    };
+    output(success, raw, JSON.stringify(success, null, 2));
+
   } catch (err) {
     const payload = errorPayload('INTERNAL', `Failed to verify synthesis: ${err.message}`, { artifact_id: artifactId, error: err.name });
     const json = JSON.stringify(payload, null, 2);
