@@ -4,7 +4,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { escapeRegex, getMilestonePhaseFilter, normalizeMd, output, error } = require('./core.cjs');
+const { escapeRegex, getMilestonePhaseFilter, normalizeMd, output, error, getActiveRequirementsPath } = require('./core.cjs');
 const { extractFrontmatter } = require('./frontmatter.cjs');
 const { writeStateMd } = require('./state.cjs');
 const { assertPhase79MilestoneGate } = require('./integrity-gauntlet.cjs');
@@ -26,8 +26,8 @@ function cmdRequirementsMarkComplete(cwd, reqIdsRaw, raw) {
     error('no valid requirement IDs found');
   }
 
-  const reqPath = path.join(cwd, '.planning', 'REQUIREMENTS.md');
-  if (!fs.existsSync(reqPath)) {
+  const reqPath = getActiveRequirementsPath(cwd);
+  if (!reqPath) {
     output({ updated: false, reason: 'REQUIREMENTS.md not found', ids: reqIds }, raw, 'no requirements file');
     return;
   }
@@ -108,7 +108,7 @@ function cmdMilestoneComplete(cwd, version, options, raw) {
   }
 
   const roadmapPath = path.join(cwd, '.planning', 'ROADMAP.md');
-  const reqPath = path.join(cwd, '.planning', 'REQUIREMENTS.md');
+  const reqPath = getActiveRequirementsPath(cwd);
   const statePath = path.join(cwd, '.planning', 'STATE.md');
   const milestonesPath = path.join(cwd, '.planning', 'MILESTONES.md');
   const archiveDir = path.join(cwd, '.planning', 'milestones');
@@ -165,8 +165,8 @@ function cmdMilestoneComplete(cwd, version, options, raw) {
     fs.writeFileSync(path.join(archiveDir, `${version}-ROADMAP.md`), roadmapContent, 'utf-8');
   }
 
-  // Archive REQUIREMENTS.md
-  if (fs.existsSync(reqPath)) {
+  // Archive REQUIREMENTS.md (if active file exists)
+  if (reqPath && fs.existsSync(reqPath)) {
     const reqContent = fs.readFileSync(reqPath, 'utf-8');
     const archiveHeader = `# Requirements Archive: ${version} ${milestoneName}\n\n**Archived:** ${today}\n**Status:** SHIPPED\n\nFor current requirements, see \`.planning/REQUIREMENTS.md\`.\n\n---\n\n`;
     fs.writeFileSync(path.join(archiveDir, `${version}-REQUIREMENTS.md`), archiveHeader + reqContent, 'utf-8');

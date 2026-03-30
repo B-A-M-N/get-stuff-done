@@ -574,7 +574,7 @@ node gsd-tools.cjs verify integrity --phase 1 --plan 2
 
 ### `firecrawl check` (gsd-tools)
 
-Check if the local Firecrawl instance is reachable. Agents call this before any external retrieval to determine whether to use Firecrawl or declare degraded mode.
+Check if the local Firecrawl instance is reachable. Agents call this before context retrieval to determine whether to use Firecrawl or declare degraded mode.
 
 ```bash
 node gsd-tools.cjs firecrawl check

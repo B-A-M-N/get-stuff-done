@@ -345,7 +345,12 @@ async function buildDegradedState(cwd, options = {}) {
 
 function writeLatestDegradedState(cwd, snapshot) {
   const targetPath = path.join(cwd, DEGRADED_STATE_PATH);
-  fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+  const parentDir = path.dirname(targetPath);
+  // Only write degraded state if .planning exists — avoids auto-creating .planning during health checks
+  if (!fs.existsSync(path.join(cwd, '.planning'))) {
+    return null;
+  }
+  fs.mkdirSync(parentDir, { recursive: true });
   fs.writeFileSync(targetPath, JSON.stringify(snapshot, null, 2) + '\n', 'utf-8');
   return {
     path: DEGRADED_STATE_PATH,

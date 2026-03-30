@@ -81,11 +81,25 @@ function createTempProject() {
   return tmpDir;
 }
 
+// Create temp project and sign all planning markdown files (for verify command tests)
+function createSignedTempProject() {
+  const tmpDir = createTempProject();
+  signPlanningMarkdown(tmpDir);
+  return tmpDir;
+}
+
 // Create temp directory with initialized git repo and at least one commit
 function createTempGitProject() {
   const tmpDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'gsd-test-'));
   fs.mkdirSync(path.join(tmpDir, '.planning', 'phases'), { recursive: true });
   fs.mkdirSync(path.join(tmpDir, '.planning', 'drift'), { recursive: true });
+
+  // Copy governance policy from project .planning/policy if present
+  const srcPolicy = path.join(process.cwd(), '.planning', 'policy');
+  const dstPolicy = path.join(tmpDir, '.planning', 'policy');
+  if (fs.existsSync(srcPolicy)) {
+    fs.cpSync(srcPolicy, dstPolicy, { recursive: true });
+  }
 
   execSync('git init', { cwd: tmpDir, stdio: 'pipe' });
   execSync('git config user.email "test@test.com"', { cwd: tmpDir, stdio: 'pipe' });

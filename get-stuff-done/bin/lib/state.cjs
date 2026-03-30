@@ -5,7 +5,7 @@
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
-const { escapeRegex, loadConfig, getMilestoneInfo, getMilestonePhaseFilter, normalizeMd, output, error, safeReadFile } = require('./core.cjs');
+const { escapeRegex, loadConfig, getMilestoneInfo, getMilestonePhaseFilter, normalizeMd, output, error, safeReadFile, getActiveRequirementsPath } = require('./core.cjs');
 const { extractFrontmatter, reconstructFrontmatter } = require('./frontmatter.cjs');
 
 function cmdStateLoad(cwd, raw) {
@@ -686,9 +686,9 @@ function harvestAmbientContext(cwd, phaseNumber) {
     }
   }
 
-  // 3. REQUIREMENTS.md Active Requirements
-  const reqPath = path.join(planningDir, 'REQUIREMENTS.md');
-  if (fs.existsSync(reqPath)) {
+  // 3. REQUIREMENTS.md Active Requirements (distributed truth model)
+  const reqPath = getActiveRequirementsPath(cwd);
+  if (reqPath) {
     const reqContent = fs.readFileSync(reqPath, 'utf-8');
     const activeMatch = reqContent.match(/##\s*v[\d.]+\s+Requirements\s*\n([\s\S]*?)(?=\n##|$)/i);
     if (activeMatch) {
@@ -696,7 +696,7 @@ function harvestAmbientContext(cwd, phaseNumber) {
         const m = s.match(/^\s*-\s+\[ \]\s+\*\*([A-Z0-9-]+)\*\*:\s*(.+)$/);
         return m ? { id: m[1], text: m[2].trim() } : null;
       }).filter(Boolean) || [];
-      
+
       if (allReqs.length > MAX_ITEMS) {
         context.active_requirements = allReqs.slice(0, MAX_ITEMS);
         context.truncated = true;

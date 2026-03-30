@@ -1,10 +1,9 @@
 # Phase 70: Drift Surface Mapping — Truth
 
-**Generated:** 2026-03-28T21:38:29.450Z
+**Generated:** 2026-03-29T18:33:19.950Z
 **Final Status:** INVALID
 
 ## Status Reasons
-- Applied reconciliation downgrades this phase to INVALID.
 - Active CRITICAL drift affects this phase.
 
 ## Inputs
@@ -33,8 +32,6 @@
 ## Gaps
 - verification_gap: Verification artifact failed contract validation: Frontmatter status must be one of VALID, CONDITIONAL, INVALID; Missing required section: Observable Truths; Missing required section: Requirement Coverage; Requirement Coverage must contain at least one requirement row; Drift Analysis JSON invalid: missing fenced JSON block; Unknown anti-pattern classification: ℹ️ Info; Unknown anti-pattern classification: ℹ️ Info; Unknown anti-pattern classification: ℹ️ Info; Final Status JSON invalid: missing fenced JSON block
 - reverification_required: execution_drift invalidated or downgraded trusted truth
-- reverification_required: execution_drift invalidated or downgraded trusted truth
-- reverification_required: verification_drift invalidated or downgraded trusted truth
 - degraded_state_caveat: Current degraded truth posture is UNSAFE.
 - workflow_block: context:plan-phase blocked by model_facing_memory: canonical_postgres_memory_unavailable
 - workflow_block: context:execute-plan blocked by model_facing_memory: canonical_postgres_memory_unavailable
@@ -42,13 +39,11 @@
 - workflow_block: verify:workflow-readiness blocked by drift_truth: drift_truth_stale
 
 ## Drift Effects
-- CRITICAL execution_drift: Repo-local and installed runtime Open Brain status surfaces must agree when reporting current backend truth.
 - MAJOR execution_drift: Planning degraded-mode checks must make fallback assumptions explicit rather than silently passing.
-- CRITICAL verification_drift: Planning Server integrity fields must not report coherence or narrative-drift values without live proof.
 - CRITICAL verification_drift: Recent high-impact structural history that previously blocked milestone closeout must remain cataloged as non-blocking historical drift.
 
 ## Reconciliation Effects
-- verification_status: INVALID (execution_drift)
-- phase_status: INVALID (execution_drift)
-- roadmap_status: BLOCKED (execution_drift)
-- operator_health: UNHEALTHY (execution_drift)
+- verification_status: CONDITIONAL (execution_drift)
+- phase_status: CONDITIONAL (execution_drift)
+- roadmap_status: AT_RISK (execution_drift)
+- operator_health: DEGRADED (execution_drift)

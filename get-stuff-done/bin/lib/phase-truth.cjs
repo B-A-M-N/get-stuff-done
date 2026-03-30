@@ -7,6 +7,7 @@ const {
   normalizePhaseName,
   safeWriteFile,
   toPosixPath,
+  getActiveRequirementsPath,
 } = require('./core.cjs');
 const { extractFrontmatter } = require('./frontmatter.cjs');
 const verify = require('./verify.cjs');
@@ -67,8 +68,8 @@ function parseRequirementIds(section = '') {
 }
 
 function parseRequirementDescriptions(cwd) {
-  const reqPath = path.join(cwd, '.planning', 'REQUIREMENTS.md');
-  if (!fs.existsSync(reqPath)) return {};
+  const reqPath = getActiveRequirementsPath(cwd);
+  if (!reqPath || !fs.existsSync(reqPath)) return {};
   const lines = fs.readFileSync(reqPath, 'utf-8').split('\n');
   const map = {};
   for (const line of lines) {

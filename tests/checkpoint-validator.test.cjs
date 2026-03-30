@@ -2,7 +2,7 @@ const { test } = require('node:test');
 const assert = require('node:assert');
 const fs = require('fs');
 const path = require('path');
-const { createTempProject, cleanup } = require('./helpers.cjs');
+const { createTempProject, cleanup, signPlanningMarkdown } = require('./helpers.cjs');
 const {
   cmdVerifyPlanStructure,
   cmdVerifyCheckpointResponse,
@@ -54,6 +54,9 @@ test('plan-structure rejects checkpoint tasks missing checkpoint-specific fields
       '</task>',
       '</tasks>',
     ].join('\n'));
+
+    // Sign the test file to satisfy sandbox authority
+    signPlanningMarkdown(tmpDir);
 
     const output = captureJson(() => cmdVerifyPlanStructure(tmpDir, planPath, false));
     assert.strictEqual(output.valid, false);

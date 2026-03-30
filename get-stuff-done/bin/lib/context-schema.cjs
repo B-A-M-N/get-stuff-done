@@ -17,6 +17,7 @@ const crawlSpecSchema = z.object({
     max_total_bytes: z.number().int().positive().optional(),
     timeout_ms: z.number().int().positive().optional(),
     normalize: z.boolean().optional(),
+    allowed_roots: z.array(z.string()).optional(),
   }).optional(),
 });
 

@@ -81,11 +81,11 @@ describe('workflow memory pack integration', () => {
     assert.strictEqual(planPack.memory_pack.prior_summaries[0].title, 'Phase 54 wave 1');
   });
 
-  test('planner prompt treats memory_pack as internal execution memory, not Firecrawl replacement', () => {
+  test('planner prompt treats memory_pack as workflow memory, not a Firecrawl replacement', () => {
     const prompt = fs.readFileSync(plannerPromptPath, 'utf8');
 
     assert.match(prompt, /memory_pack/);
-    assert.match(prompt, /internal execution memory/i);
+    assert.match(prompt, /bounded workflow memory/i);
     assert.match(prompt, /Firecrawl/i);
     assert.doesNotMatch(prompt, /fetch arbitrary web/i);
   });

@@ -308,7 +308,7 @@ function cmdPhasePlanIndex(cwd, phase, raw) {
   output(result, raw);
 }
 
-function cmdPhaseAdd(cwd, description, raw) {
+function cmdPhaseAdd(cwd, description, options, raw) {
   if (!description) {
     error('description required for phase add');
   }
@@ -365,7 +365,7 @@ function cmdPhaseAdd(cwd, description, raw) {
   output(result, raw, paddedNum);
 }
 
-function cmdPhaseInsert(cwd, afterPhase, description, raw) {
+function cmdPhaseInsert(cwd, afterPhase, description, options, raw) {
   if (!afterPhase || !description) {
     error('after-phase and description required for phase insert');
   }
@@ -700,7 +700,7 @@ function cmdPhaseRemove(cwd, targetPhase, options, raw) {
   output(result, raw);
 }
 
-function cmdPhaseComplete(cwd, phaseNum, raw) {
+function cmdPhaseComplete(cwd, phaseNum, options, raw) {
   if (!phaseNum) {
     error('phase number required for phase complete');
   }

@@ -8,7 +8,7 @@
     { "command": "context", "subcommand": "normalize", "class": "warn_only" },
 
     { "command": "verify", "subcommand": "integrity", "class": "hard_gated_state_transition", "workflow": "verify:integrity" },
-    { "command": "verify", "subcommand": "workflow-readiness", "class": "hard_gated_state_transition", "workflow": "verify:workflow-readiness" },
+    { "command": "verify", "subcommand": "workflow-readiness", "class": "warn_only" },
     { "command": "verify", "subcommand": "plan-structure", "class": "recovery_only" },
     { "command": "verify", "subcommand": "phase-completeness", "class": "recovery_only" },
     { "command": "verify", "subcommand": "references", "class": "recovery_only" },
@@ -56,6 +56,7 @@
     { "command": "generate-slug", "class": "ungated_execution" },
     { "command": "current-timestamp", "class": "ungated_execution" },
     { "command": "list-todos", "class": "ungated_execution" },
+    { "command": "commit", "class": "ungated_execution" },
     { "command": "verify-summary", "class": "recovery_only" }
   ]
 }

@@ -118,10 +118,7 @@ function cmdAuditLog(cwd, options, raw) {
         approval_required: false,
         verdict: 'allowed'
       },
-      integrity: {
-        narrative_drift_score: 1.0,
-        coherence_check_passed: true
-      }
+      integrity: null
     };
 
     const recorded = recordAuditEntry(cwd, entry);

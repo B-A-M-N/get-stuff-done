@@ -5,7 +5,9 @@
  * endpoints, while enforcing audit logging for StrongDM-style visibility.
  */
 
+const http = require('http');
 const https = require('https');
+const path = require('path');
 const secondBrain = require('./second-brain.cjs');
 const policy = require('./policy.cjs');
 const grantCache = require('./policy-grant-cache.cjs');
@@ -23,6 +25,7 @@ class FirecrawlClient {
    */
   async _makeRequest(url, method = 'POST', headers = {}, body = null, timeout = 30000) {
     const urlObj = new URL(url);
+    const transport = urlObj.protocol === 'https:' ? https : http;
     const options = {
       hostname: urlObj.hostname,
       port: urlObj.port || (urlObj.protocol === 'https:' ? 443 : 80),
@@ -36,7 +39,7 @@ class FirecrawlClient {
     };
 
     return new Promise((resolve, reject) => {
-      const req = https.request(options, (res) => {
+      const req = transport.request(options, (res) => {
         let data = '';
         res.on('data', chunk => data += chunk);
         res.on('end', () => {
@@ -64,6 +67,18 @@ class FirecrawlClient {
       }
       req.end();
     });
+  }
+
+  _normalizeContextSource(source) {
+    if (typeof source !== 'string' || source.trim() === '') {
+      return source;
+    }
+
+    if (/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(source)) {
+      return source;
+    }
+
+    return `file://${path.resolve(source)}`;
   }
 
   /**
@@ -191,7 +206,18 @@ class FirecrawlClient {
    */
   async crawl(spec) {
     const validatedSpec = crawlSpecSchema.parse(spec);
-    return this._request('crawl', 'context/crawl', validatedSpec);
+    const allowedRoots = new Set([
+      process.cwd(),
+      ...((validatedSpec.options && validatedSpec.options.allowed_roots) || []),
+    ]);
+    return this._request('crawl', 'context/crawl', {
+      ...validatedSpec,
+      options: {
+        ...(validatedSpec.options || {}),
+        allowed_roots: [...allowedRoots],
+      },
+      sources: validatedSpec.sources.map(source => this._normalizeContextSource(source)),
+    });
   }
 
   /**

@@ -9,10 +9,10 @@
 ## 1. Overview
 
 ### Problem Statement
-The get-stuff-done (GSD) system requires a self-hosted Firecrawl instance to serve as a controlled external context normalization layer. Firecrawl needs authenticated access to Plane's API to crawl internal documentation, project data, and work items. The deployment must be bare metal (no Docker) and integrate with existing Plane authentication.
+The get-stuff-done (GSD) system requires a self-hosted Firecrawl instance to serve as the controlled retrieval and normalization layer for agent context. Firecrawl needs authenticated access to Plane's API to crawl internal documentation, project data, and work items. The deployment must be bare metal (no Docker) and integrate with existing Plane authentication.
 
 ### Solution Summary
-Deploy Firecrawl as a systemd service on the same machine as Plane, using API key authentication with a dedicated service account. Firecrawl runs on port 3002, integrates with a local SearXNG instance for search, and uses Playwright for JavaScript-heavy pages. All external context requests from GSD agents route through this instance.
+Deploy Firecrawl as a systemd service on the same machine as Plane, using API key authentication with a dedicated service account. Firecrawl runs on port 3002, integrates with a local SearXNG instance for search, and uses Playwright for JavaScript-heavy pages. Agent context retrieval routes through this instance for both internal and external sources.
 
 ---
 

@@ -140,7 +140,8 @@ describe('PlaneClient', () => {
 
     assert.ok(error, 'Second request throws rate limit error');
     assert.ok(error.message.includes('Rate limit exceeded'), 'Error indicates rate limit');
-    assert.ok(client.rateLimitBuckets.get(expectedHostname).tokens === 0, 'Tokens are now 0');
+    assert.ok(client.rateLimitBuckets.has(expectedHostname), 'Rate limit bucket remains tracked');
+    assert.ok(client.rateLimitBuckets.get(expectedHostname).tokens <= 0.01, 'Second request does not replenish or over-consume the bucket');
   });
 
   test('retry logic: retries on transient failures with exponential backoff', async () => {

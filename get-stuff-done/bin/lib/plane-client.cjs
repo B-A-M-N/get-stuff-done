@@ -5,9 +5,11 @@
  * with rate limiting, retry logic, and audit logging.
  */
 
+const http = require('http');
 const https = require('https');
 const secondBrain = require('./second-brain.cjs');
-const { logDebug, logWarn, logError } = require('./core.cjs');
+const planeHealth = require('./plane-health.cjs');
+const { logWarn } = require('./core.cjs');
 
 class PlaneClient {
   constructor() {
@@ -23,6 +25,7 @@ class PlaneClient {
    */
   async _makeRequest(url, method = 'POST', headers = {}, body = null, timeout = 30000) {
     const urlObj = new URL(url);
+    const transport = urlObj.protocol === 'http:' ? http : https;
     const options = {
       hostname: urlObj.hostname,
       port: urlObj.port || (urlObj.protocol === 'https:' ? 443 : 80),
@@ -36,7 +39,7 @@ class PlaneClient {
     };
 
     return new Promise((resolve, reject) => {
-      const req = https.request(options, (res) => {
+      const req = transport.request(options, (res) => {
         let data = '';
         res.on('data', chunk => data += chunk);
         res.on('end', () => {
@@ -73,6 +76,14 @@ class PlaneClient {
     const start = Date.now();
     let lastError = null;
     let result = null;
+    let auditStatus = 'success';
+
+    const breakerGate = await planeHealth.shouldAllowPlaneRequest();
+    if (!breakerGate.allowed) {
+      lastError = new Error(`Plane circuit breaker ${breakerGate.breaker_state}: ${breakerGate.reason || 'request blocked'}`);
+      lastError.code = 'PLANE_CIRCUIT_OPEN';
+      auditStatus = 'blocked';
+    }
 
     // Rate limiting (token bucket) - always rate limit for Plane API regardless of body content
     let hostname;
@@ -81,7 +92,7 @@ class PlaneClient {
     } catch (e) {
       hostname = null;
     }
-    if (hostname) {
+    if (!lastError && hostname) {
       const now = Date.now();
       const rpm = process.env.PLANE_RATE_LIMIT_RPM ? parseInt(process.env.PLANE_RATE_LIMIT_RPM, 10) : 60;
       const capacity = rpm;
@@ -104,7 +115,8 @@ class PlaneClient {
       if (currentTokens < 1) {
         const deficit = 1 - currentTokens;
         const retryAfterSec = Math.ceil(deficit / refillRate);
-        throw new Error(`Rate limit exceeded for host ${hostname}. Retry after ~${retryAfterSec} seconds.`);
+        lastError = new Error(`Rate limit exceeded for host ${hostname}. Retry after ~${retryAfterSec} seconds.`);
+        auditStatus = 'blocked';
       }
 
       // We have tokens - consume one, update timestamp, and persist
@@ -114,6 +126,9 @@ class PlaneClient {
     }
 
     try {
+      if (lastError) {
+        throw lastError;
+      }
       // Retry loop with exponential backoff and jitter
       for (let attempt = 1; attempt <= 3; attempt++) {
         try {
@@ -132,6 +147,7 @@ class PlaneClient {
           break; // Success, exit retry loop
         } catch (err) {
           lastError = err;
+          auditStatus = 'error';
           // Don't retry on HTTP 4xx errors (client errors)
           if (err.message.match(/^HTTP 4\d\d:/)) {
             throw err;
@@ -150,7 +166,7 @@ class PlaneClient {
     } finally {
       // Audit logging - always runs
       const latency = Date.now() - start;
-      const status = lastError ? 'error' : 'success';
+      const status = lastError ? auditStatus : 'success';
       try {
         await secondBrain.recordFirecrawlAudit({
           action: `plane-${action}`,
@@ -158,6 +174,12 @@ class PlaneClient {
           schema_json: null,
           status,
           latency_ms: latency
+        });
+        planeHealth.recordPlaneResult({
+          action: `plane-${action}`,
+          status,
+          latency_ms: latency,
+          timestamp_ms: Date.now(),
         });
       } catch (auditErr) {
         // Audit failures should not break the flow
@@ -195,6 +217,13 @@ class PlaneClient {
    */
   async updateIssue(issueId, updates) {
     return this._request('update-issue', `projects/${this.projectId}/issues/${issueId}`, updates);
+  }
+
+  /**
+   * Add a comment to an existing issue.
+   */
+  async addComment(issueId, content) {
+    return this._request('add-comment', `projects/${this.projectId}/issues/${issueId}/comments`, { content });
   }
 
   /**

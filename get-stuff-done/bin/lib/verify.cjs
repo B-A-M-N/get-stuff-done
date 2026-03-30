@@ -5,7 +5,7 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-const { safeReadFile, loadConfig, normalizePhaseName, execGit, findPhaseInternal, getRoadmapPhaseInternal, getMilestoneInfo, stripShippedMilestones, output, error } = require('./core.cjs');
+const { safeReadFile, loadConfig, normalizePhaseName, execGit, findPhaseInternal, getRoadmapPhaseInternal, getMilestoneInfo, stripShippedMilestones, output, error, getActiveRequirementsPath } = require('./core.cjs');
 const { extractFrontmatter, parseMustHavesBlock } = require('./frontmatter.cjs');
 const { writeStateMd } = require('./state.cjs');
 const { checkpointResponseSchema, executionSummarySchema } = require('./artifact-schema.cjs');
@@ -2153,14 +2153,7 @@ function getWorkflowPhaseMarkers(markers, phaseNumber) {
 }
 
 function cmdVerifyWorkflowReadiness(cwd, workflow, options = {}, raw) {
-  const degradedSnapshot = degradedMode.readLatestDegradedState(cwd);
-  if (degradedSnapshot) {
-    const blocked = degradedMode.evaluateWorkflow(degradedSnapshot, 'verify:workflow-readiness');
-    if (!blocked.allowed) {
-      process.stdout.write(JSON.stringify(blocked, null, 2) + '\n');
-      process.exit(1);
-    }
-  }
+  // Truth governance is handled by command-governance; always proceed to gate evaluation
   if (!workflow) error('workflow required');
   if (!['plan-phase', 'execute-phase'].includes(workflow)) {
     error('Unsupported workflow for workflow-readiness. Available: plan-phase, execute-phase');
@@ -2424,8 +2417,8 @@ function cmdVerifyRequirementCoverage(cwd, phase, raw) {
     return;
   }
 
-  const reqPath = path.join(cwd, '.planning', 'REQUIREMENTS.md');
-  const reqContent = safeReadFile(reqPath);
+  const reqPath = getActiveRequirementsPath(cwd);
+  const reqContent = reqPath ? safeReadFile(reqPath) : null;
   if (!reqContent) {
     output({ error: 'REQUIREMENTS.md not found — cannot verify coverage', valid: false }, raw, 'invalid');
     return;
