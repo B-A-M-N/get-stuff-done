@@ -1462,7 +1462,13 @@ function errorPayload(type, message, context = {}) {
 async function cmdReplayMission(cwd, missionId, options, raw) {
   if (!missionId) {
     const payload = errorPayload('INVALID_INPUT', 'mission_id required', { field: 'missionId' });
-    output(payload, raw, JSON.stringify(payload, null, 2));
+    const json = JSON.stringify(payload, null, 2);
+    if (raw) {
+      process.stdout.write(json);
+    } else {
+      // In human mode, still output JSON for errors
+      process.stdout.write(json);
+    }
     process.exit(1);
   }
 
@@ -1472,13 +1478,18 @@ async function cmdReplayMission(cwd, missionId, options, raw) {
     // Exit code 2: no replayable artifacts found (resource absence)
     if (result.artifact_count === 0) {
       const payload = errorPayload('NOT_FOUND', `No synthesis artifacts found for mission: ${missionId}`, { mission_id: missionId });
-      output(payload, raw, JSON.stringify(payload, null, 2));
+      const json = JSON.stringify(payload, null, 2);
+      if (raw) {
+        process.stdout.write(json);
+      } else {
+        process.stdout.write(json);
+      }
       process.exit(2);
     }
 
     // Exit code 0: success (replay completed, even if degraded)
     output(result, raw, JSON.stringify(result, null, 2));
-    process.exit(0);
+    // Note: output() calls process.exit(0) internally
 
   } catch (err) {
     // Determine error type from message patterns
@@ -1488,7 +1499,12 @@ async function cmdReplayMission(cwd, missionId, options, raw) {
       `Failed to replay mission: ${err.message}`,
       { mission_id: missionId, error: err.name }
     );
-    output(payload, raw, JSON.stringify(payload, null, 2));
+    const json = JSON.stringify(payload, null, 2);
+    if (raw) {
+      process.stdout.write(json);
+    } else {
+      process.stdout.write(json);
+    }
     process.exit(isNotFound ? 2 : 1);
   }
 }
@@ -1501,7 +1517,9 @@ async function cmdReplayMission(cwd, missionId, options, raw) {
 async function cmdVerifySynthesis(cwd, artifactId, options, raw) {
   if (!artifactId) {
     const payload = errorPayload('INVALID_INPUT', 'artifact_id required', { field: 'artifactId' });
-    output(payload, raw, JSON.stringify(payload, null, 2));
+    const json = JSON.stringify(payload, null, 2);
+    if (raw) process.stdout.write(json);
+    else process.stdout.write(json);
     process.exit(1);
   }
 
@@ -1511,14 +1529,16 @@ async function cmdVerifySynthesis(cwd, artifactId, options, raw) {
     if (!result.ok) {
       // Artifact not found
       const payload = errorPayload('NOT_FOUND', result.error || 'Artifact not found', { artifact_id: artifactId });
-      output(payload, raw, JSON.stringify(payload, null, 2));
+      const json = JSON.stringify(payload, null, 2);
+      if (raw) process.stdout.write(json);
+      else process.stdout.write(json);
       process.exit(2);
     }
 
     if (result.overall === 'verified') {
       // Success - verified
       output(result, raw, JSON.stringify(result, null, 2));
-      process.exit(0);
+      // output() exits 0
     } else {
       // Drift or integrity failure
       const payload = errorPayload(
@@ -1530,12 +1550,16 @@ async function cmdVerifySynthesis(cwd, artifactId, options, raw) {
           checks: result.checks
         }
       );
-      output(payload, raw, JSON.stringify(payload, null, 2));
+      const json = JSON.stringify(payload, null, 2);
+      if (raw) process.stdout.write(json);
+      else process.stdout.write(json);
       process.exit(1);
     }
   } catch (err) {
     const payload = errorPayload('INTERNAL', `Failed to verify synthesis: ${err.message}`, { artifact_id: artifactId, error: err.name });
-    output(payload, raw, JSON.stringify(payload, null, 2));
+    const json = JSON.stringify(payload, null, 2);
+    if (raw) process.stdout.write(json);
+    else process.stdout.write(json);
     process.exit(1);
   }
 }
@@ -1548,14 +1572,18 @@ async function cmdVerifySynthesis(cwd, artifactId, options, raw) {
 async function cmdRankSynthesis(cwd, missionId, options, raw) {
   if (!missionId) {
     const payload = errorPayload('INVALID_INPUT', 'mission_id required', { field: 'missionId' });
-    output(payload, raw, JSON.stringify(payload, null, 2));
+    const json = JSON.stringify(payload, null, 2);
+    if (raw) process.stdout.write(json);
+    else process.stdout.write(json);
     process.exit(1);
   }
 
   const limit = options?.limit ? parseInt(options.limit, 10) : 10;
   if (isNaN(limit) || limit <= 0) {
     const payload = errorPayload('INVALID_INPUT', `Invalid --limit: ${options?.limit}. Must be positive integer.`, { field: 'limit', value: options?.limit });
-    output(payload, raw, JSON.stringify(payload, null, 2));
+    const json = JSON.stringify(payload, null, 2);
+    if (raw) process.stdout.write(json);
+    else process.stdout.write(json);
     process.exit(1);
   }
 
@@ -1564,7 +1592,7 @@ async function cmdRankSynthesis(cwd, missionId, options, raw) {
 
     // Empty mission is valid - still exit 0
     output(result, raw, JSON.stringify(result, null, 2));
-    process.exit(0);
+    // output() exits 0
 
   } catch (err) {
     // Determine if error indicates missing mission vs runtime failure
@@ -1574,7 +1602,9 @@ async function cmdRankSynthesis(cwd, missionId, options, raw) {
       `Failed to rank synthesis: ${err.message}`,
       { mission_id: missionId, error: err.name }
     );
-    output(payload, raw, JSON.stringify(payload, null, 2));
+    const json = JSON.stringify(payload, null, 2);
+    if (raw) process.stdout.write(json);
+    else process.stdout.write(json);
     process.exit(isNotFound ? 2 : 1);
   }
 }
