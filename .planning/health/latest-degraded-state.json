@@ -1,14 +1,71 @@
 {
   "schema": "gsd_degraded_state",
-  "generated_at": "2026-03-29T05:09:28.148Z",
+  "generated_at": "2026-03-30T14:00:41.308Z",
   "stale_after_ms": 3600000,
-  "aggregate_state": "HEALTHY",
-  "degraded": false,
+  "aggregate_state": "UNSAFE",
+  "degraded": true,
   "config_ok": true,
   "warnings": [],
   "fallbacks": [],
   "gate_pending_keys": [],
-  "blocked_workflows": [],
+  "blocked_workflows": [
+    {
+      "workflow": "context:plan-phase",
+      "subsystem": "drift_truth",
+      "canonical_state": "UNSAFE",
+      "reason": "drift_truth_stale",
+      "implications": [
+        "Current truth posture cannot be treated as trustworthy for this workflow.",
+        "Continuing would require fallback or optimistic inference."
+      ],
+      "next_options": [
+        "Run diagnostic health surfaces to inspect the unsafe dependency.",
+        "Restore the canonical dependency or refresh drift/reconciliation truth."
+      ]
+    },
+    {
+      "workflow": "context:execute-plan",
+      "subsystem": "drift_truth",
+      "canonical_state": "UNSAFE",
+      "reason": "drift_truth_stale",
+      "implications": [
+        "Current truth posture cannot be treated as trustworthy for this workflow.",
+        "Continuing would require fallback or optimistic inference."
+      ],
+      "next_options": [
+        "Run diagnostic health surfaces to inspect the unsafe dependency.",
+        "Restore the canonical dependency or refresh drift/reconciliation truth."
+      ]
+    },
+    {
+      "workflow": "verify:integrity",
+      "subsystem": "drift_truth",
+      "canonical_state": "UNSAFE",
+      "reason": "drift_truth_stale",
+      "implications": [
+        "Current truth posture cannot be treated as trustworthy for this workflow.",
+        "Continuing would require fallback or optimistic inference."
+      ],
+      "next_options": [
+        "Run diagnostic health surfaces to inspect the unsafe dependency.",
+        "Restore the canonical dependency or refresh drift/reconciliation truth."
+      ]
+    },
+    {
+      "workflow": "verify:workflow-readiness",
+      "subsystem": "drift_truth",
+      "canonical_state": "UNSAFE",
+      "reason": "drift_truth_stale",
+      "implications": [
+        "Current truth posture cannot be treated as trustworthy for this workflow.",
+        "Continuing would require fallback or optimistic inference."
+      ],
+      "next_options": [
+        "Run diagnostic health surfaces to inspect the unsafe dependency.",
+        "Restore the canonical dependency or refresh drift/reconciliation truth."
+      ]
+    }
+  ],
   "warning_workflows": [],
   "subsystems": {
     "model_facing_memory": {
@@ -22,17 +79,17 @@
       "detail": null
     },
     "drift_truth": {
-      "canonical_state": "HEALTHY",
-      "reason": "drift_truth_fresh",
-      "detail": null,
-      "age_ms": 772622,
+      "canonical_state": "UNSAFE",
+      "reason": "drift_truth_stale",
+      "detail": "Drift report is stale and should be refreshed with `drift scan`.",
+      "age_ms": 70052972,
       "path": ".planning/drift/latest-report.json"
     },
     "reconciliation_truth": {
-      "canonical_state": "HEALTHY",
-      "reason": "reconciliation_truth_fresh",
-      "detail": null,
-      "age_ms": 614357,
+      "canonical_state": "UNSAFE",
+      "reason": "reconciliation_truth_stale",
+      "detail": "Reconciliation artifact is stale and should be refreshed with `drift reconcile`.",
+      "age_ms": 70041485,
       "path": ".planning/drift/latest-reconciliation.json"
     },
     "planning_truth": {

@@ -1,6 +1,6 @@
 {
   "schema": "gsd_drift_report",
-  "generated_at": "2026-03-29T04:56:35.475Z",
+  "generated_at": "2026-03-29T18:33:08.277Z",
   "catalog_source": ".planning/phases/70-drift-surface-mapping/drift_catalog.yaml",
   "catalog_hash": "71622ea80dbed2de47fdd0f9d40fe18339e9ea68427a3a28c8d7d62d5e58cd2e",
   "source_head": "unknown",

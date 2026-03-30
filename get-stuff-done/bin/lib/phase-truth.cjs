@@ -983,6 +983,31 @@ function writePhaseTruth(cwd, phase, options = {}) {
   const markdownPath = path.join(phaseDir, `${normalizedPhase}-TRUTH.md`);
   safeWriteFile(yamlPath, renderYaml(truth) + '\n');
   safeWriteFile(markdownPath, renderMarkdown(truth));
+
+  // Persist synthesis artifact for mission-scoped provenance
+  // Fire-and-forget: storage failures are logged but do NOT affect truth generation or validation
+  // Correctness and determinism are independent of persistence availability
+  try {
+    const synthesisStore = require('./synthesis-store.cjs');
+    const missionId = normalizedPhase;
+    const fileEvidence = (truth.observable_evidence || [])
+      .filter(e => e.type === 'file')
+      .map(e => e.ref);
+    const artifact = {
+      artifact_type: 'phase-truth',
+      content: renderYaml(truth) + '\n',
+      atom_ids_used: fileEvidence,
+      synthesis_citations: truth.observable_evidence || []
+    };
+    synthesisStore.storeSynthesis(missionId, artifact).catch(err => {
+      console.error('[synthesis-store] Failed to store synthesis artifact:', err.message);
+      // No throw — persistence is best-effort, correctness is independent
+    });
+  } catch (err) {
+    // If module missing or initialization fails, log and continue
+    console.error('[synthesis-store] Initialization error:', err.message);
+  }
+
   return {
     phase: normalizedPhase,
     title: truth.title,
