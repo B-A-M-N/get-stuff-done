@@ -37,3 +37,4 @@ philosophy.md
 .github/copilot-instructions.md
 .bg-shell/
 .gemini_security/second_brain.db
+.gemini_security/*.db
