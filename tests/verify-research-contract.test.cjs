@@ -72,6 +72,7 @@ describe('verify research-contract command', () => {
         '- Existing API auth can be reused.',
       ].join('\n'));
 
+      
       withMockedVerify((verify, calls) => {
         verify.cmdVerifyResearchContract(
           tmpDir,
@@ -113,6 +114,7 @@ describe('verify research-contract command', () => {
         '- Existing API auth can be reused.',
       ].join('\n'));
 
+      
       withMockedVerify((verify, calls) => {
         verify.cmdVerifyResearchContract(
           tmpDir,

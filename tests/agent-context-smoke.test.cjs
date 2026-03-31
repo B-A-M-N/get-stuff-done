@@ -1,5 +1,6 @@
-import { test, describe, it, before, after } from 'node:test';
-import assert from 'node:assert';
+const { test, describe, it, before, after } = require('node:test');
+const assert = require('node:assert');
+const path = require('path');
 
 // Firecrawl client
 const firecrawlClient = require('../get-stuff-done/bin/lib/firecrawl-client.cjs');
@@ -56,8 +57,14 @@ describe('Agent Context Smoke Test', () => {
 
     // Verify both requested sources are present
     const sourceURIs = result.artifacts.map(a => a.source_uri);
-    assert.ok(sourceURIs.includes('.planning/STATE.md'), 'Missing STATE.md artifact');
-    assert.ok(sourceURIs.includes('.planning/ROADMAP.md'), 'Missing ROADMAP.md artifact');
+    assert.ok(
+      sourceURIs.includes(`file://${path.resolve('.planning/STATE.md')}`),
+      'Missing STATE.md artifact'
+    );
+    assert.ok(
+      sourceURIs.includes(`file://${path.resolve('.planning/ROADMAP.md')}`),
+      'Missing ROADMAP.md artifact'
+    );
 
     console.log('All assertions passed.');
   });

@@ -1,0 +1,69 @@
+{
+  "timestamp": "2026-03-29T18:33:19.765Z",
+  "source_report": ".planning/drift/latest-report.json",
+  "source_report_hash": "2c20e597878e088176ab903102ebb4e86583dcc6c6242ad796229db96337c49a",
+  "applied_changes": [
+    {
+      "severity": "MAJOR",
+      "surface": "verification_status",
+      "target": "phase_70",
+      "from": "UNSET",
+      "to": "CONDITIONAL",
+      "reason": "execution_drift",
+      "evidence": [
+        "node get-stuff-done/bin/gsd-tools.cjs health degraded-mode --raw"
+      ]
+    },
+    {
+      "severity": "MAJOR",
+      "surface": "phase_status",
+      "target": "phase_70",
+      "from": "UNSET",
+      "to": "CONDITIONAL",
+      "reason": "execution_drift",
+      "evidence": [
+        "node get-stuff-done/bin/gsd-tools.cjs health degraded-mode --raw"
+      ]
+    },
+    {
+      "severity": "MAJOR",
+      "surface": "roadmap_status",
+      "target": "phase_70",
+      "from": "UNSET",
+      "to": "AT_RISK",
+      "reason": "execution_drift",
+      "evidence": [
+        "node get-stuff-done/bin/gsd-tools.cjs health degraded-mode --raw"
+      ]
+    },
+    {
+      "severity": "MAJOR",
+      "surface": "operator_health",
+      "target": "phase_70",
+      "from": "UNSET",
+      "to": "DEGRADED",
+      "reason": "execution_drift",
+      "evidence": [
+        "node get-stuff-done/bin/gsd-tools.cjs health degraded-mode --raw"
+      ]
+    }
+  ],
+  "unchanged": [
+    {
+      "surface": "historical_drift",
+      "reason": "historical_only_drift",
+      "target": "phase_70"
+    }
+  ],
+  "reverification_required": [
+    {
+      "target": "phase_70",
+      "reason": "execution_drift invalidated or downgraded trusted truth"
+    }
+  ],
+  "summary": {
+    "critical": 0,
+    "major": 1,
+    "minor": 0
+  }
+}

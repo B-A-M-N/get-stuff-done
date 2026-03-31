@@ -1,0 +1,13 @@
+{
+  "id": "8be0adc43e130799ef4083ddd8d2a7ea6242986d84925127d6263e5e2dd1c594",
+  "source_uri": ".planning/phases/01-foundational-rebrand-fixes/01-01-SUMMARY.md",
+  "type": "internal",
+  "content_markdown": "---\nphase: \"01\"\nplan: \"01\"\nname: \"Global Rebrand to get-stuff-done\"\nrequirements_completed:\n\n  - \"GR-01\"\n\n---\n\n# Phase 1 Plan 01 Summary\n\n## One-Line Summary\n\nCompleted the remaining Phase 1 rebrand pass and aligned command/help text with `get-stuff-done`.\n\n## Work Completed\n\n- Audited the repository for lingering brand mismatches relevant to the active code and docs surface.\n- Corrected remaining visible branding mismatches in runtime-facing help/output content.\n- Added the new `dostuff` command and help/documentation references under the `get-stuff-done` brand.\n\n## Key Files\n\n- `bin/install.js`\n- `get-stuff-done/workflows/help.md`\n- `docs/COMMANDS.md`\n- `docs/ARCHITECTURE.md`\n\n## Verification\n\n- `rg -n \"get-shit-done|get shit done|get_shit_done\" . -g '!package-lock.json'`\n\n## Notes\n\n- Existing unrelated user changes in top-level docs/assets were left untouched.\n",
+  "content_hash": "b669c1567116941405e9dc4774354c7b58c7884fcb3a997241ba36741cb790d6",
+  "normalized_at": "2026-03-29T18:41:59.057Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  }
+}

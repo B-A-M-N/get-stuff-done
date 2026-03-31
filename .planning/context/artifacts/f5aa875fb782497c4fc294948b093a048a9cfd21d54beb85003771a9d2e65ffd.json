@@ -1,0 +1,13 @@
+{
+  "id": "f5aa875fb782497c4fc294948b093a048a9cfd21d54beb85003771a9d2e65ffd",
+  "source_uri": ".planning/phases/75-degraded-mode-enforcement/75-TRUTH.md",
+  "type": "internal",
+  "content_markdown": "# Phase 75: Degraded Mode Enforcement — Truth\n\n**Generated:** 2026-03-28T00:24:41.590Z\n**Final Status:** CONDITIONAL\n\n## Status Reasons\n\n- Verification artifact is missing.\n- Current degraded truth posture is UNSAFE.\n- context:plan-phase blocked by planning_server: planning_server_unavailable\n- context:execute-plan blocked by planning_server: planning_server_unavailable\n- verify:integrity blocked by drift_truth: drift_truth_stale\n- verify:workflow-readiness blocked by drift_truth: drift_truth_stale\n\n## Inputs\n\n- Verification: None\n- Summaries: .planning/phases/75-degraded-mode-enforcement/75-01-SUMMARY.md, .planning/phases/75-degraded-mode-enforcement/75-02-SUMMARY.md\n- Drift reports: .planning/drift/latest-report.json\n- Reconciliation: .planning/drift/latest-reconciliation.json\n- Degraded state: .planning/health/latest-degraded-state.json\n\n## Claimed Outcomes\n\n- Make degraded systems explicit, behaviorally meaningful, and non-silent across truth-bearing workflows.\n- canonical degraded-policy evaluator and artifact\n- normalized HEALTHY DEGRADED UNSAFE subsystem vocabulary\n- shared degraded truth across brain health and health degraded-mode\n- top-level CLI blocking for unsafe truth-bearing workflows\n- verification and context-build backstop enforcement\n- structured blocked-flow responses with reason implications and next options\n\n## Observable Evidence\n\n- file: .planning/phases/75-degraded-mode-enforcement/75-01-SUMMARY.md\n- file: .planning/phases/75-degraded-mode-enforcement/75-02-SUMMARY.md\n- command: phase-truth generate 75\n\n## Gaps\n\n- verification_gap: Verification artifact is missing.\n- degraded_state_caveat: Current degraded truth posture is UNSAFE.\n- workflow_block: context:plan-phase blocked by planning_server: planning_server_unavailable\n- workflow_block: context:execute-plan blocked by planning_server: planning_server_unavailable\n- workflow_block: verify:integrity blocked by drift_truth: drift_truth_stale\n- workflow_block: verify:workflow-readiness blocked by drift_truth: drift_truth_stale\n\n## Drift Effects\n\n- None\n\n## Reconciliation Effects\n\n- None\n",
+  "content_hash": "12db7b97331bc9ba4b8b5110fb3c175cfff51e8c9f2279ad8f814259625e77da",
+  "normalized_at": "2026-03-28T03:46:20.964Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  }
+}

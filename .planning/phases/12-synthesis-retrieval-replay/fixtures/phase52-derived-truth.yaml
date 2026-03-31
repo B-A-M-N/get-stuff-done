@@ -1,0 +1,104 @@
+phase: "52"
+title: "truth-enforcement-hardening"
+generated_at: "2026-03-30T14:25:58.128Z"
+strict: false
+inputs:
+  verification: null
+  summaries:
+    - ".planning/phases/52-truth-enforcement-hardening/52-01-SUMMARY.md"
+    - ".planning/phases/52-truth-enforcement-hardening/52-02-SUMMARY.md"
+    - ".planning/phases/52-truth-enforcement-hardening/52-03-SUMMARY.md"
+    - ".planning/phases/52-truth-enforcement-hardening/52-04-SUMMARY.md"
+  drift_reports:
+    - ".planning/drift/latest-report.json"
+  reconciliation:
+    - ".planning/drift/latest-reconciliation.json"
+  degraded_state:
+    - ".planning/health/latest-degraded-state.json"
+claimed_outcomes:
+  - id: null
+    description: "Focused phase-52 coverage gate for truth-enforcement package modules"
+    supporting_artifacts:
+      - ".planning/phases/52-truth-enforcement-hardening/52-01-SUMMARY.md"
+  - id: null
+    description: "Deterministic unit coverage suite for coverage, proof, and audit branches"
+    supporting_artifacts:
+      - ".planning/phases/52-truth-enforcement-hardening/52-01-SUMMARY.md"
+  - id: null
+    description: "Audit artifacts for gap analysis and per-module coverage percentages"
+    supporting_artifacts:
+      - ".planning/phases/52-truth-enforcement-hardening/52-01-SUMMARY.md"
+  - id: null
+    description: "structural secret redaction patterns in SafeLogger write helpers"
+    supporting_artifacts:
+      - ".planning/phases/52-truth-enforcement-hardening/52-02-SUMMARY.md"
+  - id: null
+    description: "phase-52 unit and integration evidence for secret redaction and kill-test behavior"
+    supporting_artifacts:
+      - ".planning/phases/52-truth-enforcement-hardening/52-02-SUMMARY.md"
+  - id: null
+    description: "reusable secret scan validator and PASS audit artifact"
+    supporting_artifacts:
+      - ".planning/phases/52-truth-enforcement-hardening/52-02-SUMMARY.md"
+  - id: null
+    description: "deterministic ProofHarness schema enforcement for validator proofs"
+    supporting_artifacts:
+      - ".planning/phases/52-truth-enforcement-hardening/52-03-SUMMARY.md"
+  - id: null
+    description: "contract-backed proof generator and canonical input corpora for all phase-52 validators"
+    supporting_artifacts:
+      - ".planning/phases/52-truth-enforcement-hardening/52-03-SUMMARY.md"
+  - id: null
+    description: "adversarial verification coverage for tampering, forged signatures, false negatives, and validator removal"
+    supporting_artifacts:
+      - ".planning/phases/52-truth-enforcement-hardening/52-03-SUMMARY.md"
+  - id: null
+    description: "canonical requirement source for QUALITY-01 through QUALITY-04 claims"
+    supporting_artifacts:
+      - ".planning/phases/52-truth-enforcement-hardening/52-04-SUMMARY.md"
+  - id: null
+    description: "explicit TruthAuditor evidence mapping and markdown/json audit artifacts"
+    supporting_artifacts:
+      - ".planning/phases/52-truth-enforcement-hardening/52-04-SUMMARY.md"
+  - id: null
+    description: "kill-test and unit-test coverage for audit regressions and mapping edge cases"
+    supporting_artifacts:
+      - ".planning/phases/52-truth-enforcement-hardening/52-04-SUMMARY.md"
+observable_evidence:
+  - type: "file"
+    ref: ".planning/phases/52-truth-enforcement-hardening/52-01-SUMMARY.md"
+  - type: "file"
+    ref: ".planning/phases/52-truth-enforcement-hardening/52-02-SUMMARY.md"
+  - type: "file"
+    ref: ".planning/phases/52-truth-enforcement-hardening/52-03-SUMMARY.md"
+  - type: "file"
+    ref: ".planning/phases/52-truth-enforcement-hardening/52-04-SUMMARY.md"
+  - type: "command"
+    ref: "phase-truth generate 52"
+gaps:
+  - type: "verification_gap"
+    description: "Verification artifact is missing."
+  - type: "degraded_state_caveat"
+    description: "Current degraded truth posture is UNSAFE."
+  - type: "workflow_block"
+    description: "context:plan-phase blocked by model_facing_memory: canonical_postgres_memory_unavailable"
+  - type: "workflow_block"
+    description: "context:execute-plan blocked by model_facing_memory: canonical_postgres_memory_unavailable"
+  - type: "workflow_block"
+    description: "verify:integrity blocked by drift_truth: drift_truth_stale"
+  - type: "workflow_block"
+    description: "verify:workflow-readiness blocked by drift_truth: drift_truth_stale"
+drift_effects:
+  []
+reconciliation_effects:
+  []
+escalations:
+  []
+final_status: "CONDITIONAL"
+status_reason:
+  - "Verification artifact is missing."
+  - "Current degraded truth posture is UNSAFE."
+  - "context:plan-phase blocked by model_facing_memory: canonical_postgres_memory_unavailable"
+  - "context:execute-plan blocked by model_facing_memory: canonical_postgres_memory_unavailable"
+  - "verify:integrity blocked by drift_truth: drift_truth_stale"
+  - "verify:workflow-readiness blocked by drift_truth: drift_truth_stale"

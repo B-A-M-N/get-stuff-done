@@ -4,10 +4,272 @@
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
-const { safeReadFile, loadConfig, isGitIgnored, execGit, normalizePhaseName, comparePhaseNum, getArchivedPhaseDirs, generateSlugInternal, getMilestoneInfo, getMilestonePhaseFilter, resolveModelInternal, stripShippedMilestones, toPosixPath, output, error, findPhaseInternal } = require('./core.cjs');
+const { safeReadFile, loadConfig, isGitIgnored, execGit, normalizePhaseName, comparePhaseNum, getArchivedPhaseDirs, generateSlugInternal, getMilestoneInfo, getMilestonePhaseFilter, resolveModelInternal, stripShippedMilestones, toPosixPath, output, error, findPhaseInternal, getActiveRequirementsPath } = require('./core.cjs');
 const { extractFrontmatter } = require('./frontmatter.cjs');
 const { MODEL_PROFILES } = require('./model-profiles.cjs');
 const authority = require('./authority.cjs');
+const checkpointPlaneSync = require('./checkpoint-plane-sync.cjs');
+const secondBrain = require('./second-brain.cjs');
+const openBrain = require('./open-brain.cjs');
+const degradedMode = require('./degraded-mode.cjs');
+const synthesisReplay = require('./synthesis-replay.cjs');
+const synthesisMetrics = require('./synthesis-metrics.cjs');
+
+function stripFrontmatter(content) {
+  return String(content || '').replace(/^---\r?\n[\s\S]+?\r?\n---\r?\n?/, '');
+}
+
+function extractSummaryExcerpt(content) {
+  const lines = stripFrontmatter(content)
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  for (const line of lines) {
+    if (line.startsWith('#')) continue;
+    if (line.startsWith('## ')) break;
+    return line.replace(/^\*\*|\*\*$/g, '');
+  }
+
+  return 'Execution summary recorded.';
+}
+
+function parseSummaryRef(relPath) {
+  const match = path.basename(relPath).match(/^(\d+(?:\.\d+)?)-(\d+)-SUMMARY\.md$/);
+  if (!match) return null;
+  return {
+    phase: match[1],
+    plan: match[2],
+  };
+}
+
+function buildCheckpointMemoryEntry(phase, options, relPath) {
+  const checkpointTitle = options.task_name
+    ? `Checkpoint: ${options.task_name}`
+    : `Checkpoint: Phase ${phase} Plan ${options.plan || '?'}`;
+  const bodyLines = [
+    `Why blocked: ${options.why_blocked}`,
+    `What is uncertain: ${options.what_is_uncertain}`,
+    options.resume_condition ? `Resume condition: ${options.resume_condition}` : null,
+    options.choices ? `Choices: ${options.choices}` : null,
+  ].filter(Boolean);
+
+  return {
+    phase: String(phase),
+    plan: options.plan != null ? String(options.plan).padStart(2, '0') : null,
+    memory_kind: 'checkpoint',
+    title: checkpointTitle,
+    body_markdown: bodyLines.join('\n'),
+    source_ref: relPath,
+    created_by: 'executor-checkpoint',
+    importance: 4,
+  };
+}
+
+function buildSummaryMemoryEntry(cwd, relPath) {
+  const absolutePath = path.join(cwd, relPath);
+  const content = safeReadFile(absolutePath);
+  if (!content) {
+    return null;
+  }
+
+  const planRef = parseSummaryRef(relPath);
+  if (!planRef) {
+    return null;
+  }
+
+  const headingMatch = stripFrontmatter(content).match(/^#\s+(.+)$/m);
+  const heading = headingMatch ? headingMatch[1].trim() : `Phase ${planRef.phase} Plan ${planRef.plan} Summary`;
+  const excerpt = extractSummaryExcerpt(content);
+  const frontmatter = extractFrontmatter(content);
+
+  return {
+    phase: planRef.phase,
+    plan: planRef.plan,
+    title: heading,
+    body_markdown: excerpt,
+    source_ref: relPath,
+    created_by: 'executor-summary',
+    importance: Number.isFinite(Number(frontmatter.importance)) ? Number(frontmatter.importance) : 4,
+  };
+}
+
+async function writeCheckpointLifecycleMemory(cwd, phase, options, relPath) {
+  const memoryWriteback = await secondBrain.writeModelFacingMemoryCheckpoint(
+    buildCheckpointMemoryEntry(phase, options, relPath)
+  );
+  const recallOutcome = await openBrain.recordWorkflowRecallOutcome({
+    cwd,
+    workflow: 'execute-plan',
+    phase: String(phase),
+    plan: options.plan != null ? String(options.plan).padStart(2, '0') : null,
+    outcome: 'unused',
+    source_ref: relPath,
+  });
+  return {
+    ...memoryWriteback,
+    recall_outcome: recallOutcome,
+  };
+}
+
+async function writeSummaryLifecycleMemory(cwd, relPath) {
+  const entry = buildSummaryMemoryEntry(cwd, relPath);
+  if (!entry) {
+    return null;
+  }
+  const memoryWriteback = await secondBrain.writeModelFacingMemorySummary(entry);
+  const recallOutcome = await openBrain.recordWorkflowRecallOutcome({
+    cwd,
+    workflow: 'execute-plan',
+    phase: entry.phase,
+    plan: entry.plan,
+    outcome: 'helpful',
+    source_ref: relPath,
+  });
+  return {
+    ...memoryWriteback,
+    recall_outcome: recallOutcome,
+  };
+}
+
+function getProofDir(cwd) {
+  return path.join(cwd, '.proof');
+}
+
+function getGlobalProofLogPath(cwd) {
+  return path.join(getProofDir(cwd), 'task-log.jsonl');
+}
+
+function getProofFailureLogPath(cwd) {
+  return path.join(getProofDir(cwd), 'failures.jsonl');
+}
+
+function appendJsonlRecord(filePath, record) {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.appendFileSync(filePath, JSON.stringify(record) + '\n', 'utf-8');
+}
+
+function normalizeStringArray(values) {
+  return (Array.isArray(values) ? values : [])
+    .map(value => String(value || '').trim())
+    .filter(Boolean);
+}
+
+function normalizeProofType(proofType, proofOnly, files = []) {
+  if (proofType) return String(proofType).trim().toLowerCase();
+  if (proofOnly) return 'audit';
+  return 'artifact';
+}
+
+function inferRuntimeSurface(files = []) {
+  const runtimePatterns = [
+    /(^|\/)get-stuff-done\/bin\//,
+    /(^|\/)bin\//,
+    /(^|\/)cmd\//,
+    /(^|\/)scripts\//,
+    /(^|\/)docs\/commands\.md$/,
+    /(^|\/)docs\/readme\.md$/,
+    /(^|\/)readme\.md$/,
+  ];
+  return files.some((file) => {
+    const normalized = String(file || '').replace(/\\/g, '/').toLowerCase();
+    return runtimePatterns.some(pattern => pattern.test(normalized));
+  });
+}
+
+function resolveChangedFilesForCommit(cwd, hash) {
+  if (!hash) return [];
+  const result = execGit(cwd, ['show', '--pretty=format:', '--name-only', hash]);
+  if (result.exitCode !== 0) return [];
+  return result.stdout
+    .split('\n')
+    .map(line => line.trim())
+    .filter(Boolean)
+    .map(file => file.replace(/\\/g, '/'));
+}
+
+function buildProofRecord(cwd, hash, subject, scope, files, options = {}) {
+  const branchResult = execGit(cwd, ['rev-parse', '--abbrev-ref', 'HEAD']);
+  const branch = branchResult.exitCode === 0 ? branchResult.stdout.trim() : null;
+  const changedFiles = hash ? resolveChangedFilesForCommit(cwd, hash) : files.map(file => String(file).replace(/\\/g, '/'));
+  const ancestorCommits = normalizeStringArray(options.ancestor_commits);
+  if (options.prev_hash && !ancestorCommits.includes(options.prev_hash)) {
+    ancestorCommits.unshift(options.prev_hash);
+  }
+
+  return {
+    phase: options.phase != null ? String(options.phase).padStart(2, '0') : null,
+    plan: options.plan != null ? String(options.plan).padStart(2, '0') : null,
+    task: options.task != null ? Number(options.task) : null,
+    scope,
+    subject,
+    proof_type: normalizeProofType(options.proof_type, options.proof_only, files),
+    proof_mode: options.proof_only ? 'proof_only' : 'commit',
+    canonical_commit: hash || null,
+    hash: hash || null,
+    ancestor_commits: ancestorCommits,
+    files: changedFiles,
+    declared_files: files.map(file => String(file).replace(/\\/g, '/')),
+    verify_command: options.verify_command ? String(options.verify_command).trim() : null,
+    evidence: normalizeStringArray(options.evidence),
+    runtime_required: Boolean(options.runtime_surface) || inferRuntimeSurface(changedFiles),
+    runtime_proof: normalizeStringArray(options.runtime_proof),
+    branch,
+    ts: new Date().toISOString(),
+  };
+}
+
+function validateProofRecord(record) {
+  const errors = [];
+
+  if (!record.scope) errors.push('Proof record missing scope');
+  if (!Array.isArray(record.files) || record.files.length === 0) errors.push('Proof record missing changed file set');
+
+  if (record.proof_mode === 'commit') {
+    if (!record.canonical_commit) errors.push('Commit-backed proof requires a canonical commit');
+  } else if (record.proof_mode === 'proof_only') {
+    if (record.canonical_commit) errors.push('Proof-only tasks must not record a canonical commit');
+    if (!Array.isArray(record.evidence) || record.evidence.length === 0) {
+      errors.push('Proof-only tasks require explicit replacement evidence');
+    }
+  }
+
+  if (record.proof_type === 'behavioral') {
+    if (!Array.isArray(record.evidence) || record.evidence.length === 0) {
+      errors.push('Behavior-changing tasks require execution evidence');
+    }
+    if (!record.verify_command) {
+      errors.push('Behavior-changing tasks require a verification command');
+    }
+  }
+
+  if (record.proof_type === 'audit') {
+    if (!Array.isArray(record.evidence) || record.evidence.length === 0) {
+      errors.push('Audit/no-op tasks require explicit evidence');
+    }
+    if (!record.verify_command) {
+      errors.push('Audit/no-op tasks require a verification command');
+    }
+  }
+
+  if (record.runtime_required && (!Array.isArray(record.runtime_proof) || record.runtime_proof.length === 0)) {
+    errors.push('Runtime-facing tasks require installed/runtime proof');
+  }
+
+  return errors;
+}
+
+function emitProofFailureArtifact(cwd, record, errors) {
+  const artifact = {
+    ...record,
+    status: 'INVALID',
+    errors: normalizeStringArray(errors),
+    ts: new Date().toISOString(),
+  };
+  const filePath = getProofFailureLogPath(cwd);
+  appendJsonlRecord(filePath, artifact);
+  return filePath;
+}
 
 function cmdGenerateSlug(text, raw) {
   if (!text) {
@@ -215,7 +477,7 @@ function cmdResolveModel(cwd, agentType, raw) {
   output(result, raw, model);
 }
 
-function cmdCommit(cwd, message, files, raw, amend) {
+async function cmdCommit(cwd, message, files, raw, amend) {
   if (!message && !amend) {
     error('commit message required');
   }
@@ -264,7 +526,28 @@ function cmdCommit(cwd, message, files, raw, amend) {
   // Get short hash
   const hashResult = execGit(cwd, ['rev-parse', '--short', 'HEAD']);
   const hash = hashResult.exitCode === 0 ? hashResult.stdout : null;
-  const result = { committed: true, hash, reason: 'committed' };
+  const summaryFiles = filesToStage.filter((file) => /(^|\/)\d+(?:\.\d+)?-\d+-SUMMARY\.md$/.test(file));
+  const memory_writebacks = [];
+  for (const summaryFile of summaryFiles) {
+    try {
+      const writeback = await writeSummaryLifecycleMemory(cwd, summaryFile);
+      if (writeback) {
+        memory_writebacks.push({
+          source_ref: summaryFile,
+          ...writeback,
+        });
+      }
+    } catch (err) {
+      memory_writebacks.push({
+        source_ref: summaryFile,
+        available: false,
+        blocked: false,
+        error: err.message,
+      });
+    }
+  }
+
+  const result = { committed: true, hash, reason: 'committed', memory_writebacks };
   output(result, raw, hash || 'committed');
 }
 
@@ -302,116 +585,119 @@ function cmdCommitTask(cwd, message, files, scope, options, raw) {
     }
   }
 
-  // Stage files
-  for (const file of files) {
-    // Sign file before staging if phase/plan/wave available
-    if (options.phase && options.plan) {
-      const wave = options.wave || options.task || '1';
-      const filePath = path.isAbsolute(file) ? file : path.join(cwd, file);
-      if (fs.existsSync(filePath) && !fs.lstatSync(filePath).isDirectory()) {
-        authority.signFile(filePath, options.phase, options.plan, wave);
+  let hash = null;
+  let committed = false;
+  let subject = message;
+  let scopeMatches = true;
+  let commitErrors = [];
+
+  if (!options.proof_only) {
+    for (const file of files) {
+      if (options.phase && options.plan) {
+        const wave = options.wave || options.task || '1';
+        const filePath = path.isAbsolute(file) ? file : path.join(cwd, file);
+        if (fs.existsSync(filePath) && !fs.lstatSync(filePath).isDirectory()) {
+          authority.signFile(filePath, options.phase, options.plan, wave);
+        }
+      }
+
+      const addResult = execGit(cwd, ['add', file]);
+      if (addResult.exitCode !== 0) {
+        output({
+          committed: false, verified: false, hash: null, subject: null,
+          scope, scope_matches: false,
+          errors: [`git add failed for ${file}: ${addResult.stderr || addResult.stdout}`],
+        }, raw, 'failed');
+        return;
       }
     }
 
-    const addResult = execGit(cwd, ['add', file]);
-    if (addResult.exitCode !== 0) {
-      output({
-        committed: false, verified: false, hash: null, subject: null,
-        scope, scope_matches: false,
-        errors: [`git add failed for ${file}: ${addResult.stderr || addResult.stdout}`],
-      }, raw, 'failed');
+    const commitResult = execGit(cwd, ['commit', '-m', message]);
+    if (commitResult.exitCode !== 0) {
+      const commitOutput = `${commitResult.stdout}\n${commitResult.stderr}`;
+      if (/nothing to commit|nothing added to commit|no changes added to commit/i.test(commitOutput)) {
+        process.stdout.write(JSON.stringify({ committed: false, verified: false, hash: null, subject: null, scope, scope_matches: false, errors: ['nothing to commit'] }, null, 2));
+        process.exit(1);
+      }
+      output({ committed: false, verified: false, hash: null, subject: null, scope, scope_matches: false, errors: [commitResult.stderr || 'commit failed'] }, raw, 'failed');
       return;
     }
-  }
 
-  // Commit
-  const commitResult = execGit(cwd, ['commit', '-m', message]);
-  if (commitResult.exitCode !== 0) {
-    if (commitResult.stdout.includes('nothing to commit') || commitResult.stderr.includes('nothing to commit')) {
-      process.stdout.write(JSON.stringify({ committed: false, verified: false, hash: null, subject: null, scope, scope_matches: false, errors: ['nothing to commit'] }, null, 2));
-      process.exit(1);
+    const hashResult = execGit(cwd, ['rev-parse', '--short', 'HEAD']);
+    if (hashResult.exitCode !== 0) {
+      output({ committed: true, verified: false, hash: null, subject: null, scope, scope_matches: false, errors: ['could not resolve HEAD hash'] }, raw, 'failed');
+      return;
     }
-    output({ committed: false, verified: false, hash: null, subject: null, scope, scope_matches: false, errors: [commitResult.stderr || 'commit failed'] }, raw, 'failed');
-    return;
+    hash = hashResult.stdout.trim();
+    committed = true;
+
+    const typeResult = execGit(cwd, ['cat-file', '-t', hash]);
+    const exists = typeResult.exitCode === 0 && typeResult.stdout.trim() === 'commit';
+
+    const headResult = execGit(cwd, ['rev-parse', '--short', 'HEAD']);
+    const isHead = headResult.exitCode === 0 && headResult.stdout.trim() === hash;
+
+    const subjectResult = execGit(cwd, ['log', '-1', '--format=%s', hash]);
+    subject = subjectResult.exitCode === 0 ? subjectResult.stdout.trim() : null;
+    const openParen = subject ? subject.indexOf('(') : -1;
+    const closeParen = subject ? subject.indexOf('):') : -1;
+    const subjectScope = openParen !== -1 && closeParen !== -1 && closeParen > openParen
+      ? subject.slice(openParen + 1, closeParen)
+      : null;
+    scopeMatches = subjectScope === scope;
+
+    if (!exists) commitErrors.push('Commit hash not found in git history');
+    if (exists && !isHead) commitErrors.push('Task commit is not the current HEAD');
+    if (!scopeMatches) commitErrors.push(`Task commit subject does not match expected scope ${scope}`);
   }
 
-  // Resolve HEAD hash
-  const hashResult = execGit(cwd, ['rev-parse', '--short', 'HEAD']);
-  if (hashResult.exitCode !== 0) {
-    output({ committed: true, verified: false, hash: null, subject: null, scope, scope_matches: false, errors: ['could not resolve HEAD hash'] }, raw, 'failed');
-    return;
-  }
-  const hash = hashResult.stdout.trim();
+  const proofRecord = buildProofRecord(cwd, hash, subject, scope, files, options);
+  const proofErrors = validateProofRecord(proofRecord);
+  const errors = [...commitErrors, ...proofErrors];
 
-  // Verify: hash is a real commit object
-  const typeResult = execGit(cwd, ['cat-file', '-t', hash]);
-  const exists = typeResult.exitCode === 0 && typeResult.stdout.trim() === 'commit';
-
-  // Verify: hash is current HEAD (always true here since we just committed, but confirms no race)
-  const headResult = execGit(cwd, ['rev-parse', '--short', 'HEAD']);
-  const isHead = headResult.exitCode === 0 && headResult.stdout.trim() === hash;
-
-  // Verify: commit subject contains the expected scope
-  const subjectResult = execGit(cwd, ['log', '-1', '--format=%s', hash]);
-  const subject = subjectResult.exitCode === 0 ? subjectResult.stdout.trim() : null;
-  const openParen = subject ? subject.indexOf('(') : -1;
-  const closeParen = subject ? subject.indexOf('):') : -1;
-  const subjectScope = openParen !== -1 && closeParen !== -1 && closeParen > openParen
-    ? subject.slice(openParen + 1, closeParen)
-    : null;
-  const scopeMatches = subjectScope === scope;
-
-  const errors = [];
-  if (!exists) errors.push('Commit hash not found in git history');
-  if (exists && !isHead) errors.push('Task commit is not the current HEAD');
-  if (!scopeMatches) errors.push(`Task commit subject does not match expected scope ${scope}`);
-
-  // Persist task hash record when phase/plan/task are provided and commit is valid
   let task_log_path = null;
+  let proof_log_path = null;
+  let failure_artifact_path = null;
   if (errors.length === 0 && options.phase && options.plan) {
     const phaseInfo = findPhaseInternal(cwd, options.phase);
     if (phaseInfo) {
       const logFile = `${options.phase}-${options.plan}-TASK-LOG.jsonl`;
       const absDir = path.join(cwd, phaseInfo.directory);
       task_log_path = path.join(absDir, logFile);
-      const branchResult = execGit(cwd, ['rev-parse', '--abbrev-ref', 'HEAD']);
-      const branch = branchResult.exitCode === 0 ? branchResult.stdout.trim() : null;
-      const record = JSON.stringify({
-        task: options.task != null ? Number(options.task) : null,
-        hash,
-        subject,
-        scope,
-        branch,
-        ts: new Date().toISOString(),
-      });
+      proof_log_path = getGlobalProofLogPath(cwd);
       try {
-        fs.appendFileSync(task_log_path, record + '\n', 'utf-8');
+        appendJsonlRecord(task_log_path, proofRecord);
+        appendJsonlRecord(proof_log_path, proofRecord);
       } catch (appendErr) {
-        // Log append failure is fatal — the commit succeeded (hash is valid) but
-        // the task log is now out of sync. Caller must not proceed; they can
-        // re-append manually using: task-log reconstruct --phase N --plan M
         const result = {
-          committed: true,
+          committed,
           verified: false,
           hash,
           subject,
           scope,
-          errors: [`Task log append failed: ${appendErr.message} — commit ${hash} succeeded but was not recorded. Run: task-log reconstruct --phase ${options.phase} --plan ${options.plan}`],
+          errors: [`Task log append failed: ${appendErr.message} — commit ${hash || 'proof-only task'} was not recorded. Run: task-log reconstruct --phase ${options.phase} --plan ${options.plan}`],
         };
         process.stdout.write(JSON.stringify(result, null, 2) + '\n');
         process.exit(1);
       }
     }
+  } else if (errors.length > 0) {
+    failure_artifact_path = emitProofFailureArtifact(cwd, proofRecord, errors);
   }
 
   const result = {
-    committed: true,
+    committed,
     verified: errors.length === 0,
     hash,
     subject,
     scope,
     scope_matches: scopeMatches,
     task_log_path,
+    proof_log_path,
+    failure_artifact_path,
+    proof_type: proofRecord.proof_type,
+    proof_mode: proofRecord.proof_mode,
+    runtime_required: proofRecord.runtime_required,
     errors,
   };
 
@@ -513,6 +799,13 @@ function cmdCompleteTask(cwd, message, files, scope, options, raw) {
     plan: options.plan,
     task: options.task,
     prev_hash: options.prev_hash || auto_prev_hash,
+    proof_type: options.proof_type,
+    evidence: options.evidence,
+    verify_command: options.verify_command,
+    runtime_proof: options.runtime_proof,
+    runtime_surface: options.runtime_surface,
+    ancestor_commits: options.ancestor_commits,
+    proof_only: options.proof_only,
   }, raw);
 }
 
@@ -569,6 +862,7 @@ function cmdTaskLogReconstruct(cwd, phase, plan, raw) {
   if (!phaseInfo) {
     if (raw) {
       process.stdout.write('');
+      process.exit(0);
     } else {
       output({ found: false, lines: [] }, raw);
     }
@@ -581,6 +875,7 @@ function cmdTaskLogReconstruct(cwd, phase, plan, raw) {
   if (!fs.existsSync(logPath)) {
     if (raw) {
       process.stdout.write('');
+      process.exit(0);
     } else {
       output({ found: false, lines: [] }, raw);
     }
@@ -600,6 +895,7 @@ function cmdTaskLogReconstruct(cwd, phase, plan, raw) {
   } catch (err) {
     if (raw) {
       process.stdout.write('');
+      process.exit(0);
     } else {
       output({ found: false, lines: [] }, raw);
     }
@@ -609,6 +905,7 @@ function cmdTaskLogReconstruct(cwd, phase, plan, raw) {
   if (tasks.length === 0) {
     if (raw) {
       process.stdout.write('');
+      process.exit(0);
     } else {
       output({ found: false, lines: [] }, raw);
     }
@@ -619,6 +916,7 @@ function cmdTaskLogReconstruct(cwd, phase, plan, raw) {
 
   if (raw) {
     process.stdout.write(lines.join('\n') + '\n');
+    process.exit(0);
   } else {
     output({ found: true, lines, count: lines.length }, raw);
   }
@@ -748,7 +1046,7 @@ function cmdProgressRender(cwd, format, raw) {
   }
 }
 
-function cmdTodoComplete(cwd, filename, raw) {
+function cmdTodoComplete(cwd, filename, options, raw) {
   if (!filename) {
     error('filename required for todo complete');
   }
@@ -803,7 +1101,7 @@ function cmdScaffold(cwd, type, options, raw) {
     }
     case 'verification': {
       filePath = path.join(phaseDir, `${padded}-VERIFICATION.md`);
-      content = `---\nphase: "${padded}"\nname: "${name || phaseInfo?.phase_name || 'Unnamed'}"\ncreated: ${today}\nstatus: pending\n---\n\n# Phase ${phase}: ${name || phaseInfo?.phase_name || 'Unnamed'} — Verification\n\n## Goal-Backward Verification\n\n**Phase Goal:** [From ROADMAP.md]\n\n## Checks\n\n| # | Requirement | Status | Evidence |\n|---|------------|--------|----------|\n\n## Result\n\n_Pending verification_\n`;
+      content = `---\nphase: "${padded}"\nname: "${name || phaseInfo?.phase_name || 'Unnamed'}"\ncreated: ${today}\nverified: ${today}T00:00:00Z\nstatus: CONDITIONAL\nscore: 0/0 requirements verified\n---\n\n# Phase ${phase}: ${name || phaseInfo?.phase_name || 'Unnamed'} — Verification\n\n**Phase Goal:** [From ROADMAP.md]\n**Verified:** ${today}T00:00:00Z\n**Status:** CONDITIONAL\n\n## Observable Truths\n\n| # | Truth | Status | Evidence |\n|---|-------|--------|----------|\n| 1 | [Claimed truth] | CONDITIONAL | [Direct evidence ref] |\n\n## Requirement Coverage\n\n| Requirement | Status | Evidence | Gap |\n|-------------|--------|----------|-----|\n| [REQ-ID] | CONDITIONAL | [commit/file/test/runtime proof] | [missing_evidence if any] |\n\n## Anti-Pattern Scan\n\n| File | Pattern | Classification | Impact |\n|------|---------|----------------|--------|\n| None | - | - | - |\n\n## Drift Analysis\n\n\`\`\`json\n[\n  {\n    "type": "verification_drift",\n    "description": "Replace this placeholder with real drift classification or [] when none remain."\n  }\n]\n\`\`\`\n\n## Escalation\n\n\`\`\`json\n{\n  "required": false,\n  "type": null,\n  "reason": null,\n  "explanation": null,\n  "options": [],\n  "implications": []\n}\n\`\`\`\n\n## Human Check\n\n\`\`\`json\n{\n  "steps": [],\n  "observed_result": null,\n  "captured_artifact": null\n}\n\`\`\`\n\n## Final Status\n\n\`\`\`json\n{\n  "status": "CONDITIONAL",\n  "reason": "Pending evidence capture and validation."\n}\n\`\`\`\n`;
       break;
     }
     case 'phase-dir': {
@@ -836,7 +1134,7 @@ function cmdScaffold(cwd, type, options, raw) {
 function cmdStats(cwd, format, raw) {
   const phasesDir = path.join(cwd, '.planning', 'phases');
   const roadmapPath = path.join(cwd, '.planning', 'ROADMAP.md');
-  const reqPath = path.join(cwd, '.planning', 'REQUIREMENTS.md');
+  const reqPath = getActiveRequirementsPath(cwd) || path.join(cwd, '.planning', 'REQUIREMENTS.md'); // fallback for compatibility
   const statePath = path.join(cwd, '.planning', 'STATE.md');
   const milestone = getMilestoneInfo(cwd);
   const isDirInMilestone = getMilestonePhaseFilter(cwd);
@@ -1001,7 +1299,7 @@ function cmdStats(cwd, format, raw) {
  *
  * Returns: { written, committed, hash, path, type, why_blocked, what_is_uncertain }
  */
-function cmdCheckpointWrite(cwd, phase, options, raw) {
+async function cmdCheckpointWrite(cwd, phase, options, raw) {
   if (!phase) error('--phase required for checkpoint write');
   if (!options || !options.type) error('--type required (human-verify|decision|human-action)');
   if (!options.why_blocked) error('--why-blocked required');
@@ -1077,6 +1375,19 @@ function cmdCheckpointWrite(cwd, phase, options, raw) {
 
   const hashResult = execGit(cwd, ['rev-parse', '--short', 'HEAD']);
   const hash = hashResult.exitCode === 0 ? hashResult.stdout.trim() : null;
+  let memory_writeback = null;
+
+  try {
+    memory_writeback = await writeCheckpointLifecycleMemory(cwd, phase, options, relPath);
+  } catch (err) {
+    memory_writeback = {
+      available: false,
+      blocked: false,
+      error: err.message,
+    };
+  }
+
+  checkpointPlaneSync.notifyCheckpointWrite(phase, checkpointPath).catch(() => {});
 
   output({
     written: true,
@@ -1089,6 +1400,7 @@ function cmdCheckpointWrite(cwd, phase, options, raw) {
     resume_condition: resumeCondition,
     choices,
     allow_freeform: allowFreeform,
+    memory_writeback,
   }, raw, hash || 'written');
 }
 
@@ -1102,53 +1414,213 @@ function cmdCheckpointWrite(cwd, phase, options, raw) {
  *
  * Returns: { degraded, warnings, fallbacks, gate_pending_keys }
  */
-function cmdHealthDegradedMode(cwd, raw) {
+async function cmdHealthDegradedMode(cwd, raw, options = {}) {
   const config = loadConfig(cwd);
-  const warnings = [];
-  const fallbacks = [];
-  const gatePendingKeys = [];
-
-  // Config degradation
-  if (config._load_error) {
-    warnings.push(`config.json unreadable: ${config._load_error}`);
-    fallbacks.push('All config values are defaults (mode=interactive, all gates=on)');
-  }
-
-  // Required planning files
-  const required = [
-    { file: '.planning/STATE.md', label: 'STATE.md' },
-    { file: '.planning/ROADMAP.md', label: 'ROADMAP.md' },
-    { file: '.planning/PROJECT.md', label: 'PROJECT.md' },
-  ];
-  for (const { file, label } of required) {
-    if (!fs.existsSync(path.join(cwd, file))) {
-      warnings.push(`${label} not found — project may not be initialized`);
-      fallbacks.push(`${label} missing: workflows that depend on it will fail`);
-    }
-  }
-
-  // Pending gates
-  const gatesDir = path.join(cwd, '.planning', 'gates');
-  if (fs.existsSync(gatesDir)) {
-    const pendingFiles = fs.readdirSync(gatesDir).filter(f => f.endsWith('-pending.json'));
-    for (const f of pendingFiles) {
-      // Convert filename back to key: gates_confirm_roadmap-pending.json → gates.confirm_roadmap
-      const key = f.replace('-pending.json', '').replace(/_/g, '.');
-      gatePendingKeys.push(key);
-      warnings.push(`Gate pending: ${key} — human acknowledgment required before continuing`);
-    }
-  }
-
-  const degraded = warnings.length > 0;
+  const snapshot = await degradedMode.buildDegradedState(cwd, { ...options, diagnosticOnly: true });
+  degradedMode.writeLatestDegradedState(cwd, snapshot);
 
   output({
-    degraded,
-    warnings,
-    fallbacks,
-    gate_pending_keys: gatePendingKeys,
+    degraded: snapshot.degraded,
+    canonical_state: snapshot.aggregate_state,
+    warnings: snapshot.warnings,
+    fallbacks: snapshot.fallbacks,
+    gate_pending_keys: snapshot.gate_pending_keys,
     config_mode: config.mode,
-    config_ok: !config._load_error,
-  }, raw, degraded ? 'degraded' : 'ok');
+    config_ok: snapshot.config_ok,
+    blocked_workflows: snapshot.blocked_workflows,
+    subsystems: snapshot.subsystems,
+    path: degradedMode.DEGRADED_STATE_PATH,
+  }, raw, snapshot.degraded ? 'degraded' : 'ok');
+}
+
+/**
+ * Generate structured error payload for JSON output.
+ * @param {string} type - One of: NOT_FOUND, DRIFT, MISMATCH, INVALID_INPUT, INTERNAL
+ * @param {string} message - Human-readable error description
+ * @param {object} context - Optional context (mission_id, artifact_id, field, etc.)
+ */
+function errorPayload(type, message, context = {}) {
+  return {
+    ok: false,
+    error: {
+      type,
+      message,
+      context,
+    },
+  };
+}
+
+// ============================================================================
+// Phase 12 Synthesis Surface Commands
+// ============================================================================
+
+/**
+ * Reconstruct mission synthesis state.
+ * Exit codes: 0=success, 2=no artifacts found, 1=error/invalid input
+ * Usage: gsd-tools.cjs replay-mission <mission_id> [--raw]
+ */
+async function cmdReplayMission(cwd, missionId, options, raw) {
+  if (!missionId) {
+    const payload = errorPayload('INVALID_INPUT', 'mission_id required', { field: 'missionId' });
+    const json = JSON.stringify(payload, null, 2);
+    if (raw) {
+      process.stdout.write(json);
+    } else {
+      // In human mode, still output JSON for errors
+      process.stdout.write(json);
+    }
+    process.exit(1);
+  }
+
+  try {
+    const result = await synthesisReplay.reconstructMissionState(missionId);
+
+    // Exit code 2: no replayable artifacts found (resource absence)
+    if (result.artifact_count === 0) {
+      const payload = errorPayload('NOT_FOUND', `No synthesis artifacts found for mission: ${missionId}`, { mission_id: missionId });
+      const json = JSON.stringify(payload, null, 2);
+      if (raw) {
+        process.stdout.write(json);
+      } else {
+        process.stdout.write(json);
+      }
+      process.exit(2);
+    }
+
+    // Exit code 0: success (replay completed, even if degraded)
+    output(result, raw, JSON.stringify(result, null, 2));
+    // Note: output() calls process.exit(0) internally
+
+  } catch (err) {
+    // Determine error type from message patterns
+    const isNotFound = err.message.includes('not found') || err.message.includes('Mission not found');
+    const payload = errorPayload(
+      isNotFound ? 'NOT_FOUND' : 'INTERNAL',
+      `Failed to replay mission: ${err.message}`,
+      { mission_id: missionId, error: err.name }
+    );
+    const json = JSON.stringify(payload, null, 2);
+    if (raw) {
+      process.stdout.write(json);
+    } else {
+      process.stdout.write(json);
+    }
+    process.exit(isNotFound ? 2 : 1);
+  }
+}
+
+/**
+ * Verify artifact integrity.
+ * Exit codes: 0=verified, 1=drift/mismatch, 2=artifact not found
+ * Usage: gsd-tools.cjs verify-synthesis <artifact_id> [--raw]
+ */
+async function cmdVerifySynthesis(cwd, artifactId, options, raw) {
+  if (!artifactId) {
+    const payload = errorPayload('INVALID_INPUT', 'artifact_id required', { field: 'artifactId' });
+    const json = JSON.stringify(payload, null, 2);
+    if (raw) process.stdout.write(json);
+    else process.stdout.write(json);
+    process.exit(1);
+  }
+
+  try {
+    const result = await synthesisReplay.replayArtifact(artifactId);
+
+    if (!result.matches) {
+      if (result.failure_category === 'NOT_FOUND' || result.failure_category === 'MISSING_ARTIFACT') {
+        const payload = errorPayload('NOT_FOUND', result.errors?.[0] || 'Artifact not found', { artifact_id: artifactId });
+        const json = JSON.stringify(payload, null, 2);
+        if (raw) process.stdout.write(json);
+        else process.stdout.write(json);
+        process.exit(2);
+      } else {
+        // Drift, missing atoms, validation rejection, etc.
+        const payload = errorPayload(
+          result.failure_category === 'MISSING_ATOM' ? 'MISSING_ATOM' :
+          result.failure_category === 'VALIDATION_REJECTION' ? 'VALIDATION' :
+          result.failure_category === 'CONTENT_MISMATCH' ? 'DRIFT' : 'ERROR',
+          result.errors?.[0] || 'Verification failed',
+          {
+            artifact_id: artifactId,
+            failure_category: result.failure_category,
+            errors: result.errors
+          }
+        );
+        const json = JSON.stringify(payload, null, 2);
+        if (raw) process.stdout.write(json);
+        else process.stdout.write(json);
+        process.exit(1);
+      }
+    }
+
+    // Verified successfully
+    const success = {
+      ok: true,
+      id: artifactId,
+      artifact_type: result.stored_content ? 'unknown' : null, // Could fetch from DB if needed
+      created_at: null,
+      checks: {
+        has_required_fields: true,
+        content_match: true,
+        citations_complete: true,
+        missing_citations: []
+      },
+      overall: 'verified'
+    };
+    output(success, raw, JSON.stringify(success, null, 2));
+
+  } catch (err) {
+    const payload = errorPayload('INTERNAL', `Failed to verify synthesis: ${err.message}`, { artifact_id: artifactId, error: err.name });
+    const json = JSON.stringify(payload, null, 2);
+    if (raw) process.stdout.write(json);
+    else process.stdout.write(json);
+    process.exit(1);
+  }
+}
+
+/**
+ * Rank synthesis artifacts for a mission.
+ * Exit codes: 0=success (even if 0 artifacts), 2=mission not found, 1=error/invalid input
+ * Usage: gsd-tools.cjs rank-synthesis <mission_id> [--limit N] [--raw]
+ */
+async function cmdRankSynthesis(cwd, missionId, options, raw) {
+  if (!missionId) {
+    const payload = errorPayload('INVALID_INPUT', 'mission_id required', { field: 'missionId' });
+    const json = JSON.stringify(payload, null, 2);
+    if (raw) process.stdout.write(json);
+    else process.stdout.write(json);
+    process.exit(1);
+  }
+
+  const limit = options?.limit ? parseInt(options.limit, 10) : 10;
+  if (isNaN(limit) || limit <= 0) {
+    const payload = errorPayload('INVALID_INPUT', `Invalid --limit: ${options?.limit}. Must be positive integer.`, { field: 'limit', value: options?.limit });
+    const json = JSON.stringify(payload, null, 2);
+    if (raw) process.stdout.write(json);
+    else process.stdout.write(json);
+    process.exit(1);
+  }
+
+  try {
+    const result = await synthesisMetrics.rankMissionArtifacts(missionId, limit);
+
+    // Empty mission is valid - still exit 0
+    output(result, raw, JSON.stringify(result, null, 2));
+    // output() exits 0
+
+  } catch (err) {
+    // Determine if error indicates missing mission vs runtime failure
+    const isNotFound = err.message.includes('not found') || err.message.includes('Mission not found') || err.message.includes('no artifacts');
+    const payload = errorPayload(
+      isNotFound ? 'NOT_FOUND' : 'INTERNAL',
+      `Failed to rank synthesis: ${err.message}`,
+      { mission_id: missionId, error: err.name }
+    );
+    const json = JSON.stringify(payload, null, 2);
+    if (raw) process.stdout.write(json);
+    else process.stdout.write(json);
+    process.exit(isNotFound ? 2 : 1);
+  }
 }
 
 module.exports = {
@@ -1170,4 +1642,16 @@ module.exports = {
   cmdTodoComplete,
   cmdScaffold,
   cmdStats,
+  // Phase 12 synthesis surface
+  cmdReplayMission,
+  cmdVerifySynthesis,
+  cmdRankSynthesis,
+  errorPayload,
+  // Core utilities
+  buildCheckpointMemoryEntry,
+  buildSummaryMemoryEntry,
+  writeCheckpointLifecycleMemory,
+  writeSummaryLifecycleMemory,
 };
+
+// GSD-AUTHORITY: 72-01-1:5f3faf2cd908fbcfa49e94fd5efe21a9b8871b43a018ebafe86bd5482bc9455b

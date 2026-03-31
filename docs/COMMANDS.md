@@ -342,6 +342,68 @@ Retroactively audit and fill Nyquist validation gaps.
 
 ---
 
+## Phase 12 Synthesis Commands
+
+### `/gsd:replay-mission`
+
+Reconstruct mission synthesis state and show integrity overview.
+
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `<mission_id>` | Yes | Mission identifier (e.g., "52-truth-enforcement-hardening") |
+
+**Output:**
+- Overall status: `intact` or `degraded`
+- Artifact timeline with integrity per artifact
+- Total sections, unique atoms
+
+```bash
+/gsd:replay-mission 52-truth-enforcement-hardening
+```
+
+---
+
+### `/gsd:verify-synthesis`
+
+Verify a single synthesis artifact's integrity.
+
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `<artifact_id>` | Yes | Artifact ID (e.g., "syn_7aa5b3c2") |
+
+**Checks:**
+- Required fields present
+- Content matches section reconstruction
+- All atom IDs are cited
+
+**Exit Codes:**
+- 0 = verified
+- 1 = drift detected
+- 2 = artifact not found
+
+```bash
+/gsd:verify-synthesis syn_7aa5b3c2
+```
+
+---
+
+### `/gsd:rank-synthesis`
+
+Rank synthesis artifacts by quality metrics.
+
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `<mission_id>` | Yes | Mission identifier |
+| `--limit N` | No | Maximum results (default: 10) |
+
+**Metrics:** density, diversity, completeness, evidence richness → composite score
+
+```bash
+/gsd:rank-synthesis 52-truth-enforcement-hardening --limit 5
+```
+
+---
+
 ## Navigation Commands
 
 ### `/gsd:progress`
@@ -574,7 +636,7 @@ node gsd-tools.cjs verify integrity --phase 1 --plan 2
 
 ### `firecrawl check` (gsd-tools)
 
-Check if the local Firecrawl instance is reachable. Agents call this before any external retrieval to determine whether to use Firecrawl or declare degraded mode.
+Check if the local Firecrawl instance is reachable. Agents call this before context retrieval to determine whether to use Firecrawl or declare degraded mode.
 
 ```bash
 node gsd-tools.cjs firecrawl check

@@ -1,0 +1,48 @@
+{
+  "id": "dd9f71f0ba6094f8f47f3f009d96b35972c1cc41610b4235c0ce56f59fb07abf",
+  "source_uri": "packages/itl/index.d.ts",
+  "type": "internal",
+  "content_markdown": "```typescript\nexport type Provider = 'internal' | 'claude' | 'openai' | 'gemini' | 'kimi';\nexport type RouteHint = 'new-project' | 'quick';\n\nexport interface InterpretationMetadata {\n  source: string;\n  provider?: Provider;\n  generated_at: string;\n  narrative_length: number;\n}\n\nexport interface Interpretation {\n  narrative: string;\n  goals: string[];\n  constraints: string[];\n  preferences: string[];\n  anti_requirements: string[];\n  success_criteria: string[];\n  risks: string[];\n  unknowns: string[];\n  assumptions: string[];\n  route_hint: RouteHint;\n  project_initialized: boolean;\n  metadata: InterpretationMetadata;\n}\n\nexport interface AmbiguityFinding {\n  type: string;\n  severity: 'low' | 'medium' | 'high';\n  message: string;\n  evidence: unknown | null;\n}\n\nexport interface Ambiguity {\n  is_ambiguous: boolean;\n  severity: 'low' | 'medium' | 'high';\n  score: number;\n  confidence: number;\n  findings: AmbiguityFinding[];\n}\n\nexport interface LockabilityFinding {\n  type: string;\n  severity: 'blocker';\n  message: string;\n  evidence?: unknown | null;\n}\n\nexport interface Lockability {\n  lockable: boolean;\n  status: 'lockable' | 'guidance-only';\n  findings: LockabilityFinding[];\n  summary: string;\n}\n\nexport interface InterpretationResult {\n  narrative: string;\n  interpretation: Interpretation;\n  ambiguity: Ambiguity;\n  lockability: Lockability;\n  summary: string;\n  provider_request: Record<string, unknown>;\n}\n\nexport interface ContextData {\n  project_initialized?: boolean;\n  provider?: Provider;\n  provider_response?: unknown;\n}\n\nexport function interpret_narrative(input_text: string, context_data?: ContextData): InterpretationResult;\nexport function interpretNarrative(inputText: string, contextData?: ContextData): InterpretationResult;\nexport function build_provider_request(input_text: string, context_data?: ContextData): Record<string, unknown>;\nexport function buildProviderRequest(inputText: string, contextData?: ContextData): Record<string, unknown>;\nexport function get_supported_providers(): Provider[];\nexport function getSupportedProviders(): Provider[];\n\nexport const schemas: {\n  interpretation: unknown;\n  ambiguity: unknown;\n  lockability: unknown;\n  result: unknown;\n};\n\n```",
+  "content_hash": "902990636d8d4b249361f7b6c63a7034d9f2c38e016a00a94f3c65da19e8bb51",
+  "normalized_at": "2026-03-29T18:41:59.235Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  },
+  "analysis": {
+    "symbols": [
+      {
+        "name": "interpret_narrative",
+        "kind": "function",
+        "line": 70
+      },
+      {
+        "name": "interpretNarrative",
+        "kind": "function",
+        "line": 71
+      },
+      {
+        "name": "build_provider_request",
+        "kind": "function",
+        "line": 72
+      },
+      {
+        "name": "buildProviderRequest",
+        "kind": "function",
+        "line": 73
+      },
+      {
+        "name": "get_supported_providers",
+        "kind": "function",
+        "line": 74
+      },
+      {
+        "name": "getSupportedProviders",
+        "kind": "function",
+        "line": 75
+      }
+    ],
+    "dependencies": []
+  }
+}

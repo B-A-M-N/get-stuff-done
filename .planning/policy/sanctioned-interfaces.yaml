@@ -1,0 +1,68 @@
+{
+  "schema": "gsd_sanctioned_interfaces_v1",
+  "artifacts": [
+    {
+      "surface": ".planning/STATE.md",
+      "tokens": ["STATE.md"],
+      "sanctioned_writers": [
+        "get-stuff-done/bin/lib/state.cjs",
+        "get-stuff-done/bin/lib/verify.cjs",
+        "get-stuff-done/bin/lib/phase.cjs",
+        "get-stuff-done/bin/lib/milestone.cjs"
+      ],
+      "approved_call_sequences": [
+        "gsd-tools state * -> state.cjs",
+        "drift reconcile -> state.cjs applyReconciliationState",
+        "phase remove|complete -> phase.cjs -> state.cjs writeStateMd",
+        "milestone complete -> milestone.cjs -> state.cjs writeStateMd"
+      ]
+    },
+    {
+      "surface": ".planning/ROADMAP.md",
+      "tokens": ["ROADMAP.md"],
+      "sanctioned_writers": [
+        "get-stuff-done/bin/lib/roadmap.cjs",
+        "get-stuff-done/bin/lib/verify.cjs",
+        "get-stuff-done/bin/lib/phase.cjs"
+      ],
+      "approved_call_sequences": [
+        "gsd-tools roadmap * -> roadmap.cjs",
+        "drift reconcile -> roadmap.cjs applyPhaseReconciliationStatus",
+        "phase add|insert|remove|complete -> phase.cjs"
+      ]
+    },
+    {
+      "surface": ".planning/drift/latest-report.json",
+      "tokens": ["latest-report.json"],
+      "sanctioned_writers": [
+        "get-stuff-done/bin/lib/drift-engine.cjs"
+      ],
+      "approved_call_sequences": [
+        "gsd-tools drift scan -> drift-engine.cjs writeLatestReport"
+      ]
+    },
+    {
+      "surface": ".planning/drift/latest-reconciliation.json",
+      "tokens": ["latest-reconciliation.json"],
+      "sanctioned_writers": [
+        "get-stuff-done/bin/lib/drift-reconcile.cjs"
+      ],
+      "approved_call_sequences": [
+        "gsd-tools drift reconcile -> drift-reconcile.cjs writeLatestReconciliation"
+      ]
+    },
+    {
+      "surface": ".planning/health/latest-degraded-state.json",
+      "tokens": ["latest-degraded-state.json"],
+      "sanctioned_writers": [
+        "get-stuff-done/bin/lib/degraded-mode.cjs"
+      ],
+      "approved_call_sequences": [
+        "brain health -> degraded-mode.cjs writeLatestDegradedState",
+        "health degraded-mode -> degraded-mode.cjs writeLatestDegradedState"
+      ]
+    }
+  ]
+}
+
+# GSD-AUTHORITY: 76-01-1:f9c40d2f0d924608ebefea340754770656c79cbfaede38834bb757a04bd65747

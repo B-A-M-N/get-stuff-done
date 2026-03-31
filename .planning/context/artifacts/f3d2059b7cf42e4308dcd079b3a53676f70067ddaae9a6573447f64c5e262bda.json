@@ -1,0 +1,13 @@
+{
+  "id": "f3d2059b7cf42e4308dcd079b3a53676f70067ddaae9a6573447f64c5e262bda",
+  "source_uri": ".planning/phases/77-execution-surface-governance/77-TRUTH.md",
+  "type": "internal",
+  "content_markdown": "# Phase 77: Execution Surface Governance — Truth\n\n**Generated:** 2026-03-28T21:33:43.896Z\n**Final Status:** CONDITIONAL\n\n## Status Reasons\n\n- Current degraded truth posture is UNSAFE.\n- context:plan-phase blocked by model_facing_memory: canonical_postgres_memory_unavailable\n- context:execute-plan blocked by model_facing_memory: canonical_postgres_memory_unavailable\n- verify:integrity blocked by drift_truth: drift_truth_stale\n- verify:workflow-readiness blocked by drift_truth: drift_truth_stale\n\n## Inputs\n\n- Verification: .planning/phases/77-execution-surface-governance/77-VERIFICATION.md\n- Summaries: .planning/phases/77-execution-surface-governance/77-01-SUMMARY.md, .planning/phases/77-execution-surface-governance/77-02-SUMMARY.md\n- Drift reports: .planning/drift/latest-report.json\n- Reconciliation: .planning/drift/latest-reconciliation.json\n- Degraded state: .planning/health/latest-degraded-state.json\n\n## Claimed Outcomes\n\n- Narrow enforcement to authoritative truth boundaries so execution stays fast, recovery stays available, and only truth-bearing state transitions block under unsafe posture.\n- canonical command governance policy map\n- deterministic route classification helper\n- default warn_only fallback for future commands\n- governance-aware CLI blocking only at authoritative truth transitions\n- structured warn-only route warnings\n- guaranteed recovery-only route availability under unsafe posture\n\n## Observable Evidence\n\n- file: .planning/phases/77-execution-surface-governance/77-01-SUMMARY.md\n- file: .planning/phases/77-execution-surface-governance/77-02-SUMMARY.md\n- file: .planning/phases/77-execution-surface-governance/77-VERIFICATION.md\n- command: phase-truth generate 77\n\n## Gaps\n\n- degraded_state_caveat: Current degraded truth posture is UNSAFE.\n- workflow_block: context:plan-phase blocked by model_facing_memory: canonical_postgres_memory_unavailable\n- workflow_block: context:execute-plan blocked by model_facing_memory: canonical_postgres_memory_unavailable\n- workflow_block: verify:integrity blocked by drift_truth: drift_truth_stale\n- workflow_block: verify:workflow-readiness blocked by drift_truth: drift_truth_stale\n\n## Drift Effects\n\n- None\n\n## Reconciliation Effects\n\n- None\n",
+  "content_hash": "50e50bd01ec0b7cb87d67687d8649414b5b1b5a5ec1c816928334dd76407516a",
+  "normalized_at": "2026-03-29T18:41:57.245Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  }
+}

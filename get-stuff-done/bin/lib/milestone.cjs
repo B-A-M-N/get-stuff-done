@@ -4,9 +4,10 @@
 
 const fs = require('fs');
 const path = require('path');
-const { escapeRegex, getMilestonePhaseFilter, normalizeMd, output, error } = require('./core.cjs');
+const { escapeRegex, getMilestonePhaseFilter, normalizeMd, output, error, getActiveRequirementsPath } = require('./core.cjs');
 const { extractFrontmatter } = require('./frontmatter.cjs');
 const { writeStateMd } = require('./state.cjs');
+const { assertPhase79MilestoneGate } = require('./integrity-gauntlet.cjs');
 
 function cmdRequirementsMarkComplete(cwd, reqIdsRaw, raw) {
   if (!reqIdsRaw || reqIdsRaw.length === 0) {
@@ -25,8 +26,8 @@ function cmdRequirementsMarkComplete(cwd, reqIdsRaw, raw) {
     error('no valid requirement IDs found');
   }
 
-  const reqPath = path.join(cwd, '.planning', 'REQUIREMENTS.md');
-  if (!fs.existsSync(reqPath)) {
+  const reqPath = getActiveRequirementsPath(cwd);
+  if (!reqPath) {
     output({ updated: false, reason: 'REQUIREMENTS.md not found', ids: reqIds }, raw, 'no requirements file');
     return;
   }
@@ -90,8 +91,24 @@ function cmdMilestoneComplete(cwd, version, options, raw) {
     error('version required for milestone complete (e.g., v1.0)');
   }
 
+  const phase79Gate = assertPhase79MilestoneGate(cwd, version);
+  if (!phase79Gate.allowed) {
+    const payload = {
+      completed: false,
+      blocked: true,
+      reason: phase79Gate.reason,
+      verification_path: phase79Gate.path || null,
+      verification_status: phase79Gate.status || null,
+    };
+    if (raw) {
+      process.stdout.write(JSON.stringify(payload, null, 2) + '\n');
+      process.exit(1);
+    }
+    error(`Milestone completion blocked by Phase 79 verification gate: ${phase79Gate.reason}`);
+  }
+
   const roadmapPath = path.join(cwd, '.planning', 'ROADMAP.md');
-  const reqPath = path.join(cwd, '.planning', 'REQUIREMENTS.md');
+  const reqPath = getActiveRequirementsPath(cwd);
   const statePath = path.join(cwd, '.planning', 'STATE.md');
   const milestonesPath = path.join(cwd, '.planning', 'MILESTONES.md');
   const archiveDir = path.join(cwd, '.planning', 'milestones');
@@ -148,8 +165,8 @@ function cmdMilestoneComplete(cwd, version, options, raw) {
     fs.writeFileSync(path.join(archiveDir, `${version}-ROADMAP.md`), roadmapContent, 'utf-8');
   }
 
-  // Archive REQUIREMENTS.md
-  if (fs.existsSync(reqPath)) {
+  // Archive REQUIREMENTS.md (if active file exists)
+  if (reqPath && fs.existsSync(reqPath)) {
     const reqContent = fs.readFileSync(reqPath, 'utf-8');
     const archiveHeader = `# Requirements Archive: ${version} ${milestoneName}\n\n**Archived:** ${today}\n**Status:** SHIPPED\n\nFor current requirements, see \`.planning/REQUIREMENTS.md\`.\n\n---\n\n`;
     fs.writeFileSync(path.join(archiveDir, `${version}-REQUIREMENTS.md`), archiveHeader + reqContent, 'utf-8');
@@ -248,3 +265,5 @@ module.exports = {
   cmdRequirementsMarkComplete,
   cmdMilestoneComplete,
 };
+
+// GSD-AUTHORITY: 79-01-3:e714d4381a3c5c47f40f293154e8e8cd37c5d4367f104250e27e9be1e349e9a8

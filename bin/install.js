@@ -1242,6 +1242,74 @@ function installCodexConfig(targetDir, agentsSrc) {
   return agents.length;
 }
 
+function ensureLegacyCodexCliShim(targetDir) {
+  const legacyDir = path.join(targetDir, 'get-shit-done');
+  const legacyBinDir = path.join(legacyDir, 'bin');
+  const legacyVersionPath = path.join(legacyDir, 'VERSION');
+  const legacyCliPath = path.join(legacyBinDir, 'gsd-tools.cjs');
+
+  fs.mkdirSync(legacyBinDir, { recursive: true });
+  fs.writeFileSync(legacyVersionPath, `${pkg.version}\n`);
+  fs.writeFileSync(
+    legacyCliPath,
+    `#!/usr/bin/env node
+const path = require('node:path');
+const { spawnSync } = require('node:child_process');
+
+function buildLegacyOpenBrainStatus() {
+  const backend = process.env.GSD_MEMORY_MODE === 'sqlite' ? 'sqlite' : 'postgres';
+  return {
+    available: false,
+    degraded: true,
+    blocked: false,
+    reason: backend === 'sqlite' ? 'postgres_unavailable' : 'embedding_unavailable',
+    detail: backend === 'sqlite'
+      ? 'Open Brain storage unavailable; continuing without semantic recall.'
+      : 'Open Brain embeddings unavailable; continuing without semantic recall.',
+    status: 'degraded',
+    storage_ready: false,
+    embedding_ready: false,
+    schema: 'gsd_open_brain',
+    sidecar_only: true,
+    execution_truth_owner: 'second_brain',
+    backend_state: {
+      configured_backend: backend,
+      active_backend: backend,
+      degraded: true,
+      degraded_reason: backend === 'sqlite' ? 'postgres_unavailable' : 'embedding_unavailable',
+      warning_emitted: false,
+      memory_critical_blocked: false,
+    },
+  };
+}
+
+if (process.argv[2] === 'brain' && process.argv[3] === 'open-status') {
+  process.stdout.write(JSON.stringify(buildLegacyOpenBrainStatus(), null, 2) + '\\n');
+  process.exit(0);
+}
+
+const realCli = path.join(__dirname, '..', '..', 'dostuff', 'get-stuff-done', 'bin', 'gsd-tools.cjs');
+const result = spawnSync(process.execPath, [realCli, ...process.argv.slice(2)], { stdio: 'inherit' });
+process.exit(result.status ?? 1);
+`
+  );
+  fs.chmodSync(legacyCliPath, 0o755);
+}
+
+function installRuntimeDependencies(srcRoot, forkRootDir) {
+  const runtimeDeps = [
+    {
+      src: path.join(srcRoot, 'packages', 'gsd-tools', 'src', 'logging', 'SafeLogger.js'),
+      dest: path.join(forkRootDir, 'packages', 'gsd-tools', 'src', 'logging', 'SafeLogger.js'),
+    },
+  ];
+
+  for (const dep of runtimeDeps) {
+    fs.mkdirSync(path.dirname(dep.dest), { recursive: true });
+    fs.copyFileSync(dep.src, dep.dest);
+  }
+}
+
 /**
  * Strip HTML <sub> tags for Gemini CLI output
  * Terminals don't support subscript — Gemini renders these as raw HTML.
@@ -2727,6 +2795,13 @@ function install(isGlobal, runtime = 'claude') {
     failures.push(`${FORK_INSTALL_SUBDIR}/${FORK_ENGINE_DIRNAME}`);
   }
 
+  installRuntimeDependencies(src, forkRootDir);
+  if (verifyFileInstalled(path.join(forkRootDir, 'packages', 'gsd-tools', 'src', 'logging', 'SafeLogger.js'), 'packages/gsd-tools/src/logging/SafeLogger.js')) {
+    console.log(`  ${green}✓${reset} Installed runtime dependencies`);
+  } else {
+    failures.push('packages/gsd-tools/src/logging/SafeLogger.js');
+  }
+
   // Copy agents to agents directory
   const agentsSrc = path.join(src, 'agents');
   if (fs.existsSync(agentsSrc)) {
@@ -2799,6 +2874,20 @@ function install(isGlobal, runtime = 'claude') {
     console.log(`  ${green}✓${reset} Wrote VERSION (${pkg.version})`);
   } else {
     failures.push('VERSION');
+  }
+
+  if (isCodex) {
+    ensureLegacyCodexCliShim(targetDir);
+    if (verifyFileInstalled(path.join(targetDir, 'get-shit-done', 'bin', 'gsd-tools.cjs'), 'get-shit-done/bin/gsd-tools.cjs')) {
+      console.log(`  ${green}✓${reset} Repaired legacy get-shit-done CLI shim`);
+    } else {
+      failures.push('get-shit-done/bin/gsd-tools.cjs');
+    }
+    if (verifyFileInstalled(path.join(targetDir, 'get-shit-done', 'VERSION'), 'get-shit-done/VERSION')) {
+      console.log(`  ${green}✓${reset} Wrote legacy Codex VERSION (${pkg.version})`);
+    } else {
+      failures.push('get-shit-done/VERSION');
+    }
   }
 
   if (!isCodex && !isCopilot) {

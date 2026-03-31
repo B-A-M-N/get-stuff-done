@@ -1,0 +1,13 @@
+{
+  "id": "9833ef52a503ad2230c78e4d4b750fb57eaadce782ea80cd04791ed0468cf235",
+  "source_uri": "packages/gsd-tools/src/validation/config_validator.js",
+  "type": "internal",
+  "content_markdown": "```javascript\n/**\n * Config Validator\n * Validates that configuration contains required fields.\n * Expected format: { mode: string, retries: number, timeout: number }\n */\nmodule.exports = {\n  name: 'config_validator',\n\n  validate(content) {\n    try {\n      const obj = JSON.parse(content);\n      const required = ['mode', 'retries', 'timeout'];\n      const missing = required.filter(k => !(k in obj));\n      if (missing.length === 0) {\n        return { valid: true };\n      }\n      return { valid: false, error: `Missing required fields: ${missing.join(', ')}` };\n    } catch (err) {\n      return { valid: false, error: err.message };\n    }\n  },\n};\n\n```",
+  "content_hash": "180d88db954bc1c3a519c625dad1a3a9482711770c5dfcbab770818440acd2a3",
+  "normalized_at": "2026-03-29T18:41:59.264Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  }
+}

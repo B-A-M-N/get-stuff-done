@@ -1,0 +1,57 @@
+phase: "81"
+title: "Audit Traceability & Nyquist Closure"
+generated_at: "2026-03-29T18:43:46.219Z"
+strict: true
+inputs:
+  verification: ".planning/phases/81-audit-traceability-nyquist-closure/81-VERIFICATION.md"
+  summaries:
+    - ".planning/phases/81-audit-traceability-nyquist-closure/81-01-SUMMARY.md"
+    - ".planning/phases/81-audit-traceability-nyquist-closure/81-02-SUMMARY.md"
+    - ".planning/phases/81-audit-traceability-nyquist-closure/81-03-SUMMARY.md"
+  drift_reports:
+    - ".planning/drift/latest-report.json"
+  reconciliation:
+    - ".planning/drift/latest-reconciliation.json"
+  degraded_state:
+    - ".planning/health/latest-degraded-state.json"
+claimed_outcomes:
+  - id: null
+    description: "Repair milestone bookkeeping drift after Phase 79, backfill missing validation surfaces for phases 73 through 79, and restore milestone auditability before archival."
+    supporting_artifacts:
+      - ".planning/phases/81-audit-traceability-nyquist-closure/81-01-SUMMARY.md"
+      - ".planning/phases/81-audit-traceability-nyquist-closure/81-02-SUMMARY.md"
+      - ".planning/phases/81-audit-traceability-nyquist-closure/81-03-SUMMARY.md"
+  - id: null
+    description: "reconciled requirements ownership mapping"
+    supporting_artifacts:
+      - ".planning/phases/81-audit-traceability-nyquist-closure/81-03-SUMMARY.md"
+  - id: null
+    description: "synced ROADMAP.md and STATE.md for milestone completion"
+    supporting_artifacts:
+      - ".planning/phases/81-audit-traceability-nyquist-closure/81-03-SUMMARY.md"
+  - id: null
+    description: "final milestone audit (PASS)"
+    supporting_artifacts:
+      - ".planning/phases/81-audit-traceability-nyquist-closure/81-03-SUMMARY.md"
+observable_evidence:
+  - type: "file"
+    ref: ".planning/phases/81-audit-traceability-nyquist-closure/81-01-SUMMARY.md"
+  - type: "file"
+    ref: ".planning/phases/81-audit-traceability-nyquist-closure/81-02-SUMMARY.md"
+  - type: "file"
+    ref: ".planning/phases/81-audit-traceability-nyquist-closure/81-03-SUMMARY.md"
+  - type: "file"
+    ref: ".planning/phases/81-audit-traceability-nyquist-closure/81-VERIFICATION.md"
+  - type: "command"
+    ref: "phase-truth generate 81"
+gaps:
+  []
+drift_effects:
+  []
+reconciliation_effects:
+  []
+escalations:
+  []
+final_status: "VALID"
+status_reason:
+  - "All claimed outcomes are backed and no unresolved gaps or downgrades remain."

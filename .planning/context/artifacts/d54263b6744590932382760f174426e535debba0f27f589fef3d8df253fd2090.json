@@ -1,0 +1,13 @@
+{
+  "id": "d54263b6744590932382760f174426e535debba0f27f589fef3d8df253fd2090",
+  "source_uri": ".planning/phases/08-itl-to-planning-integration/08-02-SUMMARY.md",
+  "type": "internal",
+  "content_markdown": "---\nphase: \"08\"\nplan: \"02\"\nstatus: \"Complete\"\ncompleted: \"2026-03-16\"\nrequirements:\n\n  - \"FR-02\"\n  - \"FR-03\"\n\n---\n\n# SUMMARY: 08-02 - Document and test the planning handoff contract\n\n## Outcome\n\nThe richer ITL-to-planning handoff is now documented and covered by focused tests, while docs continue to present `PLAN.md` and validation as the planning contracts.\n\n## Implemented\n\n- Updated `get-stuff-done/workflows/help.md` so planning documentation explains that richer narrative/context/research handoff improves planning when available.\n- Updated `docs/COMMANDS.md` so the command reference describes the richer planning handoff while preserving `PLAN.md` and validation as the contracts.\n- Extended `tests/dostuff.test.cjs` with assertions around the planning handoff contract and the distinction between locked decisions and inferred guidance.\n\n## Verification\n\n- `node --test tests/dostuff.test.cjs`\n- `rg -n \"planning contracts|richer narrative/context/research handoff\" get-stuff-done/workflows/help.md docs/COMMANDS.md`\n\n## Notes\n\n- Installed command ownership is unchanged; this phase only clarified and strengthened the planner handoff story.\n",
+  "content_hash": "90235d99f85a350eb28a4f35cbcfd5319141d25de85eda03085cd77e07849314",
+  "normalized_at": "2026-03-29T18:41:58.884Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  }
+}

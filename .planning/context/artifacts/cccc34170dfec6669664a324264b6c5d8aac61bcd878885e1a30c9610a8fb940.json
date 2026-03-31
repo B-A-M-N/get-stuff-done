@@ -1,0 +1,13 @@
+{
+  "id": "cccc34170dfec6669664a324264b6c5d8aac61bcd878885e1a30c9610a8fb940",
+  "source_uri": ".planning/phases/52-truth-enforcement-hardening/52-UAT.md",
+  "type": "internal",
+  "content_markdown": "---\nstatus: complete\nphase: 52-truth-enforcement-hardening\nsource:\n\n  - .planning/phases/52-truth-enforcement-hardening/52-01-SUMMARY.md\n  - .planning/phases/52-truth-enforcement-hardening/52-02-SUMMARY.md\n  - .planning/phases/52-truth-enforcement-hardening/52-03-SUMMARY.md\n  - .planning/phases/52-truth-enforcement-hardening/52-04-SUMMARY.md\n\nstarted: 2026-03-26T21:10:00Z\nupdated: 2026-03-26T21:16:00Z\n---\n\n## Current Test\n\nnumber: complete\nname: Verification Complete\nexpected: |\n  All phase-52 artifact-level UAT checks passed by direct repository inspection.\nawaiting: none\n\n## Tests\n\n### 1. Truth Audit Completeness\n\nexpected: Open `.planning/audit/52-TRUTH-AUDIT.md`. It should read like a complete phase artifact rather than a stub: QUALITY-01 through QUALITY-04 are each covered, the report shows explicit evidence mapping, and it agrees with `.planning/audit/truth_audit.json` that all requirements are proven with no unproven items.\nresult: pass\n\n### 2. Secret Redaction Evidence\n\nexpected: Inspect the phase-52 secret artifacts. `packages/gsd-tools/src/logging/SafeLogger.js`, `tests/phase-52/integration/safelogger-end-to-end.test.cjs`, and `.planning/phases/52-truth-enforcement-hardening/secret-scan-clean.txt` should make a coherent story: secrets are structurally redacted at the write boundary, the kill-test exists, and the final scan artifact is a clean PASS.\nresult: pass\n\n### 3. Proof Harness Evidence\n\nexpected: Inspect the proof artifacts under `.planning/phases/52-truth-enforcement-hardening/proofs/` together with `.planning/phases/52-truth-enforcement-hardening/schemas/proof-schema.json`. You should see canonical proof files for all expected validators and they should look like deterministic audit artifacts, not ad hoc logs.\nresult: pass\n\n### 4. Coverage Gate Honesty\n\nexpected: Open `coverage/phase-52-coverage.json`. The critical truth-enforcement modules should all be at or above the documented threshold, and the file should look aligned with the final audit claim rather than contradicting it.\nresult: pass\n\n## Summary\n\ntotal: 4\npassed: 4\nissues: 0\npending: 0\nskipped: 0\n\n## Gaps\n\nnone\n",
+  "content_hash": "0df4f819375578ccd0708cecee31142ca92af9e77e072b75d22ac4866f30ed40",
+  "normalized_at": "2026-03-29T18:41:57.760Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  }
+}

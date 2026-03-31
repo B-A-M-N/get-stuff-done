@@ -1,0 +1,22 @@
+{
+  "check-coverage": true,
+  "lines": 85,
+  "branches": 85,
+  "statements": 85,
+  "include": [
+    "packages/gsd-tools/src/logging/SafeLogger.js",
+    "packages/gsd-tools/src/validation/ProofHarness.js",
+    "packages/gsd-tools/src/audit/TruthAuditor.js"
+  ],
+  "exclude": [
+    "tests/**",
+    "node_modules/**"
+  ],
+  "all": true,
+  "reporter": [
+    "json",
+    "json-summary",
+    "text"
+  ],
+  "temp-directory": "coverage/.nyc_output"
+}

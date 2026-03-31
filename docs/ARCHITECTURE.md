@@ -16,6 +16,7 @@
 - [Hook System](#hook-system)
 - [CLI Tools Layer](#cli-tools-layer)
 - [Runtime Abstraction](#runtime-abstraction)
+- [Fork Services](#fork-services)
 
 ---
 
@@ -27,6 +28,7 @@ GSD is a **meta-prompting framework** that sits between the user and AI coding a
 2. **Multi-agent orchestration** — Thin orchestrators that spawn specialized agents with fresh context windows
 3. **Spec-driven development** — Requirements → research → plans → execution → verification pipeline
 4. **State management** — Persistent project memory across sessions and context resets
+5. **Local service integration** — Plane, Firecrawl, and database-backed memory surfaces for this fork
 
 ```
 ┌──────────────────────────────────────────────────────┐
@@ -83,10 +85,11 @@ Workflow files (`get-stuff-done/workflows/*.md`) never do heavy lifting. They:
 
 ### 3. File-Based State
 
-All state lives in `.planning/` as human-readable Markdown and JSON. No database, no server, no external dependencies. This means:
+Core planning state lives in `.planning/` as human-readable Markdown and JSON. In this fork, that file-based state is augmented by local services and databases rather than replacing them. This means:
 - State survives context resets (`/clear`)
 - State is inspectable by both humans and agents
 - State can be committed to git for team visibility
+- Operational and retrieval layers can be integrated without making `.planning/` opaque
 
 ### 4. Absent = Enabled
 
@@ -99,6 +102,28 @@ Multiple layers prevent common failure modes:
 - Execution is expected to produce atomic commits per task, and modern summaries are mechanically verified for per-task commit coverage
 - Post-execution verification checks against phase goals
 - UAT provides human verification as final gate
+
+---
+
+## Fork Services
+
+This fork adds local service integrations around the original file-based workflow core.
+
+### Plane
+
+Plane acts as a project and test control layer and as an internal system of record for project coordination artifacts.
+
+### Firecrawl
+
+Firecrawl is the retrieval and normalization layer for agent context. It is used to normalize both internal and external sources into a consistent context shape.
+
+### Second Brain
+
+Second Brain is the operational workflow database. It stores audits, checkpoints, summaries, decisions, and bounded workflow memory used to improve execution continuity.
+
+### Open Brain Sidecar
+
+For long-horizon semantic recall and cross-project learning, use a separate sidecar instead of overloading Second Brain. See [Open Brain Sidecar Architecture](OPEN-BRAIN-ARCHITECTURE.md).
 
 ---
 
@@ -234,9 +259,9 @@ Warnings include a `severity` field: `"stop"` means treat as a hard blocker; `"i
 
 **Workflow gate pattern:**
 ```bash
-if ! node gsd-tools.cjs gate enforce --key gates.confirm_plan; then
+if ! node gsd-tools.cjs gate enforce --key gates.confirm_project; then
   # Gate is active — present context, wait for human response
-  node gsd-tools.cjs gate release --key gates.confirm_plan
+  node gsd-tools.cjs gate release --key gates.confirm_project
 fi
 ```
 

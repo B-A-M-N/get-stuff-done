@@ -116,6 +116,16 @@ Extract `phase_name`, `goal`, `success_criteria` from each. Store for use in exe
 
 <step name="execute_phase">
 
+**Pre-condition Gate (ENFORCED):**
+
+```bash
+node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" state assert
+```
+
+This mandatory check ensures STATE.md, config.json, PROJECT.md are valid and no checkpoints are awaiting response. Fails fast if project state is invalid.
+
+---
+
 ## 3. Execute Phase
 
 For the current phase, display the progress banner:
@@ -136,21 +146,7 @@ Check if CONTEXT.md already exists for this phase:
 PHASE_STATE=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" init phase-op ${PHASE_NUM})
 ```
 
-Parse `has_context` and `clarification_status` from JSON.
-
-**Clarification Gate:**
-```bash
-CLARIFICATION_STATUS=$(printf '%s\n' "$PHASE_STATE" | jq -r '.clarification_status // "none"')
-if [ "$CLARIFICATION_STATUS" == "blocked" ]; then
-  echo "╔══════════════════════════════════════════════════════════════╗"
-  echo "║  BLOCK-01: I'm stuck and need your answer before I can build ║"
-  echo "╚══════════════════════════════════════════════════════════════╝"
-  echo ""
-  echo "Phase ${PHASE_NUM} is currently BLOCKED."
-  echo "Unblock with: /gsd:resume-project"
-  exit 1
-fi
-```
+Parse `has_context` from JSON.
 
 **If has_context is true:** Skip discuss — context already gathered. Display:
 

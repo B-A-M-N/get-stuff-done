@@ -14,7 +14,7 @@ Check if `--auto` flag is present in $ARGUMENTS.
 **If auto mode:**
 - Skip brownfield mapping offer (assume greenfield)
 - Skip interactive questioning (interpret the provided document as the project narrative)
-- Config: YOLO mode is implicit (skip that question), but ask granularity/git/agents FIRST (Step 2a)
+- Config: YOLO mode is implicit (skip that question), but ask parallelization/commit_docs/agents FIRST (Step 2a)
 - After config: run Steps 6-9 automatically with smart defaults:
   - Research: Always yes
   - Requirements: Include all table stakes + features from provided document
@@ -86,20 +86,10 @@ Exit command.
 
 YOLO mode is implicit (auto = YOLO). Ask remaining config questions:
 
-**Round 1 — Core settings (3 questions, no Mode question):**
+**Round 1 — Core settings (2 questions, no Mode question):**
 
 ```
 AskUserQuestion([
-  {
-    header: "Granularity",
-    question: "How finely should scope be sliced into phases?",
-    multiSelect: false,
-    options: [
-      { label: "Coarse (Recommended)", description: "Fewer, broader phases (3-5 phases, 1-3 plans each)" },
-      { label: "Standard", description: "Balanced phase size (5-8 phases, 3-5 plans each)" },
-      { label: "Fine", description: "Many focused phases (8-12 phases, 5-10 plans each)" }
-    ]
-  },
   {
     header: "Execution",
     question: "Run plans in parallel?",
@@ -166,12 +156,10 @@ AskUserQuestion([
 ])
 ```
 
-Create `.planning/config.json` with mode set to "yolo":
+Create `.planning/config.json`:
 
 ```json
 {
-  "mode": "yolo",
-  "granularity": "[selected]",
   "parallelization": true|false,
   "commit_docs": true|false,
   "model_profile": "quality|balanced|budget|inherit",
@@ -179,7 +167,7 @@ Create `.planning/config.json` with mode set to "yolo":
     "research": true|false,
     "plan_check": true|false,
     "verifier": true|false,
-    "nyquist_validation": depth !== "quick",
+    "nyquist_validation": true,
     "adversarial_test_harness": true,
     "ui_phase": true,
     "ui_safety_gate": true,
@@ -395,29 +383,10 @@ If "Yes": read `~/.gsd/defaults.json`, use those values for config.json, and ski
 
 If "No" or `~/.gsd/defaults.json` doesn't exist: proceed with the questions below.
 
-**Round 1 — Core workflow settings (4 questions):**
+**Round 1 — Core workflow settings (2 questions):**
 
 ```
 questions: [
-  {
-    header: "Mode",
-    question: "How do you want to work?",
-    multiSelect: false,
-    options: [
-      { label: "YOLO (Recommended)", description: "Auto-approve, just execute" },
-      { label: "Interactive", description: "Confirm at each step" }
-    ]
-  },
-  {
-    header: "Granularity",
-    question: "How finely should scope be sliced into phases?",
-    multiSelect: false,
-    options: [
-      { label: "Coarse", description: "Fewer, broader phases (3-5 phases, 1-3 plans each)" },
-      { label: "Standard", description: "Balanced phase size (5-8 phases, 3-5 plans each)" },
-      { label: "Fine", description: "Many focused phases (8-12 phases, 5-10 plans each)" }
-    ]
-  },
   {
     header: "Execution",
     question: "Run plans in parallel?",
@@ -498,8 +467,6 @@ Create `.planning/config.json` with all settings:
 
 ```json
 {
-  "mode": "yolo|interactive",
-  "granularity": "coarse|standard|fine",
   "parallelization": true|false,
   "commit_docs": true|false,
   "model_profile": "quality|balanced|budget|inherit",
@@ -507,10 +474,11 @@ Create `.planning/config.json` with all settings:
     "research": true|false,
     "plan_check": true|false,
     "verifier": true|false,
-    "nyquist_validation": depth !== "quick",
+    "nyquist_validation": true,
     "adversarial_test_harness": true,
     "ui_phase": true,
-    "ui_safety_gate": true
+    "ui_safety_gate": true,
+    "auto_advance": false
   }
 }
 ```
@@ -952,7 +920,7 @@ Task(prompt="
 - .planning/PROJECT.md (Project context)
 - .planning/REQUIREMENTS.md (v1 Requirements)
 - .planning/research/SUMMARY.md (Research findings - if exists)
-- .planning/config.json (Granularity and mode settings)
+- .planning/config.json (Workflow settings)
 </files_to_read>
 
 </planning_context>
@@ -1157,7 +1125,7 @@ Exit skill and invoke SlashCommand("/gsd:discuss-phase 1 --auto")
 - [ ] Brownfield detection completed
 - [ ] Deep questioning completed (threads followed, not rushed)
 - [ ] PROJECT.md captures full context → **committed**
-- [ ] config.json has workflow mode, granularity, parallelization → **committed**
+- [ ] config.json has workflow settings, parallelization, commit_docs, model_profile → **committed**
 - [ ] Research completed (if selected) — 4 parallel agents spawned → **committed**
 - [ ] Requirements gathered (from research or conversation)
 - [ ] User scoped each category (v1/v2/out of scope)

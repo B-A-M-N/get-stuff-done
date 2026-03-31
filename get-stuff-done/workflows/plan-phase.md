@@ -42,6 +42,18 @@ ADVERSARIAL_TEST_HARNESS_ENABLED=$(printf '%s\n' "$INIT" | jq -r '.adversarial_t
 ITL_JSON="${PHASE_DIR}/${PADDED_PHASE}-ITL.json"
 if [ -f "$ITL_JSON" ]; then
   echo "Using persistent ITL interpretation from: $ITL_JSON"
+  # Load ambiguity severity and warn if high
+  AMBIGUITY_SEVERITY=$(node -e "console.log(require('./$ITL_JSON').ambiguity.severity)")
+  if [ "$AMBIGUITY_SEVERITY" = "high" ]; then
+    echo "WARNING: ITL indicates high ambiguity — review required"
+  fi
+  itl_path="$ITL_JSON"
+else
+  itl_path=""
+  # If discuss-phase already ran (presence of CONTEXT.md), warn
+  if [ -f "${PHASE_DIR}/${PADDED_PHASE}-CONTEXT.md" ]; then
+    echo "WARNING: ITL data not found — run discuss-phase first"
+  fi
 fi
 ```
 
@@ -81,7 +93,15 @@ PHASE_INFO=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" roadmap get-p
 
 **If `found` is false:** Error with available phases. **If `found` is true:** Extract `phase_number`, `phase_name`, `goal` from JSON.
 
-## 3.5. Handle PRD Express Path
+## 3.5. Assert Pre-conditions (ENFORCED)
+
+```bash
+node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" state assert
+```
+
+This mandatory check ensures STATE.md and config are valid before proceeding. Fails fast if project state is corrupt, paused, or missing required files.
+
+## 3.6. Handle PRD Express Path
 
 **Skip if:** No `--prd` flag in arguments.
 
@@ -329,35 +349,35 @@ Task(
 - **`## RESEARCH COMPLETE`:**
 
 ```bash
-# Verify research contract only when the adversarial harness is active.
-if [ -n "$CONTEXT_PATH" ] && [ "$ADVERSARIAL_TEST_HARNESS_ENABLED" = "true" ]; then
-  VERIFY_RESEARCH=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" verify research-contract "$CONTEXT_PATH" --research "$RESEARCH_PATH" --raw)
-  if [ "$VERIFY_RESEARCH" != "true" ]; then
+# ENFORCED: Verify research contract after researcher returns (Block 04)
+# This ensures ambiguities and assumptions are properly carried forward.
+VERIFY_RESEARCH=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" verify research-contract "$CONTEXT_PATH" --research "$RESEARCH_PATH" --raw)
+RESEARCH_PASSED=$(printf '%s\n' "$VERIFY_RESEARCH" | jq -r '.passed // false')
+if [ "$RESEARCH_PASSED" != "true" ]; then
   echo "╔══════════════════════════════════════════════════════════════╗"
   echo "║  BLOCK-04: Failed Research Contract                          ║"
   echo "╚══════════════════════════════════════════════════════════════╝"
   echo ""
   echo "⚠ Research Contract Violation Detected!"
-    node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" verify research-contract "$CONTEXT_PATH" --research "$RESEARCH_PATH"
-
-    # AskUserQuestion:
-  # - header: "Research Contract"
-    # - question: "Research for Phase {X} violates the contract (e.g. lost ambiguities). How to proceed?"
-    # - options:
-    #   - "Revise research" — Re-spawn researcher with identified issues
-    #   - "Skip research" — Proceed to planning with warning
-    #   - "Abort" — Exit workflow
+  node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" verify research-contract "$CONTEXT_PATH" --research "$RESEARCH_PATH"
+  echo ""
+  echo "Options:"
+  echo "1. Revise research — Re-spawn researcher with identified issues"
+  echo "2. Abort — Exit workflow"
+  read -p "Choose (1-2): " choice
+  if [ "$choice" = "1" ]; then
+    # Loop back to researcher step (handled by orchestrator restart)
+    echo "Rerouting to researcher..."
+    # TODO: Implement loop back or restart plan-phase with --research
+    exit 1
+  else
+    echo "Aborting."
+    exit 1
   fi
 fi
 ```
 
-If `adversarial_test_harness_enabled` is false:
-
-```bash
-node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" state add-decision --phase "$PHASE" --summary "Adversarial harness bypassed" --rationale "scope=research-contract"
-```
-
-Skip this contract gate and continue.
+**Note:** This gate is now **always enforced**, regardless of test harness settings. Research contract compliance is mandatory for phase integrity.
 
 Display confirmation, continue to step 6
 - **`## RESEARCH BLOCKED`:** Display blocker, offer: 1) Provide context, 2) Skip research, 3) Abort

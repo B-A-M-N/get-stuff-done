@@ -1,0 +1,78 @@
+phase: "71"
+title: "Execution Proof Chain"
+generated_at: "2026-03-28T19:56:20.200Z"
+strict: false
+inputs:
+  verification: ".planning/phases/71-execution-proof-chain/71-VERIFICATION.md"
+  summaries:
+    - ".planning/phases/71-execution-proof-chain/71-01-SUMMARY.md"
+    - ".planning/phases/71-execution-proof-chain/71-02-SUMMARY.md"
+  drift_reports:
+    - ".planning/drift/latest-report.json"
+  reconciliation:
+    - ".planning/drift/latest-reconciliation.json"
+  degraded_state:
+    - ".planning/health/latest-degraded-state.json"
+claimed_outcomes:
+  - id: null
+    description: "Require every completed task and plan artifact to map cleanly to commits, changed files, and execution evidence."
+    supporting_artifacts:
+      - ".planning/phases/71-execution-proof-chain/71-01-SUMMARY.md"
+      - ".planning/phases/71-execution-proof-chain/71-02-SUMMARY.md"
+  - id: null
+    description: "machine-proof-log"
+    supporting_artifacts:
+      - ".planning/phases/71-execution-proof-chain/71-01-SUMMARY.md"
+  - id: null
+    description: "structured-summary-proof-index"
+    supporting_artifacts:
+      - ".planning/phases/71-execution-proof-chain/71-01-SUMMARY.md"
+  - id: null
+    description: "typed-proof-enforcement"
+    supporting_artifacts:
+      - ".planning/phases/71-execution-proof-chain/71-02-SUMMARY.md"
+  - id: null
+    description: "runtime-proof-gates"
+    supporting_artifacts:
+      - ".planning/phases/71-execution-proof-chain/71-02-SUMMARY.md"
+  - id: null
+    description: "failure-artifacts"
+    supporting_artifacts:
+      - ".planning/phases/71-execution-proof-chain/71-02-SUMMARY.md"
+observable_evidence:
+  - type: "file"
+    ref: ".planning/phases/71-execution-proof-chain/71-01-SUMMARY.md"
+  - type: "file"
+    ref: ".planning/phases/71-execution-proof-chain/71-02-SUMMARY.md"
+  - type: "file"
+    ref: ".planning/phases/71-execution-proof-chain/71-VERIFICATION.md"
+  - type: "command"
+    ref: "phase-truth generate 71"
+gaps:
+  - type: "verification_gap"
+    description: "Verification artifact failed contract validation: Frontmatter status must be one of VALID, CONDITIONAL, INVALID; Missing required section: Observable Truths; Missing required section: Requirement Coverage; Requirement Coverage must contain at least one requirement row; Drift Analysis JSON invalid: missing fenced JSON block; Unknown anti-pattern classification: ℹ️ Info; Unknown anti-pattern classification: ℹ️ Info; Unknown anti-pattern classification: ℹ️ Info; Final Status JSON invalid: missing fenced JSON block"
+  - type: "degraded_state_caveat"
+    description: "Current degraded truth posture is UNSAFE."
+  - type: "workflow_block"
+    description: "context:plan-phase blocked by model_facing_memory: canonical_postgres_memory_unavailable"
+  - type: "workflow_block"
+    description: "context:execute-plan blocked by model_facing_memory: canonical_postgres_memory_unavailable"
+  - type: "workflow_block"
+    description: "verify:integrity blocked by drift_truth: drift_truth_stale"
+  - type: "workflow_block"
+    description: "verify:workflow-readiness blocked by drift_truth: drift_truth_stale"
+drift_effects:
+  []
+reconciliation_effects:
+  []
+escalations:
+  []
+final_status: "CONDITIONAL"
+status_reason:
+  - "Verification artifact does not satisfy the evidence-first verification contract."
+  - "Current degraded truth posture is UNSAFE."
+  - "Verification artifact failed contract validation: Frontmatter status must be one of VALID, CONDITIONAL, INVALID; Missing required section: Observable Truths; Missing required section: Requirement Coverage; Requirement Coverage must contain at least one requirement row; Drift Analysis JSON invalid: missing fenced JSON block; Unknown anti-pattern classification: ℹ️ Info; Unknown anti-pattern classification: ℹ️ Info; Unknown anti-pattern classification: ℹ️ Info; Final Status JSON invalid: missing fenced JSON block"
+  - "context:plan-phase blocked by model_facing_memory: canonical_postgres_memory_unavailable"
+  - "context:execute-plan blocked by model_facing_memory: canonical_postgres_memory_unavailable"
+  - "verify:integrity blocked by drift_truth: drift_truth_stale"
+  - "verify:workflow-readiness blocked by drift_truth: drift_truth_stale"

@@ -7,6 +7,7 @@ const { normalizeMd } = require('./core.cjs');
 const astParser = require('./ast-parser.cjs');
 const secondBrain = require('./second-brain.cjs');
 const audit = require('./audit.cjs');
+const planeWebhookSync = require('./plane-webhook-sync.cjs');
 
 const PORT = process.env.GSD_PLANNING_PORT || 3011;
 const HOST = process.env.GSD_PLANNING_HOST || '127.0.0.1';
@@ -63,6 +64,7 @@ const PLANNING_SERVER_MAX_CONCURRENT_EXTRACTS = parseInt(process.env.PLANNING_SE
 // Request validation limits
 const PLANNING_SERVER_MAX_PATH_BYTES = parseInt(process.env.PLANNING_SERVER_MAX_PATH_BYTES, 10) || 4096;
 const PLANNING_SERVER_MAX_FILE_BYTES = parseInt(process.env.PLANNING_SERVER_MAX_FILE_BYTES, 10) || 5242880;
+const PLANNING_SERVER_MAX_WEBHOOK_BYTES = parseInt(process.env.PLANNING_SERVER_MAX_WEBHOOK_BYTES, 10) || 262144;
 
 function setSecurityHeaders(res) {
   res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -96,7 +98,7 @@ function requireAuth(req, res) {
         context: { phase: '42', plan: '02', task: '2-1', narrative_ref: 'none', justification: 'Authentication failure: missing or malformed Authorization header' },
         impact: { client_identity: clientIP, auth_result: 'missing_token' },
         policy: { rules_evaluated: ['requireAuth'], triggered_gates: [], approval_required: false, verdict: 'denied' },
-        integrity: { narrative_drift_score: 1.0, coherence_check_passed: true }
+        integrity: null
       });
     } catch (e) { /* best-effort audit */ }
     // Increment auth failures metric
@@ -119,7 +121,7 @@ function requireAuth(req, res) {
         context: { phase: '42', plan: '02', task: '2-1', narrative_ref: 'none', justification: 'Authentication failure: token length mismatch' },
         impact: { client_identity: clientIP, auth_result: 'length_mismatch' },
         policy: { rules_evaluated: ['requireAuth'], triggered_gates: [], approval_required: false, verdict: 'denied' },
-        integrity: { narrative_drift_score: 1.0, coherence_check_passed: true }
+        integrity: null
       });
     } catch (e) {}
     metrics.authFailuresTotal++;
@@ -145,7 +147,7 @@ function requireAuth(req, res) {
         context: { phase: '42', plan: '02', task: '2-1', narrative_ref: 'none', justification: 'Authentication failure: invalid token' },
         impact: { client_identity: clientIP, auth_result: 'invalid_token' },
         policy: { rules_evaluated: ['requireAuth'], triggered_gates: [], approval_required: false, verdict: 'denied' },
-        integrity: { narrative_drift_score: 1.0, coherence_check_passed: true }
+        integrity: null
       });
     } catch (e) {}
     metrics.authFailuresTotal++;
@@ -163,7 +165,7 @@ function requireAuth(req, res) {
       context: { phase: '42', plan: '02', task: '2-1', narrative_ref: 'none', justification: 'Authentication success' },
       impact: { client_identity: req.identity, auth_result: 'success' },
       policy: { rules_evaluated: ['requireAuth'], triggered_gates: [], approval_required: false, verdict: 'allowed' },
-      integrity: { narrative_drift_score: 1.0, coherence_check_passed: true }
+      integrity: null
     });
   } catch (e) {}
 
@@ -175,7 +177,8 @@ const RATE_LIMIT_DEFAULTS = {
   health: 300,
   read: 120,
   extract: 60,
-  metrics: 120
+  metrics: 120,
+  webhook: 60,
 };
 
 function getRateLimit(endpoint) {
@@ -230,6 +233,38 @@ function checkRateLimit(identity, endpoint) {
 
   state.tokens--;
   return true;
+}
+
+function readRequestBody(req, maxBytes) {
+  return new Promise((resolve, reject) => {
+    let total = 0;
+    const chunks = [];
+    let settled = false;
+
+    req.on('data', (chunk) => {
+      if (settled) return;
+      total += chunk.length;
+      if (total > maxBytes) {
+        settled = true;
+        reject(new Error('Request body too large'));
+        req.destroy();
+        return;
+      }
+      chunks.push(chunk);
+    });
+
+    req.on('end', () => {
+      if (settled) return;
+      settled = true;
+      resolve(Buffer.concat(chunks).toString('utf-8'));
+    });
+
+    req.on('error', (err) => {
+      if (settled) return;
+      settled = true;
+      reject(err);
+    });
+  });
 }
 
 // Metrics counters
@@ -330,7 +365,7 @@ const server = http.createServer(async (req, res) => {
           context: { phase: '42', plan: '02', task: '2-2', narrative_ref: 'none', justification: 'Rate limit exceeded' },
           impact: { client_identity: req.identity, rate_limited_endpoint: '/health' },
           policy: { rules_evaluated: ['rateLimit'], triggered_gates: [], approval_required: false, verdict: 'denied' },
-          integrity: { narrative_drift_score: 1.0, coherence_check_passed: true }
+          integrity: null
         });
       } catch (e) {}
       metrics.rateLimitedTotal++;
@@ -363,7 +398,7 @@ const server = http.createServer(async (req, res) => {
           context: { phase: '42', plan: '02', task: '2-2', narrative_ref: 'none', justification: 'Rate limit exceeded' },
           impact: { client_identity: req.identity, rate_limited_endpoint: '/metrics' },
           policy: { rules_evaluated: ['rateLimit'], triggered_gates: [], approval_required: false, verdict: 'denied' },
-          integrity: { narrative_drift_score: 1.0, coherence_check_passed: true }
+          integrity: null
         });
       } catch (e) {}
       metrics.rateLimitedTotal++;
@@ -446,6 +481,59 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (url.pathname === '/v1/plane/webhook' && req.method === 'POST') {
+    const clientIP = req.headers['x-forwarded-for'] || req.connection.remoteAddress || 'unknown';
+    req.identity = clientIP;
+
+    maybePruneRateLimits();
+    if (!checkRateLimit(req.identity, 'webhook')) {
+      metrics.rateLimitedTotal++;
+      metrics.rateLimitedLabels.set('ip', (metrics.rateLimitedLabels.get('ip') || 0) + 1);
+      res.statusCode = 429;
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Retry-After', '60');
+      res.end(JSON.stringify({ error: 'Too many requests' }));
+      return;
+    }
+
+    const contentType = req.headers['content-type'] || '';
+    if (!contentType.includes('application/json')) {
+      res.statusCode = 415;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ error: 'Content-Type must be application/json' }));
+      return;
+    }
+
+    let rawBody;
+    try {
+      rawBody = await readRequestBody(req, PLANNING_SERVER_MAX_WEBHOOK_BYTES);
+    } catch (err) {
+      res.statusCode = err.message === 'Request body too large' ? 413 : 400;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ error: err.message === 'Request body too large' ? 'Invalid request' : err.message }));
+      return;
+    }
+
+    const result = await planeWebhookSync.handlePlaneWebhook({
+      headers: req.headers,
+      rawBody,
+    });
+
+    try {
+      audit.recordAuditEntry(process.cwd(), {
+        context: { action: 'plane-webhook', path: '/v1/plane/webhook' },
+        impact: { client_identity: req.identity, accepted: result.body.accepted === true, event: result.body.event || null },
+        policy: { rules_evaluated: ['planeWebhookAuth'], triggered_gates: [], approval_required: false, verdict: result.statusCode < 400 ? 'allowed' : 'denied' },
+        integrity: null
+      });
+    } catch (e) {}
+
+    res.statusCode = result.statusCode;
+    res.setHeader('Content-Type', 'application/json');
+    res.end(JSON.stringify(result.body));
+    return;
+  }
+
   if (url.pathname === '/v1/extract' && req.method === 'GET') {
     if (!requireAuth(req, res)) return;
     // Rate limiting check
@@ -456,7 +544,7 @@ const server = http.createServer(async (req, res) => {
           context: { phase: '42', plan: '02', task: '2-2', narrative_ref: 'none', justification: 'Rate limit exceeded' },
           impact: { client_identity: req.identity, rate_limited_endpoint: '/v1/extract' },
           policy: { rules_evaluated: ['rateLimit'], triggered_gates: [], approval_required: false, verdict: 'denied' },
-          integrity: { narrative_drift_score: 1.0, coherence_check_passed: true }
+          integrity: null
         });
       } catch (e) {}
       metrics.rateLimitedTotal++;
@@ -477,7 +565,7 @@ const server = http.createServer(async (req, res) => {
           context: { phase: '42', plan: '03', task: '3-3', narrative_ref: 'none', justification: 'Extract request with requireAst=true in degraded mode' },
           impact: { client_identity: req.identity, attempted_path: relativePath, require_ast: true },
           policy: { rules_evaluated: ['astAvailability'], triggered_gates: [], approval_required: false, verdict: 'denied' },
-          integrity: { narrative_drift_score: 1.0, coherence_check_passed: true }
+          integrity: null
         });
       } catch (e) {}
       res.statusCode = 503;
@@ -493,7 +581,7 @@ const server = http.createServer(async (req, res) => {
           context: { phase: '42', plan: '03', task: '3-3', narrative_ref: 'none', justification: 'Concurrency limit exceeded for extraction' },
           impact: { client_identity: req.identity, attempted_path: relativePath, active_extracts: metrics.inFlightExtracts },
           policy: { rules_evaluated: ['concurrencyLimit'], triggered_gates: [], approval_required: false, verdict: 'denied' },
-          integrity: { narrative_drift_score: 1.0, coherence_check_passed: true }
+          integrity: null
         });
       } catch (e) {}
       res.statusCode = 503;
@@ -522,7 +610,7 @@ const server = http.createServer(async (req, res) => {
           context: { phase: '42', plan: '03', task: '3-3', narrative_ref: 'none', justification: 'Request validation failure: null byte in path' },
           impact: { client_identity: req.identity, attempted_path: relativePath },
           policy: { rules_evaluated: ['requestValidation'], triggered_gates: [], approval_required: false, verdict: 'denied' },
-          integrity: { narrative_drift_score: 1.0, coherence_check_passed: true }
+          integrity: null
         });
       } catch (e) {}
       res.statusCode = 400;
@@ -537,7 +625,7 @@ const server = http.createServer(async (req, res) => {
           context: { phase: '42', plan: '03', task: '3-3', narrative_ref: 'none', justification: 'Request validation failure: path too long' },
           impact: { client_identity: req.identity, attempted_path: relativePath, path_bytes: Buffer.byteLength(relativePath, 'utf8') },
           policy: { rules_evaluated: ['requestValidation'], triggered_gates: [], approval_required: false, verdict: 'denied' },
-          integrity: { narrative_drift_score: 1.0, coherence_check_passed: true }
+          integrity: null
         });
       } catch (e) {}
       res.statusCode = 400;
@@ -576,7 +664,7 @@ const server = http.createServer(async (req, res) => {
           context: { phase: '42', plan: '03', task: '3-3', narrative_ref: 'none', justification: 'Path traversal attempt blocked' },
           impact: { client_identity: req.identity, attempted_path: relativePath, resolution: realTarget || targetPath },
           policy: { rules_evaluated: ['pathTraversal'], triggered_gates: [], approval_required: false, verdict: 'denied' },
-          integrity: { narrative_drift_score: 1.0, coherence_check_passed: true }
+          integrity: null
         });
       } catch (e) {}
       // Metrics: path denial
@@ -609,7 +697,7 @@ const server = http.createServer(async (req, res) => {
           context: { phase: '42', plan: '02', task: '2-4', narrative_ref: 'none', justification: 'File size limit exceeded' },
           impact: { client_identity: req.identity, file_path: targetPath, file_size: fileStats.size },
           policy: { rules_evaluated: ['sizeLimit'], triggered_gates: [], approval_required: false, verdict: 'denied' },
-          integrity: { narrative_drift_score: 1.0, coherence_check_passed: true }
+          integrity: null
         });
       } catch (e) {}
       res.statusCode = 413;
@@ -660,7 +748,7 @@ const server = http.createServer(async (req, res) => {
           context: { phase: '42', plan: '02', task: '2-2', narrative_ref: 'none', justification: 'Rate limit exceeded' },
           impact: { client_identity: req.identity, rate_limited_endpoint: '/v1/read' },
           policy: { rules_evaluated: ['rateLimit'], triggered_gates: [], approval_required: false, verdict: 'denied' },
-          integrity: { narrative_drift_score: 1.0, coherence_check_passed: true }
+          integrity: null
         });
       } catch (e) {}
       metrics.rateLimitedTotal++;
@@ -681,7 +769,7 @@ const server = http.createServer(async (req, res) => {
           context: { phase: '42', plan: '03', task: '3-3', narrative_ref: 'none', justification: 'Request validation failure: missing path parameter' },
           impact: { client_identity: req.identity },
           policy: { rules_evaluated: ['requestValidation'], triggered_gates: [], approval_required: false, verdict: 'denied' },
-          integrity: { narrative_drift_score: 1.0, coherence_check_passed: true }
+          integrity: null
         });
       } catch (e) {}
       res.statusCode = 400;
@@ -698,7 +786,7 @@ const server = http.createServer(async (req, res) => {
           context: { phase: '42', plan: '03', task: '3-3', narrative_ref: 'none', justification: 'Request validation failure: null byte in path' },
           impact: { client_identity: req.identity, attempted_path: filePath },
           policy: { rules_evaluated: ['requestValidation'], triggered_gates: [], approval_required: false, verdict: 'denied' },
-          integrity: { narrative_drift_score: 1.0, coherence_check_passed: true }
+          integrity: null
         });
       } catch (e) {}
       res.statusCode = 400;
@@ -713,7 +801,7 @@ const server = http.createServer(async (req, res) => {
           context: { phase: '42', plan: '03', task: '3-3', narrative_ref: 'none', justification: 'Request validation failure: path too long' },
           impact: { client_identity: req.identity, attempted_path: filePath, path_bytes: Buffer.byteLength(filePath, 'utf8') },
           policy: { rules_evaluated: ['requestValidation'], triggered_gates: [], approval_required: false, verdict: 'denied' },
-          integrity: { narrative_drift_score: 1.0, coherence_check_passed: true }
+          integrity: null
         });
       } catch (e) {}
       res.statusCode = 400;
@@ -730,7 +818,7 @@ const server = http.createServer(async (req, res) => {
           context: { phase: '42', plan: '03', task: '3-3', narrative_ref: 'none', justification: 'Request validation failure: path not absolute' },
           impact: { client_identity: req.identity, attempted_path: filePath },
           policy: { rules_evaluated: ['requestValidation'], triggered_gates: [], approval_required: false, verdict: 'denied' },
-          integrity: { narrative_drift_score: 1.0, coherence_check_passed: true }
+          integrity: null
         });
       } catch (e) {}
       res.statusCode = 400;
@@ -768,7 +856,7 @@ const server = http.createServer(async (req, res) => {
           context: { phase: '42', plan: '03', task: '3-3', narrative_ref: 'none', justification: 'Path traversal attempt blocked' },
           impact: { client_identity: req.identity, attempted_path: filePath, resolution: realTarget || absolutePath },
           policy: { rules_evaluated: ['pathTraversal'], triggered_gates: [], approval_required: false, verdict: 'denied' },
-          integrity: { narrative_drift_score: 1.0, coherence_check_passed: true }
+          integrity: null
         });
       } catch (e) {}
       // Metrics: path denial
@@ -790,7 +878,7 @@ const server = http.createServer(async (req, res) => {
             context: { phase: '42', plan: '03', task: '3-3', narrative_ref: 'none', justification: 'Access to .planning/ via /v1/read blocked' },
             impact: { client_identity: req.identity, attempted_path: filePath, resolution: realTarget },
             policy: { rules_evaluated: ['planningDirBlock'], triggered_gates: [], approval_required: false, verdict: 'denied' },
-            integrity: { narrative_drift_score: 1.0, coherence_check_passed: true }
+            integrity: null
           });
         } catch (e) {}
         // Metrics: path denial (planning_dir_block)
@@ -826,7 +914,7 @@ const server = http.createServer(async (req, res) => {
           context: { phase: '42', plan: '02', task: '2-4', narrative_ref: 'none', justification: 'File size limit exceeded' },
           impact: { client_identity: req.identity, file_path: absolutePath, file_size: fileStats.size },
           policy: { rules_evaluated: ['sizeLimit'], triggered_gates: [], approval_required: false, verdict: 'denied' },
-          integrity: { narrative_drift_score: 1.0, coherence_check_passed: true }
+          integrity: null
         });
       } catch (e) {}
       res.statusCode = 413;
@@ -844,7 +932,7 @@ const server = http.createServer(async (req, res) => {
           context: { action: 'planning-server-read', path: absolutePath },
           impact: { file_read: absolutePath, size: content.length, contentHash: contentHash },
           policy: { rules_evaluated: [], triggered_gates: [], approval_required: false, verdict: 'allowed' },
-          integrity: { narrative_drift_score: 1.0, coherence_check_passed: true }
+          integrity: null
         });
       } catch (e) {}
 

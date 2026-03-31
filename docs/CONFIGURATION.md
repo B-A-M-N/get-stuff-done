@@ -60,8 +60,8 @@ GSD stores project settings in `.planning/config.json`. Created during `/gsd:new
 
 | Setting | Type | Options | Default | Description |
 |---------|------|---------|---------|-------------|
-| `mode` | enum | `interactive`, `yolo` | `interactive` | `yolo` auto-approves decisions; `interactive` confirms at each step |
-| `granularity` | enum | `coarse`, `standard`, `fine` | `standard` | Controls phase count: `coarse` (3-5), `standard` (5-8), `fine` (8-12) |
+| `mode` | enum | `interactive`, `yolo` | `interactive` | **Deprecated.** Use `workflow.auto_advance` instead. `yolo` auto-approves decisions; `interactive` confirms at each step |
+| `granularity` | enum | `coarse`, `standard`, `fine` | `standard` | **Deprecated.** Phase slicing is automatic; previously controlled phase count |
 | `model_profile` | enum | `quality`, `balanced`, `budget`, `inherit` | `balanced` | Model tier for each agent (see [Model Profiles](#model-profiles)) |
 
 > **Note:** `granularity` was renamed from `depth` in v1.22.3. Existing configs are auto-migrated.
@@ -84,6 +84,7 @@ Most workflow toggles follow the **absent = enabled** pattern. Exceptions are ex
 | `workflow.ui_safety_gate` | boolean | `true` | Prompt to run /gsd:ui-phase for frontend phases during plan-phase |
 | `workflow.node_repair` | boolean | `true` | Autonomous task repair on verification failure |
 | `workflow.node_repair_budget` | number | `2` | Max repair attempts per failed task |
+| `workflow._auto_chain_active` | boolean | `false` | Internal flag for auto-chain state management; automatically managed by the system |
 
 ### Recommended Presets
 
@@ -169,10 +170,9 @@ Control confirmation prompts during workflows.
 | `gates.confirm_phases` | boolean | `true` | Confirm phase breakdown |
 | `gates.confirm_roadmap` | boolean | `true` | Confirm roadmap before proceeding |
 | `gates.confirm_breakdown` | boolean | `true` | Confirm task breakdown |
-| `gates.confirm_plan` | boolean | `true` | Confirm each plan before execution |
-| `gates.execute_next_plan` | boolean | `true` | Confirm before executing next plan |
 | `gates.issues_review` | boolean | `true` | Review issues before creating fix plans |
 | `gates.confirm_transition` | boolean | `true` | Confirm phase transition |
+| `gates.confirm_milestone_scope` | boolean | `true` | Confirm milestone scope before completion |
 
 ---
 

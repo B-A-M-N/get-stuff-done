@@ -1,0 +1,95 @@
+{
+  "schema": "gsd_enforcement_boundary_audit_v1",
+  "generated_at": "2026-03-28T21:18:27.485Z",
+  "phase": "76",
+  "policy_paths": {
+    "sanctioned_interfaces": ".planning/policy/sanctioned-interfaces.yaml",
+    "required_validators": ".planning/policy/required-validators.yaml"
+  },
+  "audited_surfaces": [
+    ".planning/STATE.md",
+    ".planning/ROADMAP.md",
+    ".planning/drift/latest-report.json",
+    ".planning/drift/latest-reconciliation.json",
+    ".planning/health/latest-degraded-state.json"
+  ],
+  "findings": [],
+  "probes": [
+    {
+      "id": "context_plan_phase_guard",
+      "surface": "context build --workflow plan-phase",
+      "command": "context build --workflow plan-phase --raw",
+      "status": "disproven",
+      "success": false,
+      "exit_code": 1,
+      "expected": {
+        "success": false,
+        "canonical_state": "UNSAFE"
+      },
+      "observed": {
+        "allowed": false,
+        "workflow": "context:plan-phase",
+        "subsystem": "model_facing_memory",
+        "canonical_state": "UNSAFE",
+        "reason": "canonical_postgres_memory_unavailable",
+        "implications": [
+          "Current truth posture cannot be treated as trustworthy for this workflow.",
+          "Continuing would require fallback or optimistic inference."
+        ],
+        "next_options": [
+          "Run diagnostic health surfaces to inspect the unsafe dependency.",
+          "Restore the canonical dependency or refresh drift/reconciliation truth."
+        ],
+        "aggregate_state": "UNSAFE"
+      }
+    },
+    {
+      "id": "verify_integrity_guard",
+      "surface": "verify integrity",
+      "command": "verify integrity --raw",
+      "status": "disproven",
+      "success": false,
+      "exit_code": 1,
+      "expected": {
+        "success": false,
+        "canonical_state": "UNSAFE"
+      },
+      "observed": {
+        "allowed": false,
+        "workflow": "verify:integrity",
+        "subsystem": "drift_truth",
+        "canonical_state": "UNSAFE",
+        "reason": "drift_truth_missing",
+        "implications": [
+          "Current truth posture cannot be treated as trustworthy for this workflow.",
+          "Continuing would require fallback or optimistic inference."
+        ],
+        "next_options": [
+          "Run diagnostic health surfaces to inspect the unsafe dependency.",
+          "Restore the canonical dependency or refresh drift/reconciliation truth."
+        ],
+        "aggregate_state": "UNSAFE"
+      }
+    },
+    {
+      "id": "diagnostic_health_reader",
+      "surface": "health degraded-mode",
+      "command": "health degraded-mode --raw",
+      "status": "proven",
+      "success": true,
+      "exit_code": 0,
+      "expected": {
+        "success": true,
+        "degraded": true
+      },
+      "observed": "degraded"
+    }
+  ],
+  "summary": {
+    "total": 0,
+    "critical": 0,
+    "major": 0,
+    "minor": 0
+  },
+  "final_status": "VALID"
+}

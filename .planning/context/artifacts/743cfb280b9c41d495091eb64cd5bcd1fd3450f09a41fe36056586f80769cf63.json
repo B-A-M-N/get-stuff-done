@@ -1,0 +1,13 @@
+{
+  "id": "743cfb280b9c41d495091eb64cd5bcd1fd3450f09a41fe36056586f80769cf63",
+  "source_uri": ".planning/phases/22-megaprompt-alignment/22-VALIDATION.md",
+  "type": "internal",
+  "content_markdown": "---\nphase: 22\nslug: megaprompt-alignment\nstatus: ready\nnyquist_compliant: true\nwave_0_complete: true\ncreated: 2026-03-19\n---\n\n# Phase 22 Validation Strategy: Megaprompt Alignment\n\n**Goal:** Verify all agents and workflows honor the invariants and protocols defined in `MEGAPROMPT.md`.\n\n## Validation Infrastructure\n\n| Property | Value |\n|----------|-------|\n| **Framework** | node:test |\n| **Test Suite** | `tests/megaprompt-compliance.test.cjs` |\n| **Coverage Gate** | 100% line coverage for ITL package |\n\n## Audit Matrix\n\n| P-ID | Requirement | Test Type | Automated Command | Status |\n|------|-------------|-----------|-------------------|--------|\n| P1 | Executor Context Compliance | instruction | `grep \"CONTEXT.md\" agents/gsd-executor.md` | ⬜ pending |\n| P2 | Cross-Plan Data Gate | unit | `node --test tests/plan-checker.test.cjs` | ⬜ pending |\n| P3 | Quick Scope Probing | interaction | `grep \"Complexity check\" commands/gsd/quick.md` | ⬜ pending |\n| P4 | verify-work Auto-Diagnosis | workflow | `grep \"gsd-debugger\" get-stuff-done/workflows/verify-work.md` | ⬜ pending |\n| P5 | debug Structured Diagnosis | interaction | `grep \"hypothesis\" commands/gsd/debug.md` | ⬜ pending |\n| P6 | CHANGELOG Accuracy | doc | `grep \"planned\" CHANGELOG.md` | ⬜ pending |\n\n## Success Criteria\n\n- [ ] All P1-P6 priorities implemented.\n- [ ] No un-implemented features described as shipped in CHANGELOG.md.\n- [ ] All workflows mention the `MEGAPROMPT.md` if they spawn agents.\n- [ ] 100% coverage maintained.\n",
+  "content_hash": "af42f8d7ae98b7bfc54b7d2fb96e5714d9e58d970f3efba06a305ccc15880019",
+  "normalized_at": "2026-03-29T18:41:58.374Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "id": "e903d8d4ee775ae051f7d2225273c5bab0e5079e85bc5fd025c71f1c012ad538",
+  "source_uri": ".planning/phases/79-end-to-end-integrity-gauntlet/79-COVERAGE-MAP.md",
+  "type": "internal",
+  "content_markdown": "# Phase 79 Coverage Map\n\n| Failure Class | Requirements | Single | Mixed | Scenarios | Surfaces |\n|---------------|--------------|--------|-------|-----------|----------|\n| fake_verification | TRUTH-GAUNTLET-01, TRUTH-BYPASS-01 | 2 | 1 | fake-verification-forged-verdict, fake-verification-missing-truth-table, mixed-fake-proof-and-drift | verification, phase-truth, drift-report |\n| missing_commits | TRUTH-GAUNTLET-01, TRUTH-BYPASS-01 | 2 | 1 | missing-commit-proof-chain, missing-proof-index-commit, mixed-missing-commit-and-undeclared-degradation | summary, commit-proof, degraded-state |\n| partial_execution | TRUTH-GAUNTLET-01, TRUTH-BYPASS-01 | 3 | 1 | partial-execution-summary-claim, partial-execution-task-gap, checkpoint-orphan-block, mixed-partial-execution-and-fake-verification | summary, verification, complete-task, task-log, checkpoint, verify-integrity, governance |\n| degraded_subsystem | TRUTH-DEGRADE-01, TRUTH-GAUNTLET-01 | 5 | 1 | declared-memory-degradation, declared-firecrawl-degradation, undeclared-memory-degradation, firecrawl-context-governance-bypass, mixed-declared-firecrawl-and-undeclared-memory, plane-configured-truth-path | health-degraded-mode, memory-truth, firecrawl, retrieval-posture, degraded-state, context-build, governance, plane |\n| drift_contradiction | TRUTH-DRIFT-02, TRUTH-GAUNTLET-01 | 3 | 1 | memory-truth-contradiction, retrieval-truth-posture-downgrade, drift-reconciliation-trigger, mixed-retrieval-downgrade-and-memory-contradiction | memory-truth, drift-report, firecrawl, retrieval-posture, context-build, reconciliation |\n\n## Explicit Requirement Notes\n\n- Retrieval-facing truth posture is covered by scenarios that include `retrieval-posture` surfaces.\n- Authoritative context-build coverage is covered by scenarios that include `context-build` surfaces.\n- Memory truth contradiction coverage is covered by scenarios that include `memory-truth` plus either `drift-report` or `degraded-state`.\n- Plane-configured coverage is preserved as capability-gated live coverage through `plane-configured-truth-path`.\n",
+  "content_hash": "f09d398a41733c4ea4fb6e447cdaca867c882d3ee11fd844758348b2eaf7ce17",
+  "normalized_at": "2026-03-29T18:41:57.163Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  }
+}

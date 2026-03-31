@@ -1,0 +1,78 @@
+phase: "77"
+title: "Execution Surface Governance"
+generated_at: "2026-03-28T21:33:43.896Z"
+strict: false
+inputs:
+  verification: ".planning/phases/77-execution-surface-governance/77-VERIFICATION.md"
+  summaries:
+    - ".planning/phases/77-execution-surface-governance/77-01-SUMMARY.md"
+    - ".planning/phases/77-execution-surface-governance/77-02-SUMMARY.md"
+  drift_reports:
+    - ".planning/drift/latest-report.json"
+  reconciliation:
+    - ".planning/drift/latest-reconciliation.json"
+  degraded_state:
+    - ".planning/health/latest-degraded-state.json"
+claimed_outcomes:
+  - id: null
+    description: "Narrow enforcement to authoritative truth boundaries so execution stays fast, recovery stays available, and only truth-bearing state transitions block under unsafe posture."
+    supporting_artifacts:
+      - ".planning/phases/77-execution-surface-governance/77-01-SUMMARY.md"
+      - ".planning/phases/77-execution-surface-governance/77-02-SUMMARY.md"
+  - id: null
+    description: "canonical command governance policy map"
+    supporting_artifacts:
+      - ".planning/phases/77-execution-surface-governance/77-01-SUMMARY.md"
+  - id: null
+    description: "deterministic route classification helper"
+    supporting_artifacts:
+      - ".planning/phases/77-execution-surface-governance/77-01-SUMMARY.md"
+  - id: null
+    description: "default warn_only fallback for future commands"
+    supporting_artifacts:
+      - ".planning/phases/77-execution-surface-governance/77-01-SUMMARY.md"
+  - id: null
+    description: "governance-aware CLI blocking only at authoritative truth transitions"
+    supporting_artifacts:
+      - ".planning/phases/77-execution-surface-governance/77-02-SUMMARY.md"
+  - id: null
+    description: "structured warn-only route warnings"
+    supporting_artifacts:
+      - ".planning/phases/77-execution-surface-governance/77-02-SUMMARY.md"
+  - id: null
+    description: "guaranteed recovery-only route availability under unsafe posture"
+    supporting_artifacts:
+      - ".planning/phases/77-execution-surface-governance/77-02-SUMMARY.md"
+observable_evidence:
+  - type: "file"
+    ref: ".planning/phases/77-execution-surface-governance/77-01-SUMMARY.md"
+  - type: "file"
+    ref: ".planning/phases/77-execution-surface-governance/77-02-SUMMARY.md"
+  - type: "file"
+    ref: ".planning/phases/77-execution-surface-governance/77-VERIFICATION.md"
+  - type: "command"
+    ref: "phase-truth generate 77"
+gaps:
+  - type: "degraded_state_caveat"
+    description: "Current degraded truth posture is UNSAFE."
+  - type: "workflow_block"
+    description: "context:plan-phase blocked by model_facing_memory: canonical_postgres_memory_unavailable"
+  - type: "workflow_block"
+    description: "context:execute-plan blocked by model_facing_memory: canonical_postgres_memory_unavailable"
+  - type: "workflow_block"
+    description: "verify:integrity blocked by drift_truth: drift_truth_stale"
+  - type: "workflow_block"
+    description: "verify:workflow-readiness blocked by drift_truth: drift_truth_stale"
+drift_effects:
+  []
+reconciliation_effects:
+  []
+escalations:
+  []
+final_status: "CONDITIONAL"
+status_reason:
+  - "Current degraded truth posture is UNSAFE."
+  - "context:plan-phase blocked by model_facing_memory: canonical_postgres_memory_unavailable"
+  - "context:execute-plan blocked by model_facing_memory: canonical_postgres_memory_unavailable"
+  - "verify:integrity blocked by drift_truth: drift_truth_stale"
+  - "verify:workflow-readiness blocked by drift_truth: drift_truth_stale"

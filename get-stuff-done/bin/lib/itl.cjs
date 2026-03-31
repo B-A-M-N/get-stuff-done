@@ -137,7 +137,8 @@ function persistItlOutput(cwd, phaseNumber, itlResult) {
 
   const targetPath = path.join(phasesDir, phaseDir, `${paddedPhase}-ITL.json`);
   fs.writeFileSync(targetPath, JSON.stringify(itlResult, null, 2), 'utf-8');
-  return targetPath;
+  // Return path relative to cwd for easier consumption by callers/tests
+  return path.relative(cwd, targetPath);
 }
 
 function buildClarificationQuestions(ambiguity, ambientContext) {

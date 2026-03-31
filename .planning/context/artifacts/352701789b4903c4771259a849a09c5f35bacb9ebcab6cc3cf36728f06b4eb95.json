@@ -1,0 +1,13 @@
+{
+  "id": "352701789b4903c4771259a849a09c5f35bacb9ebcab6cc3cf36728f06b4eb95",
+  "source_uri": ".planning/phases/10-regression-audit/10-02-SUMMARY.md",
+  "type": "internal",
+  "content_markdown": "---\nphase: \"10\"\nplan: \"02\"\nstatus: \"Complete\"\ncompleted: \"2026-03-16\"\nrequirements:\n\n  - \"CP-01\"\n  - \"TR-04\"\n\n---\n\n# SUMMARY: 10-02 - Audit planning rigor continuity and document residual risks\n\n## Outcome\n\nThe narrative-first rollout still preserves original GSD governance boundaries across discuss, research, planning, and verification. Residual enforcement gaps are now documented plainly instead of being hidden behind optimistic wording.\n\n## Implemented\n\n- Audited discuss, research, planning, and verification workflow/docs surfaces for governance drift.\n- Confirmed the current contract still preserves:\n  - explicit decisions as locked choices,\n  - inferred cues as guidance by default,\n  - checker/validation and human-verification expectations,\n  - scope guardrails and bounded clarification behavior.\n- Documented the remaining residual risk clearly: the adversarial gate exists, but not every downstream workflow explicitly consumes it yet.\n\n## Verification\n\n- `node --test tests/dostuff.test.cjs tests/itl.test.cjs`\n- `rg -n \"Invariant safety|Current enforcement note|Audit note\" get-stuff-done/workflows/help.md docs/COMMANDS.md`\n\n## Notes\n\n- This phase establishes an honest baseline for later enforcement work rather than pretending the rollout is already fully complete.\n",
+  "content_hash": "c3763d62137cafecadae41642d8ff23c96a1015552167b9116a03332ffb3ff5b",
+  "normalized_at": "2026-03-29T18:41:58.828Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  }
+}

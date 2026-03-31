@@ -1,0 +1,13 @@
+{
+  "id": "a685eaa4e71d4995aedfe6036a249346a65a869484e8673c33b224cd70fdd005",
+  "source_uri": ".planning/phases/21-brownfield-resilience/21-VALIDATION.md",
+  "type": "internal",
+  "content_markdown": "---\nphase: 21\nslug: brownfield-resilience\nstatus: ready\nnyquist_compliant: true\nwave_0_complete: true\ncreated: 2026-03-17\n---\n\n# Phase 21 Validation Strategy: Brownfield Mega Audit\n\n**Goal:** Zero-sanitization stress test of v0.2.0 orchestration rules against legacy chaos.\n\n## Validation Infrastructure\n\n| Property | Value |\n|----------|-------|\n| **Framework** | node:test |\n| **Test Suite** | `tests/brownfield-mega-audit.test.cjs` |\n| **Legacy Fixtures** | `.planning/phases/01-14` un-sanitized |\n\n## Audit Matrix\n\n| Vector | Requirement | Test Type | Automated Command | Status |\n|--------|-------------|-----------|-------------------|--------|\n| Schema Integrity | Vector 1 | contract | `node --test tests/brownfield-mega-audit.test.cjs` | ⬜ pending |\n| Deadlock Resilience | Vector 2 | E2E | `node --test tests/brownfield-mega-audit.test.cjs` | ⬜ pending |\n| Context Scale | Vector 3 | scale | `node --test tests/brownfield-mega-audit.test.cjs` | ⬜ pending |\n| Library Compatibility | Vector 4 | integration | `node --test tests/brownfield-mega-audit.test.cjs` | ⬜ pending |\n\n## Critical Thresholds (Red Flags)\n\n- **Unhandled Deadlocks:** 0 tolerance.\n- **Core Logic Breaches:** 0 tolerance.\n- **Context Hallucinations:** < 2% variance.\n- **Latency:** < 2 seconds added per cycle.\n",
+  "content_hash": "8f792c01ca3893f481b00857803e1e6710df249336c59986e17f1d150e5839aa",
+  "normalized_at": "2026-03-29T18:41:58.400Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  }
+}

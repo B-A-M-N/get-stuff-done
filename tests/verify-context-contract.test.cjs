@@ -155,8 +155,8 @@ describe('verify context-contract command', () => {
         );
         assert.strictEqual(calls.length, 1);
         assert.strictEqual(calls[0].result.valid, false);
-        assert.ok(calls[0].result.errors.some(error => error.includes('Unresolved ambiguity appears in the plan')));
-        assert.ok(calls[0].result.errors.some(error => error.includes('Interpreted assumption appears in the plan')));
+        assert.ok(calls[0].result.errors.some(error => error.includes('Unresolved ambiguity appears in the research')));
+        assert.ok(calls[0].result.errors.some(error => error.includes('Interpreted assumption appears in the research')));
       });
     } finally {
       cleanup(tmpDir);

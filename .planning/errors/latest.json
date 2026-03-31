@@ -1,0 +1,9 @@
+{
+  "timestamp": "2026-03-30T13:20:09.818Z",
+  "command": "/home/bamn/get-stuff-done/tests/synthesis-store.test.cjs",
+  "cwd": "/home/bamn/get-stuff-done",
+  "env": {},
+  "message": "poolToClose.end is not a function",
+  "stack": "TypeError: poolToClose.end is not a function\n    at SecondBrain.close (/home/bamn/get-stuff-done/get-stuff-done/bin/lib/second-brain.cjs:1843:27)\n    at SecondBrain.resetForTests (/home/bamn/get-stuff-done/get-stuff-done/bin/lib/second-brain.cjs:1860:16)\n    at TestContext.<anonymous> (/home/bamn/get-stuff-done/tests/synthesis-store.test.cjs:49:52)\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at async TestHook.run (node:internal/test_runner/test:1054:7)\n    at async Suite.runHook (node:internal/test_runner/test:965:9)\n    at async node:internal/test_runner/test:1010:9\n    at async Test.run (node:internal/test_runner/test:1069:7)\n    at async Promise.all (index 0)\n    at async Suite.run (node:internal/test_runner/test:1442:7)",
+  "type": "unhandledRejection"
+}

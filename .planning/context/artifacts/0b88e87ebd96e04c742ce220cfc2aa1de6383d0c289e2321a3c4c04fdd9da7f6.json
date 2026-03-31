@@ -1,0 +1,13 @@
+{
+  "id": "0b88e87ebd96e04c742ce220cfc2aa1de6383d0c289e2321a3c4c04fdd9da7f6",
+  "source_uri": ".planning/phases/03-coexistence-safe-install-isolation/03-02-SUMMARY.md",
+  "type": "internal",
+  "content_markdown": "---\nphase: \"03\"\nplan: \"02\"\nstatus: \"Complete\"\ncompleted: \"2026-03-16\"\nrequirements:\n\n  - \"FR-16\"\n\n---\n\n# SUMMARY: 03-02 - Scope uninstall, manifest, and agents to fork-owned assets\n\n## Outcome\n\nInstall lifecycle bookkeeping is now fork-scoped so this repo can coexist with an upstream GSD install.\n\n## Implemented\n\n- `bin/install.js` manifest and patch-backup files are now fork-owned (`dostuff-file-manifest.json`, `dostuff-local-patches`).\n- Manifest generation now records only fork-owned command, engine, and agent assets.\n- Installed agents are renamed to `dostuff-*`, and uninstall removes only fork-owned skills, agents, engine assets, hooks, and settings entries.\n- Cleanup logic no longer rewrites or removes upstream `gsd-*` settings/hook assets during fork lifecycle operations.\n- Added direct coexistence regression coverage in `tests/install-isolation.test.cjs`.\n\n## Verification\n\n- `node --test tests/install-hooks.test.cjs`\n- `node --test tests/antigravity-install.test.cjs`\n- `node --test tests/install-isolation.test.cjs`\n- `node --test --test-name-pattern \"Copilot manifest and patches fixes|copyCommandsAsCopilotSkills|Copilot uninstall skill removal|Copilot instructions merge/strip|Copilot agent conversion - real files\" tests/copilot-install.test.cjs`\n- Direct shell lifecycle checks:\n  - `node bin/install.js --copilot --local`\n  - `node bin/install.js --copilot --local --uninstall`\n  - `node bin/install.js --claude --local`\n  - `node bin/install.js --claude --local --uninstall`\n\n## Notes\n\n- Full Copilot E2E `node:test` coverage still hits sandbox `spawnSync ... EPERM` when subprocess-backed tests invoke the installer, but the equivalent install/uninstall flows were verified directly outside the test harness.\n",
+  "content_hash": "6e29d92c2b49155329a5ca0afc629c5851b7c53435739edd6ec6d9408fc21229",
+  "normalized_at": "2026-03-29T18:41:59.012Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  }
+}

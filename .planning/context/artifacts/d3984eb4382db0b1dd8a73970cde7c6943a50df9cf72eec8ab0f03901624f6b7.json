@@ -1,0 +1,13 @@
+{
+  "id": "d3984eb4382db0b1dd8a73970cde7c6943a50df9cf72eec8ab0f03901624f6b7",
+  "source_uri": ".planning/phases/81-audit-traceability-nyquist-closure/81-VALIDATION.md",
+  "type": "internal",
+  "content_markdown": "---\nphase: \"81\"\nvalidation_type: \"nyquist_compliance\"\nnyquist_compliant: true\nstatus: \"compliant\"\ncreated: 2026-03-28\nupdated: 2026-03-28\n---\n\n# Phase 81 Nyquist Validation\n\n## Summary\n\nPhase 81 closure artifacts meet all Nyquist verification requirements:\n\n- ✅ **VERIFICATION.md** exists with explicit status, evidence, and verification commands\n- ✅ **TRUTH.yaml** exists with complete schema (final_status: VALID, gaps: [], closure_context)\n- ✅ All required traceability documents reconciled (REQUIREMENTS.md, ROADMAP.md, STATE.md)\n- ✅ Final milestone audit passed (zero gaps)\n- ✅ Manifest records all mutations from 81-02\n\n## Compliance Check\n\n```bash\n\n# Verify Phase 81 verification artifact\n\nnode get-stuff-done/bin/gsd-tools.cjs verify verification-artifact .planning/phases/81-audit-traceability-nyquist-closure/81-VERIFICATION.md --raw\n\n# Verify truth final_status\n\ngrep -q \"final_status: \\\"VALID\\\"\" .planning/phases/81-audit-traceability-nyquist-closure/81-TRUTH.yaml\n```\n\n## Test Coverage\n\n- Phase 81 verification and truth validated immediately after creation\n- Pre-existing artifacts (phases 70–80.1) confirmed untouched via manifest\n- Final audit (milestone-final.json) reports PASS\n\n**Nyquist Compliant**: true\n",
+  "content_hash": "34466bf9247539aa52413937f48b88e05f0e202506c8c057a6f1891efe4561d7",
+  "normalized_at": "2026-03-29T18:41:56.993Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  }
+}

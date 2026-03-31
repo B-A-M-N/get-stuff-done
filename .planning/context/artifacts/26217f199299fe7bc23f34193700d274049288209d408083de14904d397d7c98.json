@@ -1,0 +1,13 @@
+{
+  "id": "26217f199299fe7bc23f34193700d274049288209d408083de14904d397d7c98",
+  "source_uri": ".planning/phases/75-degraded-mode-enforcement/75-TRUTH.md",
+  "type": "internal",
+  "content_markdown": "# Phase 75: Degraded Mode Enforcement — Truth\n\n**Generated:** 2026-03-28T20:37:04.925Z\n**Final Status:** VALID\n\n## Status Reasons\n\n- All claimed outcomes are backed and no unresolved gaps or downgrades remain.\n\n## Inputs\n\n- Verification: .planning/phases/75-degraded-mode-enforcement/75-VERIFICATION.md\n- Summaries: .planning/phases/75-degraded-mode-enforcement/75-01-SUMMARY.md, .planning/phases/75-degraded-mode-enforcement/75-02-SUMMARY.md\n- Drift reports: .planning/drift/latest-report.json\n- Reconciliation: .planning/drift/latest-reconciliation.json\n- Degraded state: .planning/health/latest-degraded-state.json\n\n## Claimed Outcomes\n\n- Make degraded systems explicit, behaviorally meaningful, and non-silent across truth-bearing workflows.\n- canonical degraded-policy evaluator and artifact\n- normalized HEALTHY DEGRADED UNSAFE subsystem vocabulary\n- shared degraded truth across brain health and health degraded-mode\n- top-level CLI blocking for unsafe truth-bearing workflows\n- verification and context-build backstop enforcement\n- structured blocked-flow responses with reason implications and next options\n\n## Observable Evidence\n\n- file: .planning/phases/75-degraded-mode-enforcement/75-01-SUMMARY.md\n- file: .planning/phases/75-degraded-mode-enforcement/75-02-SUMMARY.md\n- file: .planning/phases/75-degraded-mode-enforcement/75-VERIFICATION.md\n- command: phase-truth generate 75\n\n## Gaps\n\n- None\n\n## Drift Effects\n\n- None\n\n## Reconciliation Effects\n\n- None\n",
+  "content_hash": "4d5f8ed5e453568551b9d6fc778e365b99dadacd6b304947df77721a30a327f9",
+  "normalized_at": "2026-03-29T18:41:57.327Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  }
+}

@@ -1,0 +1,74 @@
+phase: "78"
+title: "Phase Truth Contracts"
+generated_at: "2026-03-28T21:33:44.088Z"
+strict: true
+inputs:
+  verification: ".planning/phases/78-phase-truth-contracts/78-VERIFICATION.md"
+  summaries:
+    - ".planning/phases/78-phase-truth-contracts/78-01-SUMMARY.md"
+    - ".planning/phases/78-phase-truth-contracts/78-02-SUMMARY.md"
+  drift_reports:
+    - ".planning/drift/latest-report.json"
+  reconciliation:
+    - ".planning/drift/latest-reconciliation.json"
+  degraded_state:
+    - ".planning/health/latest-degraded-state.json"
+claimed_outcomes:
+  - id: null
+    description: "Standardize phase-level truth artifacts so every phase reports claimed outcomes, observable evidence, gaps, and final validity status."
+    supporting_artifacts:
+      - ".planning/phases/78-phase-truth-contracts/78-01-SUMMARY.md"
+      - ".planning/phases/78-phase-truth-contracts/78-02-SUMMARY.md"
+  - id: null
+    description: "machine-authoritative phase truth derivation contract"
+    supporting_artifacts:
+      - ".planning/phases/78-phase-truth-contracts/78-01-SUMMARY.md"
+  - id: null
+    description: "direct `phase-truth generate <phase>` CLI surface"
+    supporting_artifacts:
+      - ".planning/phases/78-phase-truth-contracts/78-01-SUMMARY.md"
+  - id: null
+    description: "automatic truth regeneration after verification, reconciliation, and phase completion"
+    supporting_artifacts:
+      - ".planning/phases/78-phase-truth-contracts/78-01-SUMMARY.md"
+  - id: null
+    description: "backfilled phase truth artifacts for phases 70 through 77"
+    supporting_artifacts:
+      - ".planning/phases/78-phase-truth-contracts/78-02-SUMMARY.md"
+  - id: null
+    description: "current-truth phase status projection across the truth-hardening milestone"
+    supporting_artifacts:
+      - ".planning/phases/78-phase-truth-contracts/78-02-SUMMARY.md"
+observable_evidence:
+  - type: "file"
+    ref: ".planning/phases/78-phase-truth-contracts/78-01-SUMMARY.md"
+  - type: "file"
+    ref: ".planning/phases/78-phase-truth-contracts/78-02-SUMMARY.md"
+  - type: "file"
+    ref: ".planning/phases/78-phase-truth-contracts/78-VERIFICATION.md"
+  - type: "command"
+    ref: "phase-truth generate 78"
+gaps:
+  - type: "degraded_state_caveat"
+    description: "Current degraded truth posture is UNSAFE."
+  - type: "workflow_block"
+    description: "context:plan-phase blocked by model_facing_memory: canonical_postgres_memory_unavailable"
+  - type: "workflow_block"
+    description: "context:execute-plan blocked by model_facing_memory: canonical_postgres_memory_unavailable"
+  - type: "workflow_block"
+    description: "verify:integrity blocked by drift_truth: drift_truth_stale"
+  - type: "workflow_block"
+    description: "verify:workflow-readiness blocked by drift_truth: drift_truth_stale"
+drift_effects:
+  []
+reconciliation_effects:
+  []
+escalations:
+  []
+final_status: "CONDITIONAL"
+status_reason:
+  - "Current degraded truth posture is UNSAFE."
+  - "context:plan-phase blocked by model_facing_memory: canonical_postgres_memory_unavailable"
+  - "context:execute-plan blocked by model_facing_memory: canonical_postgres_memory_unavailable"
+  - "verify:integrity blocked by drift_truth: drift_truth_stale"
+  - "verify:workflow-readiness blocked by drift_truth: drift_truth_stale"

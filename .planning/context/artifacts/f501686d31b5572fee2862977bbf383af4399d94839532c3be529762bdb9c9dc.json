@@ -1,0 +1,21 @@
+{
+  "id": "f501686d31b5572fee2862977bbf383af4399d94839532c3be529762bdb9c9dc",
+  "source_uri": "get-stuff-done/bin/gsd-shell.js",
+  "type": "internal",
+  "content_markdown": "```javascript\n#!/usr/bin/env node\n\n/**\n * gsd-shell — Interceptor and sandbox for GSD shell commands.\n * \n * This proof-of-concept shell interceptor demonstrates how to wrap \n * arbitrary shell execution with security policies defined in sandbox.cjs.\n */\n\nconst { spawnSync } = require('child_process');\nconst path = require('path');\nconst { checkPath } = require('./lib/sandbox.cjs');\n\n// Get command and arguments\nconst args = process.argv.slice(2);\n\nif (args.length === 0) {\n  process.exit(0);\n}\n\nconst command = args[0];\nconst cmdArgs = args.slice(1);\nconst cwd = process.cwd();\n\n// Analyze arguments for potential paths\n// Simple POC: any argument that doesn't start with '-' is treated as a path.\nfor (const arg of cmdArgs) {\n  if (!arg.startsWith('-')) {\n    const check = checkPath(cwd, arg);\n    if (!check.allowed) {\n      console.error(`ERROR: Access to path \"${arg}\" denied. Reason: ${check.reason}`);\n      process.exit(13);\n    }\n  }\n}\n\n// Special case: check if the command itself is targeting a denied path if it's a single argument command\n// or if we're just checking the command's arguments.\n\n// Execute the command if all checks passed\nconst result = spawnSync(command, cmdArgs, {\n  stdio: 'inherit',\n  shell: true\n});\n\nprocess.exit(result.status ?? 0);\n\n```",
+  "content_hash": "397aa3d30693eee9fa5577041af4410c7c14a779b9b58371bc899c3696bbaae8",
+  "normalized_at": "2026-03-29T18:41:59.207Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  },
+  "analysis": {
+    "symbols": [],
+    "dependencies": [
+      "child_process",
+      "path",
+      "./lib/sandbox.cjs"
+    ]
+  }
+}

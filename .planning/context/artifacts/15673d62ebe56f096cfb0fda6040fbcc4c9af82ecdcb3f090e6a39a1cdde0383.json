@@ -1,0 +1,13 @@
+{
+  "id": "15673d62ebe56f096cfb0fda6040fbcc4c9af82ecdcb3f090e6a39a1cdde0383",
+  "source_uri": ".planning/phases/13-multi-provider-support/13-02-SUMMARY.md",
+  "type": "internal",
+  "content_markdown": "# SUMMARY: 13-02 - Wire provider selection, prompt templates, and contract coverage\n\n## Outcome\n\nExposed the multi-provider runtime through explicit provider selection and updated the documentation/test contract so provider support is clear without forcing live APIs into the default development path.\n\n## What Changed\n\n- Updated [gsd-tools.cjs](/home/bamn/get-stuff-done/get-stuff-done/bin/gsd-tools.cjs) so ITL commands accept:\n  - `--provider`\n  - `--provider-response-json`\n  - `--provider-response-file`\n- Updated user-facing/runtime docs in:\n  - [help.md](/home/bamn/get-stuff-done/get-stuff-done/workflows/help.md)\n  - [COMMANDS.md](/home/bamn/get-stuff-done/docs/COMMANDS.md)\n  - [ARCHITECTURE.md](/home/bamn/get-stuff-done/docs/ARCHITECTURE.md)\n- Locked those docs with contract assertions in [dostuff.test.cjs](/home/bamn/get-stuff-done/tests/dostuff.test.cjs).\n\n## Verification\n\n- `node --test tests/itl.test.cjs tests/dostuff.test.cjs`\n- `npm run test:coverage`\n\n## Notes\n\nMulti-provider support is now explicit in the runtime contract, while live provider execution remains optional and outside the default deterministic test path.\n",
+  "content_hash": "6f7602f2a1d6a26f107adb1a4f5fe524378d53a8fe3dea340ace922901989fcc",
+  "normalized_at": "2026-03-29T18:41:58.760Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  }
+}

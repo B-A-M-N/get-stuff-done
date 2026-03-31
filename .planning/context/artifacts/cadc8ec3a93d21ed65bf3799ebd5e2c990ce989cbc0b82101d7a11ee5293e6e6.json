@@ -1,0 +1,13 @@
+{
+  "id": "cadc8ec3a93d21ed65bf3799ebd5e2c990ce989cbc0b82101d7a11ee5293e6e6",
+  "source_uri": "file://.planning/phases/82-drift-remediation-canonical-restoration/82-02-PLAN.md",
+  "type": "internal",
+  "content_markdown": "---\nphase: 82\ntitle: Resolve Phase 70 active CRITICAL drift\nplan: 02\ntype: execute\nwave: 1\ndepends_on: [\"82-01\"]\nautonomous: true\n---\n\n\n### Acceptance\n- No CRITICAL drift remaining in Phase 70 artifacts (proven by before/after reports)\n\n### Verification\n`shell: gsd-tools drift scan | grep -q CRITICAL && exit 1 || exit 0`\n",
+  "content_hash": "3b085cb46ec9e336901f4d7ad616180e8f5d7b4ed52de0783aa2bf7b40afe925",
+  "normalized_at": "2026-03-29T18:48:10.360Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.0.0",
+    "parameters_hash": null
+  }
+}

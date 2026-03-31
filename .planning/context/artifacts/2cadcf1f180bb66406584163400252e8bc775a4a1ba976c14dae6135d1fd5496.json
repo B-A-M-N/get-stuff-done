@@ -1,0 +1,13 @@
+{
+  "id": "2cadcf1f180bb66406584163400252e8bc775a4a1ba976c14dae6135d1fd5496",
+  "source_uri": ".planning/phases/79-end-to-end-integrity-gauntlet/79-TRUTH.md",
+  "type": "internal",
+  "content_markdown": "# Phase 79: End-to-End Integrity Gauntlet — Truth\n\n**Generated:** 2026-03-28T20:37:05.286Z\n**Final Status:** VALID\n\n## Status Reasons\n\n- All claimed outcomes are backed and no unresolved gaps or downgrades remain.\n\n## Inputs\n\n- Verification: .planning/phases/79-end-to-end-integrity-gauntlet/79-VERIFICATION.md\n- Summaries: .planning/phases/79-end-to-end-integrity-gauntlet/79-01-SUMMARY.md\n- Drift reports: .planning/drift/latest-report.json\n- Reconciliation: .planning/drift/latest-reconciliation.json\n- Degraded state: .planning/health/latest-degraded-state.json\n\n## Claimed Outcomes\n\n- Validate the entire truth-enforcement stack under adversarial failure conditions before milestone closeout.\n- deterministic hostile gauntlet harness driven through sanctioned CLI routes\n- declarative scenario catalog with explicit retrieval, memory, degradation, and governance coverage\n- rendered gauntlet spec, results, coverage map, drift report, and final verification artifacts\n- milestone closeout enforcement that blocks v0.7.0 when Phase 79 verification is missing or invalid\n\n## Observable Evidence\n\n- file: .planning/phases/79-end-to-end-integrity-gauntlet/79-01-SUMMARY.md\n- file: .planning/phases/79-end-to-end-integrity-gauntlet/79-VERIFICATION.md\n- command: phase-truth generate 79\n\n## Gaps\n\n- None\n\n## Drift Effects\n\n- None\n\n## Reconciliation Effects\n\n- None\n",
+  "content_hash": "949f6e07879d15d4764ce10e0e77334c2ab2e04a52c84bef4e0b33a79070626f",
+  "normalized_at": "2026-03-29T18:41:57.136Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  }
+}

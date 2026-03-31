@@ -23,7 +23,10 @@ const { runVerifyIntegrity } = require('./verify.cjs');
 const contextStore = require('./context-store.cjs');
 const contextArtifact = require('./context-artifact.cjs');
 const schemaRegistry = require('./schema-registry.cjs');
+const secondBrain = require('./second-brain.cjs');
+const openBrain = require('./open-brain.cjs');
 const crypto = require('crypto');
+const degradedMode = require('./degraded-mode.cjs');
 
 // ─── Fragment schemas ─────────────────────────────────────────────────────────
 
@@ -58,6 +61,59 @@ const WarningSchema = z.object({
   severity: z.enum(['stop', 'ignorable']),
 });
 
+const MemoryEntrySchema = z.object({
+  memory_kind: z.string(),
+  title: z.string(),
+  body_markdown: z.string(),
+  source_ref: z.string().nullable(),
+  created_at: z.string().nullable(),
+  importance: z.number(),
+  phase: z.string().nullable(),
+  plan: z.string().nullable(),
+});
+
+const MemoryPackSchema = z.object({
+  available: z.boolean(),
+  blocked: z.boolean(),
+  reason: z.string().nullable().optional(),
+  message: z.string().nullable().optional(),
+  total_entries: z.number().int().nonnegative(),
+  recent_decisions: z.array(MemoryEntrySchema),
+  prior_summaries: z.array(MemoryEntrySchema),
+  known_pitfalls: z.array(MemoryEntrySchema),
+  unresolved_blockers: z.array(MemoryEntrySchema),
+  backend_state: z.unknown().optional(),
+});
+
+const OpenBrainRecallEntrySchema = z.object({
+  id: z.union([z.string(), z.number()]).transform((value) => String(value)),
+  title: z.string(),
+  body_markdown: z.string(),
+  source_uri: z.string().nullable(),
+  project_scope: z.string().nullable(),
+  ranking: z.object({
+    score: z.number(),
+    similarity: z.number().optional(),
+    recency: z.number().optional(),
+    reuse: z.number().optional(),
+    feedback: z.number().optional(),
+    project_scope_match: z.number().optional(),
+    importance: z.number().optional(),
+  }),
+});
+
+const OpenBrainRecallPackSchema = z.object({
+  available: z.boolean(),
+  blocked: z.boolean(),
+  reason: z.string().nullable().optional(),
+  message: z.string().nullable().optional(),
+  total_entries: z.number().int().nonnegative(),
+  total_candidates: z.number().int().nonnegative(),
+  entries: z.array(OpenBrainRecallEntrySchema),
+  recall_event: z.object({ id: z.union([z.string(), z.number()]).transform((value) => String(value)) }).nullable().optional(),
+  backend_state: z.unknown().optional(),
+});
+
 // ─── Per-workflow schemas ─────────────────────────────────────────────────────
 // Each workflow declares exactly the fields it needs. Add new workflows here;
 // no other file needs to change. Bump schema_version on breaking changes.
@@ -77,10 +133,12 @@ const IntentFingerprintSchema = z.object({
 
 const SCHEMAS = {
   'execute-plan': z.object({
-    schema_version: z.literal(2),
+    schema_version: z.literal(4),
     workflow: z.literal('execute-plan'),
     git: GitStateSchema,
     pointer: PlanPointerSchema,
+    memory_pack: MemoryPackSchema,
+    open_brain_recall: OpenBrainRecallPackSchema,
     pending_gates: z.array(GateSummarySchema),
     last_task: TaskEntrySchema,
     checkpoint_present: z.boolean(),
@@ -103,12 +161,14 @@ const SCHEMAS = {
   }),
 
   'plan-phase': z.object({
-    schema_version: z.literal(1),
+    schema_version: z.literal(3),
     workflow: z.literal('plan-phase'),
     git: GitStateSchema,
     next_phase: z.number().nullable(),
     roadmap_exists: z.boolean(),
     research_exists: z.boolean(),
+    memory_pack: MemoryPackSchema,
+    open_brain_recall: OpenBrainRecallPackSchema,
     warnings: z.array(WarningSchema),
     firecrawl_parity: z.boolean().default(false),
   }),
@@ -141,7 +201,17 @@ function readPlanPointer(cwd, phaseOverride, planOverride) {
         const [k, ...rest] = line.split(':');
         const val = rest.join(':').trim();
         if (k.trim() === 'current_phase' && phase == null) phase = isNaN(Number(val)) ? null : Number(val);
-        if (k.trim() === 'current_plan' && plan == null) plan = isNaN(Number(val)) ? null : Number(val);
+        if (k.trim() === 'current_plan' && plan == null) {
+          if (!isNaN(Number(val))) {
+            plan = Number(val);
+          } else {
+            const phasePlanMatch = val.match(/(\d+)-(\d+)/);
+            if (phasePlanMatch) {
+              if (phase == null) phase = Number(phasePlanMatch[1]);
+              plan = Number(phasePlanMatch[2]);
+            }
+          }
+        }
       }
     }
   }
@@ -176,7 +246,8 @@ function readLastTaskEntry(cwd, phase, plan) {
   if (phase == null || plan == null) return null;
   const phaseInfo = findPhaseInternal(cwd, String(phase));
   if (!phaseInfo) return null;
-  const logFile = path.join(cwd, phaseInfo.directory, `${phase}-${plan}-TASK-LOG.jsonl`);
+  const planId = formatMemoryPlan(plan);
+  const logFile = path.join(cwd, phaseInfo.directory, `${phase}-${planId}-TASK-LOG.jsonl`);
   const raw = safeReadFile(logFile);
   if (!raw) return null;
   const lines = raw.trim().split('\n').filter(Boolean);
@@ -189,6 +260,245 @@ function checkpointPresent(cwd, phase) {
   const phaseInfo = findPhaseInternal(cwd, String(phase));
   if (!phaseInfo) return false;
   return safeFs.existsSync(path.join(cwd, phaseInfo.directory, 'CHECKPOINT.md'));
+}
+
+function formatMemoryPhase(value) {
+  if (value == null || value === '') return null;
+  return String(value);
+}
+
+function formatMemoryPlan(value) {
+  if (value == null || value === '') return null;
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return String(value).padStart(2, '0');
+  }
+  if (typeof value === 'string' && /^\d+$/.test(value)) {
+    return value.padStart(2, '0');
+  }
+  return String(value);
+}
+
+function sanitizeMemoryEntry(entry = {}) {
+  return {
+    memory_kind: String(entry.memory_kind || 'unknown'),
+    title: String(entry.title || ''),
+    body_markdown: String(entry.body_markdown || ''),
+    source_ref: entry.source_ref || null,
+    created_at: entry.created_at || null,
+    importance: Number.isFinite(Number(entry.importance)) ? Number(entry.importance) : 3,
+    phase: formatMemoryPhase(entry.phase),
+    plan: formatMemoryPlan(entry.plan),
+  };
+}
+
+function buildOpenBrainQuery({ workflow, pointer = {} } = {}) {
+  const segments = [];
+  if (pointer.phase != null) segments.push(`Phase ${pointer.phase}`);
+  if (pointer.plan != null) segments.push(`plan ${formatMemoryPlan(pointer.plan)}`);
+
+  if (workflow === 'execute-plan') {
+    segments.push('execution workflow context');
+  } else if (workflow === 'plan-phase') {
+    segments.push('planning workflow context');
+  } else {
+    segments.push('workflow context');
+  }
+
+  segments.push('Open Brain recall');
+  return segments.join(' ');
+}
+
+function sanitizeOpenBrainRecallEntry(entry = {}) {
+  return {
+    id: String(entry.id ?? ''),
+    title: String(entry.title || ''),
+    body_markdown: String(entry.body_markdown || ''),
+    source_uri: entry.source_uri || null,
+    project_scope: entry.project_scope || null,
+    ranking: {
+      score: Number(entry.ranking?.score || 0),
+      similarity: Number(entry.ranking?.similarity || 0),
+      recency: Number(entry.ranking?.recency || 0),
+      reuse: Number(entry.ranking?.reuse || 0),
+      feedback: Number(entry.ranking?.feedback || 0),
+      project_scope_match: Number(entry.ranking?.project_scope_match || 0),
+      importance: Number(entry.ranking?.importance || 0),
+    },
+  };
+}
+
+function buildOpenBrainRecallPackResult(result = {}, metadata = {}) {
+  const boundedEntries = Array.isArray(result.selected)
+    ? result.selected.slice(0, metadata.limit ?? 2).map((entry) => sanitizeOpenBrainRecallEntry(entry))
+    : [];
+
+  return {
+    available: metadata.available !== false,
+    blocked: Boolean(metadata.blocked),
+    reason: metadata.reason || null,
+    message: metadata.message || null,
+    total_entries: boundedEntries.length,
+    total_candidates: Number.isFinite(Number(result.total_candidates))
+      ? Number(result.total_candidates)
+      : boundedEntries.length,
+    entries: boundedEntries,
+    recall_event: result.recall_event ? { id: String(result.recall_event.id) } : null,
+    backend_state: metadata.backend_state,
+  };
+}
+
+async function buildOpenBrainRecallPack({ cwd, workflow, pointer = {}, recallReader, projectScope } = {}) {
+  const phase = formatMemoryPhase(pointer.phase);
+  const plan = workflow === 'execute-plan' ? formatMemoryPlan(pointer.plan) : null;
+  const query = buildOpenBrainQuery({ workflow, pointer });
+  const reader = recallReader || ((options) => openBrain.recallForWorkflow(options));
+
+  try {
+    const result = await reader({
+      workflow,
+      phase,
+      plan,
+      project_scope: projectScope || secondBrain.projectId,
+      query,
+      limit: 2,
+    });
+
+    if (!result || result.available === false || result.blocked) {
+      return {
+        open_brain_recall: buildOpenBrainRecallPackResult(
+          { selected: [], total_candidates: 0, recall_event: null },
+          {
+            available: false,
+            blocked: Boolean(result && result.blocked),
+            reason: result && result.reason ? result.reason : 'unavailable',
+            message: result && (result.message || result.detail) ? (result.message || result.detail) : 'Open Brain recall unavailable.',
+            backend_state: result && result.backend_state ? result.backend_state : undefined,
+            limit: 2,
+          }
+        ),
+      };
+    }
+
+    if (cwd && result.recall_event) {
+      openBrain.trackWorkflowRecallEvent({
+        cwd,
+        workflow,
+        phase,
+        plan,
+        recallEvent: result.recall_event,
+        query,
+        selected: result.selected,
+      });
+    }
+
+    return {
+      open_brain_recall: buildOpenBrainRecallPackResult(result, {
+        available: true,
+        blocked: false,
+        backend_state: result.backend_state,
+        limit: 2,
+      }),
+    };
+  } catch (err) {
+    return {
+      open_brain_recall: buildOpenBrainRecallPackResult(
+        { selected: [], total_candidates: 0, recall_event: null },
+        {
+          available: false,
+          blocked: false,
+          reason: 'recall_error',
+          message: err.message,
+          backend_state: openBrain.checkAvailability().backend_state,
+          limit: 2,
+        }
+      ),
+    };
+  }
+}
+
+function buildMemoryPack(items = [], metadata = {}) {
+  const buckets = {
+    recent_decisions: [],
+    prior_summaries: [],
+    known_pitfalls: [],
+    unresolved_blockers: [],
+  };
+  const limits = {
+    recent_decisions: 3,
+    prior_summaries: 2,
+    known_pitfalls: 2,
+    unresolved_blockers: 1,
+  };
+
+  for (const rawEntry of items) {
+    const entry = sanitizeMemoryEntry(rawEntry);
+    let bucket = null;
+
+    if (entry.memory_kind === 'decision') bucket = 'recent_decisions';
+    else if (entry.memory_kind === 'summary') bucket = 'prior_summaries';
+    else if (entry.memory_kind === 'pitfall') bucket = 'known_pitfalls';
+    else if (entry.memory_kind === 'checkpoint') bucket = 'unresolved_blockers';
+
+    if (!bucket) continue;
+    if (buckets[bucket].length >= limits[bucket]) continue;
+    buckets[bucket].push(entry);
+  }
+
+  const total_entries = Object.values(buckets).reduce((sum, entries) => sum + entries.length, 0);
+
+  return {
+    available: metadata.available !== false,
+    blocked: Boolean(metadata.blocked),
+    reason: metadata.reason || null,
+    message: metadata.message || null,
+    total_entries,
+    backend_state: metadata.backend_state,
+    ...buckets,
+  };
+}
+
+async function loadWorkflowMemoryPack({ workflow, pointer = {}, memoryReader } = {}) {
+  const phase = formatMemoryPhase(pointer.phase);
+  const plan = workflow === 'execute-plan' ? formatMemoryPlan(pointer.plan) : null;
+
+  if (!phase) {
+    return {
+      memory_pack: buildMemoryPack([], {
+        available: false,
+        blocked: false,
+        reason: 'phase_unavailable',
+        message: 'No phase pointer available for workflow memory.',
+      }),
+    };
+  }
+
+  const reader = memoryReader || ((filters) => secondBrain.readModelFacingMemory(filters));
+  const result = await reader({
+    project_id: secondBrain.projectId,
+    phase,
+    plan,
+    limit: 12,
+  });
+
+  if (!result || result.available === false || result.blocked) {
+    return {
+      memory_pack: buildMemoryPack([], {
+        available: false,
+        blocked: Boolean(result && result.blocked),
+        reason: result && result.reason ? result.reason : 'unavailable',
+        message: result && result.message ? result.message : 'Workflow memory unavailable.',
+        backend_state: result && result.backend_state ? result.backend_state : undefined,
+      }),
+    };
+  }
+
+  return {
+    memory_pack: buildMemoryPack(result.items || [], {
+      available: true,
+      blocked: false,
+      backend_state: result.backend_state,
+    }),
+  };
 }
 
 // ─── Per-workflow builders ────────────────────────────────────────────────────
@@ -259,6 +569,17 @@ async function buildExecutePlan(cwd, options) {
   const git = readGitState(cwd);
   const pointer = readPlanPointer(cwd, options.phase, options.plan);
   const firecrawl_parity = await ensureExternalParity(cwd, pointer.phase, pointer.plan);
+  const { memory_pack } = await loadWorkflowMemoryPack({
+    workflow: 'execute-plan',
+    pointer,
+  });
+  const { open_brain_recall } = await buildOpenBrainRecallPack({
+    cwd,
+    workflow: 'execute-plan',
+    pointer,
+    recallReader: options.openBrainRecallReader,
+    projectScope: secondBrain.projectId,
+  });
 
   const warnings = [];
   const pending_gates = readPendingGates(cwd);
@@ -270,7 +591,8 @@ async function buildExecutePlan(cwd, options) {
   if (pointer.phase != null && pointer.plan != null) {
     const phaseInfo = findPhaseInternal(cwd, String(pointer.phase));
     if (phaseInfo) {
-      const planPath = path.join(cwd, phaseInfo.directory, `${pointer.phase}-${pointer.plan}-PLAN.md`);
+      const planId = formatMemoryPlan(pointer.plan);
+      const planPath = path.join(cwd, phaseInfo.directory, `${pointer.phase}-${planId}-PLAN.md`);
       const planContent = safeReadFile(planPath) || '';
       const stateContent = safeReadFile(path.join(cwd, '.planning', 'STATE.md')) || '';
       
@@ -280,7 +602,7 @@ async function buildExecutePlan(cwd, options) {
       fingerprint = {
         hash,
         ts: new Date().toISOString(),
-        plan_ref: `${pointer.phase}-${pointer.plan}`,
+        plan_ref: `${pointer.phase}-${planId}`,
       };
 
       // Persist current fingerprint for drift detection
@@ -309,7 +631,7 @@ async function buildExecutePlan(cwd, options) {
 
   const coherent = integrity.coherent && git.head !== 'unknown' && pointer.phase != null;
 
-  return { schema_version: 2, workflow: 'execute-plan', git, pointer, pending_gates, last_task, checkpoint_present, integrity, coherent, warnings, fingerprint, baseline_active, firecrawl_parity };
+  return { schema_version: 4, workflow: 'execute-plan', git, pointer, memory_pack, open_brain_recall, pending_gates, last_task, checkpoint_present, integrity, coherent, warnings, fingerprint, baseline_active, firecrawl_parity };
 }
 
 async function buildVerifyWork(cwd, options) {
@@ -323,7 +645,8 @@ async function buildVerifyWork(cwd, options) {
 
   if (pointer.phase_dir) {
     const plan = pointer.plan != null ? pointer.plan : 1;
-    summary_exists = safeFs.existsSync(path.join(cwd, pointer.phase_dir, `${pointer.phase}-${plan}-SUMMARY.md`));
+    const planId = formatMemoryPlan(plan);
+    summary_exists = safeFs.existsSync(path.join(cwd, pointer.phase_dir, `${pointer.phase}-${planId}-SUMMARY.md`));
     verification_exists = safeFs.existsSync(path.join(cwd, pointer.phase_dir, 'VERIFICATION.md'));
   } else {
     warnings.push({ message: 'phase directory not found — cannot check summary/verification artifacts', severity: 'ignorable' });
@@ -334,7 +657,7 @@ async function buildVerifyWork(cwd, options) {
   return { schema_version: 1, workflow: 'verify-work', git, pointer, summary_exists, verification_exists, warnings };
 }
 
-async function buildPlanPhase(cwd) {
+async function buildPlanPhase(cwd, options = {}) {
   await ensureInternalParity(cwd);
   const git = readGitState(cwd);
 
@@ -361,10 +684,22 @@ async function buildPlanPhase(cwd) {
     }
   }
 
+  const { memory_pack } = await loadWorkflowMemoryPack({
+    workflow: 'plan-phase',
+    pointer: { phase: next_phase, plan: null },
+  });
+  const { open_brain_recall } = await buildOpenBrainRecallPack({
+    cwd,
+    workflow: 'plan-phase',
+    pointer: { phase: next_phase, plan: null },
+    recallReader: options.openBrainRecallReader,
+    projectScope: secondBrain.projectId,
+  });
+
   if (!roadmap_exists) warnings.push({ message: 'ROADMAP.md not found — cannot determine next phase', severity: 'stop' });
   if (next_phase == null && roadmap_exists) warnings.push({ message: 'no pending phases found in ROADMAP.md', severity: 'ignorable' });
 
-  return { schema_version: 1, workflow: 'plan-phase', git, next_phase, roadmap_exists, research_exists, warnings, firecrawl_parity };
+  return { schema_version: 3, workflow: 'plan-phase', git, next_phase, roadmap_exists, research_exists, memory_pack, open_brain_recall, warnings, firecrawl_parity };
 }
 
 // ─── Entry point ──────────────────────────────────────────────────────────────
@@ -428,6 +763,9 @@ function cmdContextNormalize(cwd, sourceUri, contentPath, options = {}) {
 
   try {
     const saved = contextStore.put(cwd, artifact);
+    if (options.silent) {
+      return saved;
+    }
     output({ id: saved.id }, options.raw, 'stored');
   } catch (err) {
     error(`Failed to store artifact: ${err.message}`);
@@ -439,6 +777,22 @@ async function cmdContextBuild(cwd, workflow, options, raw) {
 
   const schema = SCHEMAS[workflow];
   if (!schema) error(`Unknown workflow: "${workflow}". Known workflows: ${Object.keys(SCHEMAS).join(', ')}`);
+
+  const workflowKey = workflow === 'plan-phase'
+    ? 'context:plan-phase'
+    : workflow === 'execute-plan'
+      ? 'context:execute-plan'
+      : null;
+  if (workflowKey) {
+    const degradedSnapshot = degradedMode.readLatestDegradedState(cwd);
+    if (degradedSnapshot) {
+      const decision = degradedMode.evaluateWorkflow(degradedSnapshot, workflowKey);
+      if (!decision.allowed) {
+        process.stdout.write(JSON.stringify(decision, null, 2) + '\n');
+        process.exit(1);
+      }
+    }
+  }
 
   let snapshot;
   try {
@@ -469,5 +823,10 @@ module.exports = {
   cmdContextBuild,
   cmdContextRead,
   cmdContextNormalize,
-  ensureExternalParity
+  ensureExternalParity,
+  buildMemoryPack,
+  buildOpenBrainRecallPack,
+  loadWorkflowMemoryPack,
+  buildExecutePlan,
+  buildPlanPhase,
 };

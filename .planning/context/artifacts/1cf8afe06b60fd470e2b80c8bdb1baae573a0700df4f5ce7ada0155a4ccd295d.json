@@ -1,0 +1,13 @@
+{
+  "id": "1cf8afe06b60fd470e2b80c8bdb1baae573a0700df4f5ce7ada0155a4ccd295d",
+  "source_uri": ".planning/phases/81-audit-traceability-nyquist-closure/81-01-SUMMARY.md",
+  "type": "internal",
+  "content_markdown": "# Phase 81-01 Summary\n\n## Inventory Overview\n\n- Total artifacts: 39\n- VALID_ACCEPTED: 31\n- CONDITIONAL_ACCEPTED: 7\n- REPAIR_REQUIRED: 1\n- MISSING: 0\n\n## Core Closure Check\n\n✅ All core artifacts ready:\n\n## Worklist Size\n\nItems requiring action in 81-02: 1\n\n## Go/No-Go\n\nRecommendation: GO\n\nProceed to 81-02.\n",
+  "content_hash": "5c9ca56b7a482aea38f06c46c39c986184ef8ef0fc078203de4fcc051caa2992",
+  "normalized_at": "2026-03-29T18:41:57.021Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  }
+}

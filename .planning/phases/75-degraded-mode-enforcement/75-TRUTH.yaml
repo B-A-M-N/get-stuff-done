@@ -1,0 +1,65 @@
+phase: "75"
+title: "Degraded Mode Enforcement"
+generated_at: "2026-03-28T20:37:04.925Z"
+strict: false
+inputs:
+  verification: ".planning/phases/75-degraded-mode-enforcement/75-VERIFICATION.md"
+  summaries:
+    - ".planning/phases/75-degraded-mode-enforcement/75-01-SUMMARY.md"
+    - ".planning/phases/75-degraded-mode-enforcement/75-02-SUMMARY.md"
+  drift_reports:
+    - ".planning/drift/latest-report.json"
+  reconciliation:
+    - ".planning/drift/latest-reconciliation.json"
+  degraded_state:
+    - ".planning/health/latest-degraded-state.json"
+claimed_outcomes:
+  - id: null
+    description: "Make degraded systems explicit, behaviorally meaningful, and non-silent across truth-bearing workflows."
+    supporting_artifacts:
+      - ".planning/phases/75-degraded-mode-enforcement/75-01-SUMMARY.md"
+      - ".planning/phases/75-degraded-mode-enforcement/75-02-SUMMARY.md"
+  - id: null
+    description: "canonical degraded-policy evaluator and artifact"
+    supporting_artifacts:
+      - ".planning/phases/75-degraded-mode-enforcement/75-01-SUMMARY.md"
+  - id: null
+    description: "normalized HEALTHY DEGRADED UNSAFE subsystem vocabulary"
+    supporting_artifacts:
+      - ".planning/phases/75-degraded-mode-enforcement/75-01-SUMMARY.md"
+  - id: null
+    description: "shared degraded truth across brain health and health degraded-mode"
+    supporting_artifacts:
+      - ".planning/phases/75-degraded-mode-enforcement/75-01-SUMMARY.md"
+  - id: null
+    description: "top-level CLI blocking for unsafe truth-bearing workflows"
+    supporting_artifacts:
+      - ".planning/phases/75-degraded-mode-enforcement/75-02-SUMMARY.md"
+  - id: null
+    description: "verification and context-build backstop enforcement"
+    supporting_artifacts:
+      - ".planning/phases/75-degraded-mode-enforcement/75-02-SUMMARY.md"
+  - id: null
+    description: "structured blocked-flow responses with reason implications and next options"
+    supporting_artifacts:
+      - ".planning/phases/75-degraded-mode-enforcement/75-02-SUMMARY.md"
+observable_evidence:
+  - type: "file"
+    ref: ".planning/phases/75-degraded-mode-enforcement/75-01-SUMMARY.md"
+  - type: "file"
+    ref: ".planning/phases/75-degraded-mode-enforcement/75-02-SUMMARY.md"
+  - type: "file"
+    ref: ".planning/phases/75-degraded-mode-enforcement/75-VERIFICATION.md"
+  - type: "command"
+    ref: "phase-truth generate 75"
+gaps:
+  []
+drift_effects:
+  []
+reconciliation_effects:
+  []
+escalations:
+  []
+final_status: "VALID"
+status_reason:
+  - "All claimed outcomes are backed and no unresolved gaps or downgrades remain."

@@ -1,0 +1,13 @@
+{
+  "id": "48ce6c12028fb2310cc8daa824a4e5ea340e6850dd698bbeba4fd60910964954",
+  "source_uri": ".planning/phases/11-coverage-and-test-hardening/11-01-SUMMARY.md",
+  "type": "internal",
+  "content_markdown": "# SUMMARY: 11-01 - Close coverage gaps in the ITL and related lib surface\n\n## Outcome\n\nClosed the remaining line-coverage gaps in the scoped ITL runtime surface with direct, behavior-oriented `node:test` coverage.\n\n## What Changed\n\n- Expanded [tests/itl.test.cjs](/home/bamn/get-stuff-done/tests/itl.test.cjs) to cover:\n  - schema normalization edge cases\n  - summary rendering with empty sections and route overrides\n  - filesystem fallback for project initialization\n  - no-data and persisted-record audit reads\n  - command-wrapper output branches\n  - empty-narrative failure behavior\n  - default clarification fallback messaging\n- Added focused command-surface coverage through mocked ITL module dependencies instead of subprocess wrappers.\n- Marked environment-specific `node:sqlite` fallback lines in [itl-audit.cjs](/home/bamn/get-stuff-done/get-stuff-done/bin/lib/itl-audit.cjs) as coverage-ignored because they cannot execute on the current Node build when SQLite support is present.\n\n## Verification\n\n- `node --test tests/itl.test.cjs tests/dostuff.test.cjs`\n- `npm run test:coverage`\n\n## Notes\n\nCoverage is now `100%` line coverage for the enforced ITL runtime scope under `get-stuff-done/bin/lib/itl*.cjs`.\n",
+  "content_hash": "264c4a48fd7467508d53b7acbfe64e95b20f244e652206e5fda6de3e95af8397",
+  "normalized_at": "2026-03-29T18:41:58.811Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  }
+}

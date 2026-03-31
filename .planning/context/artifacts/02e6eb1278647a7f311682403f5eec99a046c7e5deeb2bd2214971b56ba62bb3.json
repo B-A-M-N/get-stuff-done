@@ -1,0 +1,13 @@
+{
+  "id": "02e6eb1278647a7f311682403f5eec99a046c7e5deeb2bd2214971b56ba62bb3",
+  "source_uri": ".planning/milestones/v0.6.0-REQUIREMENTS.md",
+  "type": "internal",
+  "content_markdown": "# Requirements Archive: v0.6.0\n\n## Outcome\n\nAll Open Brain milestone requirements for `v0.6.0` were completed and validated against the final roadmap, verification artifacts, and the passed milestone audit.\n\n## Final Requirement Status\n\n- [x] OPEN-BRAIN-01: Separate `gsd_open_brain` schema for long-horizon memory\n- [x] OPEN-BRAIN-02: Local-first embedding generation posture with truthful degraded capability reporting\n- [x] OPEN-BRAIN-03: Curated Firecrawl-normalized artifact ingestion into Open Brain\n- [x] OPEN-BRAIN-04: Bounded semantic retrieval ranked without exposing raw database rows\n- [x] OPEN-BRAIN-05: Recall-outcome recording for feedback-driven reranking\n- [x] OPEN-BRAIN-06: Open Brain failures do not break planner, executor, Firecrawl, or Second Brain flows\n\n## Traceability\n\n| Requirement | Final Phase | Status |\n|-------------|-------------|--------|\n| OPEN-BRAIN-01 | 55-01 | Complete |\n| OPEN-BRAIN-02 | 55-01 | Complete |\n| OPEN-BRAIN-03 | 55-02 | Complete |\n| OPEN-BRAIN-04 | 55-02 / 55-03 | Complete |\n| OPEN-BRAIN-05 | 55-02 / 55-03 | Complete |\n| OPEN-BRAIN-06 | 55-01 / 55-03 / 55-04 | Complete |\n\n## Evidence\n\n- Phase summaries: `55-01-SUMMARY.md`, `55-02-SUMMARY.md`, `55-03-SUMMARY.md`, `55-04-SUMMARY.md`\n- Phase verification: `55-VERIFICATION.md`\n- Validation and UAT: `55-VALIDATION.md`, `55-UAT.md`\n- Milestone audit: `v0.6.0-MILESTONE-AUDIT.md`\n\n## Notes\n\n- Open Brain shipped as an optional sidecar and preserved the existing architecture rule that Second Brain remains the execution-truth store.\n- Installed Codex operator-path repair was required to make shipped `brain open-status --raw` behavior match repo-local verification.\n",
+  "content_hash": "9f968fa85f7c75c1a920baa9b52d72d80cdfc7e4c55046cdb37ae919f00f034d",
+  "normalized_at": "2026-03-29T18:41:59.066Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  }
+}

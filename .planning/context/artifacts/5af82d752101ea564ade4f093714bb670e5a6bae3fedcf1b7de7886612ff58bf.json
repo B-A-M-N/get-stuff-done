@@ -1,0 +1,13 @@
+{
+  "id": "5af82d752101ea564ade4f093714bb670e5a6bae3fedcf1b7de7886612ff58bf",
+  "source_uri": ".planning/phases/27-independent-memory-wiring-postgres-rabbitmq-local-second-brain/27-02-SUMMARY.md",
+  "type": "internal",
+  "content_markdown": "---\nphase: 27\nplan: 02\ntype: standard\nstatus: complete\ndate: 2026-03-21\nrequirements_completed:\n\n  - BRAIN-INGEST-01\n  - BRAIN-VERIFY-01\n\n---\n\n# Summary 27-02: Pipeline Integration & Verification\n\nIntegrated the Second Brain into the normalization pipeline and verified end-to-end functionality with fault tolerance.\n\n## Accomplishments\n\n- Updated `internal-normalizer.cjs` to be asynchronous and ingest artifacts into the Second Brain.\n- Propagated `async/await` throughout the context build chain and test suites.\n- Implemented `tests/second-brain.test.cjs` covering the full flow: Normalization -> Postgres (Symbols) -> RabbitMQ (Pulse).\n- Verified graceful degradation via \"offline mode\" simulation in the test suite.\n\n## Evidence\n\n- `tests/second-brain.test.cjs` passes with 100% success on both happy-path and failure-simulation cases.\n- Symbols extracted from `.planning/PROJECT.md` are confirmed to reach the Postgres `symbols` table.\n",
+  "content_hash": "9fd64922d5ac6e7579170dff301f53388c8ce51cea329aa3d994bcd251102618",
+  "normalized_at": "2026-03-29T18:41:58.212Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  }
+}

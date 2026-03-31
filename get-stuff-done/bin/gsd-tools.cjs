@@ -14,18 +14,28 @@
  *   state update <field> <value>       Update a STATE.md field
  *   state get [section]                Get STATE.md content or section
  *   state patch --field val ...        Batch update STATE.md fields
+ *   state assert                       Verify pre-conditions (state, config, roadmap). Exit 1 on failure.
+ *   state verify                       Comprehensive live verification (state, git, phases). Non-fatal.
+ *   state pause [--reason <reason>]    Pause project execution (sets status=paused)
+ *   state resume                       Resume execution after pause (clears paused status)
  *   state begin-phase --phase N --name S --plans C  Update STATE.md for new phase start
  *   resolve-model <agent-type>         Get model for agent based on profile
  *   find-phase <phase>                 Find phase directory by number
  *   commit <message> [--files f1 f2]   Commit planning docs
  *   commit-task <message> --scope <phase-plan> --files f1 [f2 ...]
  *     [--phase <phase>] [--plan <plan>] [--task <N>]
+ *     [--proof-type behavioral|artifact|audit] [--verify-command "<cmd>"]
+ *     [--evidence <ref>]... [--runtime-proof <ref>]... [--runtime-surface]
+ *     [--proof-only] [--ancestor-commit <hash>]...
  *     [--prev-hash <hash>]             Verify <hash> is still HEAD before staging — catches
  *                                      out-of-band commits between tasks automatically
  *                                      Commit task source files, verify atomically, and
- *                                      optionally persist hash to per-plan TASK-LOG.jsonl
+ *                                      persist structured proof to per-plan and global logs
  *   complete-task <message> --scope <phase-plan> --files f1 [f2 ...]
  *     --phase <phase> --plan <plan> --task <N>
+ *     [--proof-type behavioral|artifact|audit] [--verify-command "<cmd>"]
+ *     [--evidence <ref>]... [--runtime-proof <ref>]... [--runtime-surface]
+ *     [--proof-only] [--ancestor-commit <hash>]...
  *     [--prev-hash <hash>]             Stricter wrapper around commit-task:
  *                                      --phase/--plan/--task are REQUIRED (not optional),
  *                                      auto-injects --prev-hash from last task log entry,
@@ -37,6 +47,8 @@
  *                                      Output "Task N: hash" lines ready for readarray (--raw)
  *                                      or { found, lines, count } JSON
  *   verify-summary <path>              Verify a SUMMARY.md file
+ *   audit enforcement-boundary [--write]
+ *                                      Run the Phase 76 bypass audit and optionally persist artifacts
  *   generate-slug <text>               Convert text to URL-safe slug
  *   current-timestamp [format]         Get timestamp (full|date|filename)
  *   list-todos [area]                  Count and enumerate pending todos
@@ -55,6 +67,8 @@
  *     [--choices "..."]                Decision options (for type=decision)
  *     [--resume-condition "..."]       What user response allows continuation
  *     [--no-allow-freeform]            Restrict user to listed choices only
+ *   plane-sync summary --phase N --plan M
+ *                                      Post NN-NN-SUMMARY.md details as a Plane issue comment
  *   firecrawl check                    Check if local Firecrawl instance is reachable.
  *   firecrawl scrape --url <url>      Scrape a URL and return markdown
  *   firecrawl search --query <q>      Search for structured results
@@ -84,9 +98,17 @@
  *                                    List schemas not used in N days (default 30)
  *   firecrawl schemas approve --pattern <p>
  *                                    Mark a schema as approved (updates approved_by)
+ *   drift catalog [--write]           Generate or print the Phase 70 drift catalog.
+ *   drift scan [--json] [--full]      Run the Phase 73 drift scan and persist latest-report.json
+ *   drift report [--json]             Return the latest drift report or explicit missing/stale state
+ *   drift status [--json] [--full]    Render canonical operator drift status from the latest report
+ *   drift preview [--json]            Show the Phase 74 reconciliation dry run
+ *   drift reconcile [--json]          Apply the Phase 74 reconciliation result
  *   searxng check                      Check if local SearXNG instance is reachable
  *   searxng search --query <q>         Perform an audit-logged web search
- *   brain health                       Check health of Postgres, RabbitMQ, and Planning Server.
+ *   brain status                       Show active backend truth for Second Brain.
+ *   brain health [--require-postgres]  Check health of Postgres, RabbitMQ, and Planning Server.
+ *   brain open-status                  Show Open Brain sidecar readiness truth.
  *   verify-agent-connectivity          Verify if agents can connect to Local Planning Server.
  *   context build --workflow <name>    Build Zod-validated execution snapshot for a workflow
  *     [--phase N] [--plan M]           Workflows: execute-plan | verify-work | plan-phase
@@ -101,6 +123,10 @@
  *   summary-extract <path> [--fields]  Extract structured data from SUMMARY.md
  *   state-snapshot                     Structured parse of STATE.md
  *   phase-plan-index <phase>           Index plans with waves and status
+ *   phase-truth generate <phase>       Generate N-TRUTH.yaml and N-TRUTH.md for a phase
+   replay-mission <mission_id>       Reconstruct mission synthesis state (intact/degraded)
+   verify-synthesis <artifact_id>    Verify artifact integrity (content + citations)
+   rank-synthesis <mission_id>       Rank artifacts by quality metrics [--limit N]
  *
  * Phase Operations:
  *   phase next-decimal <phase>         Calculate next decimal phase number
@@ -219,21 +245,44 @@
  *   init progress                      All context for progress workflow
  */
 
+// Load .env file if present (simple loader, no external dependency)
+try {
+  const fs = require('fs');
+  const path = require('path');
+  const envPath = path.join(process.cwd(), '.env');
+  if (fs.existsSync(envPath)) {
+    const content = fs.readFileSync(envPath, 'utf8');
+    const lines = content.split('\n');
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      const eqIdx = trimmed.indexOf('=');
+      if (eqIdx > 0) {
+        const key = trimmed.substring(0, eqIdx).trim();
+        const value = trimmed.substring(eqIdx + 1).trim().replace(/^["']|["']$/g, '');
+        if (key && value && !(key in process.env)) {
+          process.env[key] = value;
+        }
+      }
+    }
+  }
+} catch (e) {
+  // .env loading is best-effort
+}
+
 const fs = require('fs');
 const path = require('path');
 const { error, output, safeFs } = require('./lib/core.cjs');
 const state = require('./lib/state.cjs');
 const phase = require('./lib/phase.cjs');
 const roadmap = require('./lib/roadmap.cjs');
-const verify = require('./lib/verify.cjs');
 const config = require('./lib/config.cjs');
 const template = require('./lib/template.cjs');
 const milestone = require('./lib/milestone.cjs');
-const commands = require('./lib/commands.cjs');
 const init = require('./lib/init.cjs');
 const frontmatter = require('./lib/frontmatter.cjs');
-const itl = require('./lib/itl.cjs');
 const audit = require('./lib/audit.cjs');
+const enforcementBoundaryAudit = require('./lib/enforcement-boundary-audit.cjs');
 const openboxPolicy = require('./lib/openbox-policy.cjs');
 const integrityLog = require('./lib/integrity-log.cjs');
 const profilePipeline = require('./lib/profile-pipeline.cjs');
@@ -241,10 +290,52 @@ const profileOutput = require('./lib/profile-output.cjs');
 const nextStep = require('./lib/next-step.cjs');
 const policy = require('./lib/policy.cjs');
 const gate = require('./lib/gate.cjs');
-const context = require('./lib/context.cjs');
-const firecrawlClient = require('./lib/firecrawl-client.cjs');
-const searxngClient = require('./lib/searxng-client.cjs');
 const schemaRegistry = require('./lib/schema-registry.cjs');
+const driftCatalog = require('./lib/drift-catalog.cjs');
+const driftEngine = require('./lib/drift-engine.cjs');
+const driftReconcile = require('./lib/drift-reconcile.cjs');
+const degradedMode = require('./lib/degraded-mode.cjs');
+const commandGovernance = require('./lib/command-governance.cjs');
+const phaseTruth = require('./lib/phase-truth.cjs');
+
+async function enforceWorkflowOrBlock(cwd, workflow, options = {}) {
+  const snapshot = await degradedMode.buildDegradedState(cwd, options);
+  degradedMode.writeLatestDegradedState(cwd, snapshot);
+  const decision = degradedMode.evaluateWorkflow(snapshot, workflow);
+  if (!decision.allowed) {
+    process.stdout.write(JSON.stringify(decision, null, 2) + '\n');
+    process.exit(1);
+  }
+  return decision;
+}
+
+async function enforceRouteGovernanceOrBlock(cwd, args, raw, options = {}) {
+  const route = commandGovernance.buildRouteFromArgs(args);
+  const decision = await commandGovernance.evaluateCommandGovernance(cwd, route, options);
+  if (!decision.allowed) {
+    process.stdout.write(JSON.stringify(decision, null, 2) + '\n');
+    process.exit(1);
+  }
+  commandGovernance.emitGovernanceWarning(decision, raw);
+  return decision;
+}
+
+function lazyRequire(modulePath) {
+  let cached = null;
+  return () => {
+    if (!cached) cached = require(modulePath);
+    return cached;
+  };
+}
+
+const getVerify = lazyRequire('./lib/verify.cjs');
+const getCommands = lazyRequire('./lib/commands.cjs');
+const getItl = lazyRequire('./lib/itl.cjs');
+const getContext = lazyRequire('./lib/context.cjs');
+const getPlaneHealth = lazyRequire('./lib/plane-health.cjs');
+const getFirecrawlClient = lazyRequire('./lib/firecrawl-client.cjs');
+const getSearxngClient = lazyRequire('./lib/searxng-client.cjs');
+const getIntegrityGauntlet = lazyRequire('./lib/integrity-gauntlet.cjs');
 
 // ─── CLI Router ───────────────────────────────────────────────────────────────
 
@@ -296,8 +387,10 @@ async function main() {
   const command = args[0];
 
   if (!command) {
-    error('Usage: gsd-tools <command> [args] [--raw] [--cwd <path>]\nCommands: state, resolve-model, find-phase, commit, verify-summary, verify, frontmatter, template, generate-slug, current-timestamp, list-todos, verify-path-exists, policy, config-ensure-section, init, itl');
+    error('Usage: gsd-tools <command> [args] [--raw] [--cwd <path>]\nCommands: state, resolve-model, find-phase, commit, verify-summary, verify, frontmatter, template, generate-slug, current-timestamp, list-todos, verify-path-exists, policy, config-ensure-section, init, itl, phase-truth');
   }
+
+  await enforceRouteGovernanceOrBlock(cwd, args, raw);
 
   switch (command) {
     case 'state': {
@@ -335,6 +428,13 @@ async function main() {
         }, raw);
       } else if (subcommand === 'update-progress') {
         state.cmdStateUpdateProgress(cwd, raw);
+      } else if (subcommand === 'get-metrics') {
+        const phaseIdx = args.indexOf('--phase');
+        const planIdx = args.indexOf('--plan');
+        state.cmdStateGetMetrics(cwd, {
+          phase: phaseIdx !== -1 ? args[phaseIdx + 1] : null,
+          plan: planIdx !== -1 ? args[planIdx + 1] : null,
+        }, raw);
       } else if (subcommand === 'add-decision') {
         const phaseIdx = args.indexOf('--phase');
         const summaryIdx = args.indexOf('--summary');
@@ -376,11 +476,17 @@ async function main() {
       } else if (subcommand === 'checkpoint') {
         const statusIdx = args.indexOf('--status');
         const pathIdx = args.indexOf('--checkpoint-path');
+        const phaseIdx = args.indexOf('--phase');
+        const planIdx = args.indexOf('--plan');
+        const taskIdx = args.indexOf('--task');
         state.cmdStateCheckpoint(cwd, {
           status: statusIdx !== -1 ? args[statusIdx + 1] : null,
           checkpointPath: pathIdx !== -1 ? args[pathIdx + 1] : null,
+          phase: phaseIdx !== -1 ? args[phaseIdx + 1] : null,
+          plan: planIdx !== -1 ? args[planIdx + 1] : null,
+          task: taskIdx !== -1 ? args[taskIdx + 1] : null,
         }, raw);
-      } else if (subcommand === 'begin-phase') {
+} else if (subcommand === 'begin-phase') {
         const phaseIdx = args.indexOf('--phase');
         const nameIdx = args.indexOf('--name');
         const plansIdx = args.indexOf('--plans');
@@ -394,6 +500,20 @@ async function main() {
       } else if (subcommand === 'harvest-context') {
         const phaseIdx = args.indexOf('--phase');
         state.cmdStateHarvestContext(cwd, phaseIdx !== -1 ? args[phaseIdx + 1] : null, raw);
+      } else if (subcommand === 'pause') {
+        const reasonIdx = args.indexOf('--reason');
+        const reason = reasonIdx !== -1 ? args[reasonIdx + 1] : (args[2] || null);
+        state.cmdStatePause(cwd, reason, raw);
+      } else if (subcommand === 'resume') {
+        const clearIdx = args.indexOf('--clear');
+        const clear = clearIdx !== -1;
+        state.cmdStateResume(cwd, { clear }, raw);
+      } else if (subcommand === 'assert') {
+        // Pre-condition validation for workflow entry points
+        state.cmdStateAssert(cwd, raw);
+      } else if (subcommand === 'verify') {
+        // Comprehensive live verification of project state
+        state.cmdStateVerify(cwd, raw);
       } else if (subcommand === 'baseline-characterize') {
         state.cmdStateSnapshotManifest(cwd, raw);
       } else {
@@ -403,7 +523,7 @@ async function main() {
     }
 
     case 'resolve-model': {
-      commands.cmdResolveModel(cwd, args[1], raw);
+      getCommands().cmdResolveModel(cwd, args[1], raw);
       break;
     }
 
@@ -422,7 +542,7 @@ async function main() {
       const messageArgs = args.slice(1, endIndex).filter(a => !a.startsWith('--'));
       const message = messageArgs.join(' ') || undefined;
       const files = filesIndex !== -1 ? args.slice(filesIndex + 1).filter(a => !a.startsWith('--')) : [];
-      commands.cmdCommit(cwd, message, files, raw, amend);
+      await getCommands().cmdCommit(cwd, message, files, raw, amend);
       break;
     }
 
@@ -455,7 +575,34 @@ async function main() {
       }
       const ctPrevHashIdx = args.indexOf('--prev-hash');
       const ctPrevHash = ctPrevHashIdx !== -1 ? args[ctPrevHashIdx + 1] : null;
-      commands.cmdCommitTask(cwd, ctMessage, ctFiles, ctScope, { phase: ctPhase, plan: ctPlan, task: ctTask, wave: ctWave, prev_hash: ctPrevHash }, raw);
+      const ctProofTypeIdx = args.indexOf('--proof-type');
+      const ctProofType = ctProofTypeIdx !== -1 ? args[ctProofTypeIdx + 1] : null;
+      const ctVerifyCommandIdx = args.indexOf('--verify-command');
+      const ctVerifyCommand = ctVerifyCommandIdx !== -1 ? args[ctVerifyCommandIdx + 1] : null;
+      const ctRuntimeSurface = args.includes('--runtime-surface');
+      const ctProofOnly = args.includes('--proof-only');
+      const ctEvidence = [];
+      const ctRuntimeProof = [];
+      const ctAncestorCommits = [];
+      for (let j = 0; j < args.length; j++) {
+        if (args[j] === '--evidence' && args[j + 1]) ctEvidence.push(args[j + 1]);
+        if (args[j] === '--runtime-proof' && args[j + 1]) ctRuntimeProof.push(args[j + 1]);
+        if (args[j] === '--ancestor-commit' && args[j + 1]) ctAncestorCommits.push(args[j + 1]);
+      }
+      getCommands().cmdCommitTask(cwd, ctMessage, ctFiles, ctScope, {
+        phase: ctPhase,
+        plan: ctPlan,
+        task: ctTask,
+        wave: ctWave,
+        prev_hash: ctPrevHash,
+        proof_type: ctProofType,
+        verify_command: ctVerifyCommand,
+        evidence: ctEvidence,
+        runtime_proof: ctRuntimeProof,
+        runtime_surface: ctRuntimeSurface,
+        proof_only: ctProofOnly,
+        ancestor_commits: ctAncestorCommits,
+      }, raw);
       break;
     }
 
@@ -488,7 +635,35 @@ async function main() {
       }
       const cptPrevHashIdx = args.indexOf('--prev-hash');
       const cptPrevHash = cptPrevHashIdx !== -1 ? args[cptPrevHashIdx + 1] : null;
-      commands.cmdCompleteTask(cwd, cptMessage, cptFiles, cptScope, { phase: cptPhase, plan: cptPlan, task: cptTask, wave: cptWave, prev_hash: cptPrevHash, force_scope: cptForceScope }, raw);
+      const cptProofTypeIdx = args.indexOf('--proof-type');
+      const cptProofType = cptProofTypeIdx !== -1 ? args[cptProofTypeIdx + 1] : null;
+      const cptVerifyCommandIdx = args.indexOf('--verify-command');
+      const cptVerifyCommand = cptVerifyCommandIdx !== -1 ? args[cptVerifyCommandIdx + 1] : null;
+      const cptRuntimeSurface = args.includes('--runtime-surface');
+      const cptProofOnly = args.includes('--proof-only');
+      const cptEvidence = [];
+      const cptRuntimeProof = [];
+      const cptAncestorCommits = [];
+      for (let j = 0; j < args.length; j++) {
+        if (args[j] === '--evidence' && args[j + 1]) cptEvidence.push(args[j + 1]);
+        if (args[j] === '--runtime-proof' && args[j + 1]) cptRuntimeProof.push(args[j + 1]);
+        if (args[j] === '--ancestor-commit' && args[j + 1]) cptAncestorCommits.push(args[j + 1]);
+      }
+      getCommands().cmdCompleteTask(cwd, cptMessage, cptFiles, cptScope, {
+        phase: cptPhase,
+        plan: cptPlan,
+        task: cptTask,
+        wave: cptWave,
+        prev_hash: cptPrevHash,
+        force_scope: cptForceScope,
+        proof_type: cptProofType,
+        verify_command: cptVerifyCommand,
+        evidence: cptEvidence,
+        runtime_proof: cptRuntimeProof,
+        runtime_surface: cptRuntimeSurface,
+        proof_only: cptProofOnly,
+        ancestor_commits: cptAncestorCommits,
+      }, raw);
       break;
     }
 
@@ -499,9 +674,9 @@ async function main() {
       const tlPhase = tlPhaseIdx !== -1 ? args[tlPhaseIdx + 1] : null;
       const tlPlan = tlPlanIdx !== -1 ? args[tlPlanIdx + 1] : null;
       if (subcommand === 'read') {
-        commands.cmdTaskLogRead(cwd, tlPhase, tlPlan, raw);
+        getCommands().cmdTaskLogRead(cwd, tlPhase, tlPlan, raw);
       } else if (subcommand === 'reconstruct') {
-        commands.cmdTaskLogReconstruct(cwd, tlPhase, tlPlan, raw);
+        getCommands().cmdTaskLogReconstruct(cwd, tlPhase, tlPlan, raw);
       } else {
         error('Unknown task-log subcommand. Available: read, reconstruct');
       }
@@ -512,7 +687,7 @@ async function main() {
       const summaryPath = args[1];
       const countIndex = args.indexOf('--check-count');
       const checkCount = countIndex !== -1 ? parseInt(args[countIndex + 1], 10) : 2;
-      verify.cmdVerifySummary(cwd, summaryPath, checkCount, raw);
+      getVerify().cmdVerifySummary(cwd, summaryPath, checkCount, raw);
       break;
     }
 
@@ -567,41 +742,43 @@ async function main() {
     case 'verify': {
       const subcommand = args[1];
       if (subcommand === 'plan-structure') {
-        verify.cmdVerifyPlanStructure(cwd, args[2], raw);
+        getVerify().cmdVerifyPlanStructure(cwd, args[2], raw);
       } else if (subcommand === 'phase-completeness') {
-        verify.cmdVerifyPhaseCompleteness(cwd, args[2], raw);
+        getVerify().cmdVerifyPhaseCompleteness(cwd, args[2], raw);
       } else if (subcommand === 'references') {
-        verify.cmdVerifyReferences(cwd, args[2], raw);
+        getVerify().cmdVerifyReferences(cwd, args[2], raw);
       } else if (subcommand === 'commits') {
-        verify.cmdVerifyCommits(cwd, args.slice(2), raw);
+        getVerify().cmdVerifyCommits(cwd, args.slice(2), raw);
       } else if (subcommand === 'task-commit') {
         const scopeIdx = args.indexOf('--scope');
-        verify.cmdVerifyTaskCommit(cwd, args[2], {
+        getVerify().cmdVerifyTaskCommit(cwd, args[2], {
           scope: scopeIdx !== -1 ? args[scopeIdx + 1] : null,
         }, raw);
       } else if (subcommand === 'artifacts') {
-        verify.cmdVerifyArtifacts(cwd, args[2], raw);
+        getVerify().cmdVerifyArtifacts(cwd, args[2], raw);
       } else if (subcommand === 'key-links') {
-        verify.cmdVerifyKeyLinks(cwd, args[2], raw);
+        getVerify().cmdVerifyKeyLinks(cwd, args[2], raw);
       } else if (subcommand === 'context-contract') {
         const planIdx = args.indexOf('--plan');
-        verify.cmdVerifyContextContract(cwd, args[2], planIdx !== -1 ? args[planIdx + 1] : null, raw);
+        getVerify().cmdVerifyContextContract(cwd, args[2], planIdx !== -1 ? args[planIdx + 1] : null, raw);
       } else if (subcommand === 'research-contract') {
         const researchIdx = args.indexOf('--research');
-        verify.cmdVerifyResearchContract(cwd, args[2], researchIdx !== -1 ? args[researchIdx + 1] : null, raw);
+        getVerify().cmdVerifyResearchContract(cwd, args[2], researchIdx !== -1 ? args[researchIdx + 1] : null, raw);
       } else if (subcommand === 'checkpoint-response') {
-        verify.cmdVerifyCheckpointResponse(cwd, args[2], raw);
+        getVerify().cmdVerifyCheckpointResponse(cwd, args[2], raw);
       } else if (subcommand === 'cross-plan-data-contracts') {
-        verify.cmdVerifyCrossPlanDataContracts(cwd, args[2], raw);
+        getVerify().cmdVerifyCrossPlanDataContracts(cwd, args[2], raw);
       } else if (subcommand === 'requirement-coverage') {
-        verify.cmdVerifyRequirementCoverage(cwd, args[2], raw);
+        getVerify().cmdVerifyRequirementCoverage(cwd, args[2], raw);
+      } else if (subcommand === 'verification-artifact') {
+        getVerify().cmdVerifyVerificationArtifact(cwd, args[2], raw);
       } else if (subcommand === 'dead-exports') {
-        verify.cmdVerifyDeadExports(cwd, args[2], raw);
+        getVerify().cmdVerifyDeadExports(cwd, args[2], raw);
       } else if (subcommand === 'orphaned-state') {
-        verify.cmdVerifyOrphanedState(cwd, args[2], raw);
+        getVerify().cmdVerifyOrphanedState(cwd, args[2], raw);
       } else if (subcommand === 'workflow-readiness') {
         const phaseIdx = args.indexOf('--phase');
-        verify.cmdVerifyWorkflowReadiness(cwd, args[2], {
+        getVerify().cmdVerifyWorkflowReadiness(cwd, args[2], {
           phase: phaseIdx !== -1 ? args[phaseIdx + 1] : null,
           skip_research: args.includes('--skip-research'),
           research: args.includes('--research'),
@@ -609,23 +786,23 @@ async function main() {
           gaps: args.includes('--gaps'),
         }, raw);
       } else if (subcommand === 'plan-quality') {
-        verify.cmdVerifyPlanQuality(cwd, args[2], raw);
+        getVerify().cmdVerifyPlanQuality(cwd, args[2], raw);
       } else if (subcommand === 'verify-work-cold-start') {
-        verify.cmdVerifyWorkColdStart(cwd, args[2], raw);
+        getVerify().cmdVerifyWorkColdStart(cwd, args[2], raw);
       } else if (subcommand === 'verify-bypass') {
-        verify.cmdVerifyBypass(cwd, args[2], raw);
+        getVerify().cmdVerifyBypass(cwd, args[2], raw);
       } else if (subcommand === 'checkpoint-coverage') {
         const cpPhaseIdx = args.indexOf('--phase');
-        verify.cmdVerifyCheckpointCoverage(cwd, args[2], cpPhaseIdx !== -1 ? args[cpPhaseIdx + 1] : null, raw);
+        getVerify().cmdVerifyCheckpointCoverage(cwd, args[2], cpPhaseIdx !== -1 ? args[cpPhaseIdx + 1] : null, raw);
       } else if (subcommand === 'integrity') {
         const intPhaseIdx = args.indexOf('--phase');
         const intPlanIdx = args.indexOf('--plan');
-        verify.cmdVerifyIntegrity(cwd, {
+        getVerify().cmdVerifyIntegrity(cwd, {
           phase: intPhaseIdx !== -1 ? args[intPhaseIdx + 1] : null,
           plan: intPlanIdx !== -1 ? args[intPlanIdx + 1] : null,
         }, raw);
       } else {
-        error('Unknown verify subcommand. Available: plan-structure, phase-completeness, references, commits, task-commit, artifacts, key-links, context-contract, research-contract, checkpoint-response, checkpoint-coverage, integrity, cross-plan-data-contracts, requirement-coverage, dead-exports, orphaned-state, workflow-readiness, plan-quality, verify-work-cold-start');
+        error('Unknown verify subcommand. Available: plan-structure, phase-completeness, references, commits, task-commit, artifacts, key-links, context-contract, research-contract, checkpoint-response, checkpoint-coverage, integrity, cross-plan-data-contracts, requirement-coverage, verification-artifact, dead-exports, orphaned-state, workflow-readiness, plan-quality, verify-work-cold-start');
       }
       break;
     }
@@ -675,11 +852,19 @@ async function main() {
       const keyArg = keyIdx !== -1 ? args[keyIdx + 1] : null;
       const pathIdx = args.indexOf('--path');
       const pathArg = pathIdx !== -1 ? args[pathIdx + 1] : (args[2] && !args[2].startsWith('--') ? args[2] : null);
+      const phaseIdx = args.indexOf('--phase');
+      const planIdx = args.indexOf('--plan');
+      const waveIdx = args.indexOf('--wave');
+      const gateOptions = {
+        phase: phaseIdx !== -1 ? args[phaseIdx + 1] : null,
+        plan: planIdx !== -1 ? args[planIdx + 1] : null,
+        wave: waveIdx !== -1 ? args[waveIdx + 1] : null,
+      };
 
       if (subcommand === 'enforce') {
-        gate.cmdGateEnforce(cwd, keyArg, raw);
+        gate.cmdGateEnforce(cwd, keyArg, gateOptions, raw);
       } else if (subcommand === 'release') {
-        gate.cmdGateRelease(cwd, keyArg, raw);
+        gate.cmdGateRelease(cwd, keyArg, gateOptions, raw);
       } else if (subcommand === 'check') {
         gate.cmdGateCheck(cwd, keyArg, raw);
       } else if (subcommand === 'check-path') {
@@ -695,6 +880,8 @@ async function main() {
       if (subcommand === 'write') {
         const cpPhaseIdx = args.indexOf('--phase');
         const cpPhase = cpPhaseIdx !== -1 ? args[cpPhaseIdx + 1] : null;
+        const cpPlanIdx = args.indexOf('--plan');
+        const cpPlan = cpPlanIdx !== -1 ? args[cpPlanIdx + 1] : null;
         const cpTypeIdx = args.indexOf('--type');
         const cpWhyIdx = args.indexOf('--why-blocked');
         const cpUncertainIdx = args.indexOf('--what-is-uncertain');
@@ -702,7 +889,8 @@ async function main() {
         const cpTaskNameIdx = args.indexOf('--task-name');
         const cpChoicesIdx = args.indexOf('--choices');
         const cpResumeIdx = args.indexOf('--resume-condition');
-        commands.cmdCheckpointWrite(cwd, cpPhase, {
+      await getCommands().cmdCheckpointWrite(cwd, cpPhase, {
+          plan: cpPlan,
           type: cpTypeIdx !== -1 ? args[cpTypeIdx + 1] : null,
           why_blocked: cpWhyIdx !== -1 ? args[cpWhyIdx + 1] : null,
           what_is_uncertain: cpUncertainIdx !== -1 ? args[cpUncertainIdx + 1] : null,
@@ -718,25 +906,143 @@ async function main() {
       break;
     }
 
+    case 'plane-sync': {
+      const subcommand = args[1];
+      if (subcommand === 'summary') {
+        const phaseIdx = args.indexOf('--phase');
+        const planIdx = args.indexOf('--plan');
+        const phaseArg = phaseIdx !== -1 ? args[phaseIdx + 1] : null;
+        const planArg = planIdx !== -1 ? args[planIdx + 1] : null;
+
+        if (!phaseArg) {
+          error('plane-sync summary requires --phase');
+        }
+        if (!planArg) {
+          error('plane-sync summary requires --plan');
+        }
+        if (Number.isNaN(Number(phaseArg)) || Number.isNaN(Number(planArg))) {
+          error('--phase and --plan must be numeric');
+        }
+
+        const summaryPlaneSync = require('./lib/summary-plane-sync.cjs');
+        const result = await summaryPlaneSync.notifySummaryWrite(cwd, phaseArg, planArg);
+        output(result, raw, result.synced ? 'synced' : (result.skipped || 'skipped'));
+      } else {
+        error('Unknown plane-sync subcommand. Available: summary');
+      }
+      break;
+    }
+
     case 'health': {
       const subcommand = args[1];
       if (subcommand === 'degraded-mode') {
-        commands.cmdHealthDegradedMode(cwd, raw);
+        await getCommands().cmdHealthDegradedMode(cwd, raw);
       } else {
         error('Unknown health subcommand. Available: degraded-mode');
       }
       break;
     }
 
+    case 'drift': {
+      const subcommand = args[1];
+      if (subcommand === 'catalog') {
+        const shouldWrite = args.includes('--write');
+        if (shouldWrite) {
+          const result = driftCatalog.writeCatalog(cwd);
+          output(result, raw, result.path);
+        } else {
+          const catalog = driftCatalog.buildCatalog(cwd);
+          output(catalog, raw, driftCatalog.renderCatalogYaml(catalog));
+        }
+      } else if (subcommand === 'scan') {
+        const jsonFlag = args.includes('--json');
+        const report = driftEngine.scanDrift(cwd);
+        const persisted = driftEngine.writeLatestReport(cwd, report);
+        const payload = { ...persisted, summary: report.summary };
+        if (raw || jsonFlag) {
+          process.stdout.write(JSON.stringify(payload, null, 2) + '\n');
+        } else {
+          process.stdout.write(driftEngine.renderStatus(report));
+        }
+        process.exit(driftEngine.hasBlockingDrift(report) ? 1 : 0);
+      } else if (subcommand === 'report') {
+        const jsonFlag = args.includes('--json');
+        const latest = driftEngine.getLatestReportState(cwd);
+        const payload = latest.report
+          ? { status: latest.status, path: latest.path, age_ms: latest.age_ms, report: latest.report }
+          : latest;
+        process.stdout.write(JSON.stringify(payload, null, 2) + '\n');
+        process.exit(0);
+      } else if (subcommand === 'status') {
+        const jsonFlag = args.includes('--json');
+        const full = args.includes('--full');
+        const latest = driftEngine.getLatestReportState(cwd);
+        if (raw || jsonFlag) {
+          const payload = latest.report
+            ? { status: latest.status, path: latest.path, age_ms: latest.age_ms, report: latest.report }
+            : latest;
+          process.stdout.write(JSON.stringify(payload, null, 2) + '\n');
+        } else if (latest.report) {
+          process.stdout.write(driftEngine.renderStatus(latest.report, { full }));
+        } else {
+          process.stdout.write(driftEngine.renderStatus(latest));
+        }
+        process.exit(0);
+      } else if (subcommand === 'preview') {
+        const jsonFlag = args.includes('--json');
+        const decision = driftReconcile.previewReconciliation(cwd);
+        process.stdout.write(JSON.stringify(decision, null, 2) + '\n');
+        process.exit(0);
+      } else if (subcommand === 'reconcile') {
+        const jsonFlag = args.includes('--json');
+        const decision = driftReconcile.previewReconciliation(cwd);
+        const result = driftReconcile.applyReconciliation(cwd, decision);
+        process.stdout.write(JSON.stringify(result, null, 2) + '\n');
+        process.exit(0);
+      } else {
+        error('Unknown drift subcommand. Available: catalog, scan, report, status, preview, reconcile');
+      }
+      break;
+    }
+
     case 'brain': {
       const brainManager = require('./lib/brain-manager.cjs');
+      const openBrain = require('./lib/open-brain.cjs');
       const subcommand = args[1];
-      if (subcommand === 'health') {
-        const status = await brainManager.checkHealth();
+      if (subcommand === 'status') {
+        const status = await brainManager.getStatus();
+        process.stdout.write(JSON.stringify(status, null, 2) + '\n');
+        process.exit(0);
+      } else if (subcommand === 'health') {
+        const requirePostgres = args.includes('--require-postgres');
+        const status = await brainManager.checkHealth({ requirePostgres, cwd });
         process.stdout.write(JSON.stringify(status, null, 2) + '\n');
         process.exit(status.allOk ? 0 : 1);
+      } else if (subcommand === 'open-status') {
+        const status = openBrain.checkAvailability();
+        process.stdout.write(JSON.stringify(status, null, 2) + '\n');
+        process.exit(0);
+      } else if (subcommand === 'recall-feedback') {
+        const workflowIdx = args.indexOf('--workflow');
+        const phaseIdx = args.indexOf('--phase');
+        const planIdx = args.indexOf('--plan');
+        const outcomeIdx = args.indexOf('--outcome');
+        const sourceRefIdx = args.indexOf('--source-ref');
+        const recallEventIdIdx = args.indexOf('--recall-event-id');
+
+        const result = await openBrain.recordWorkflowRecallOutcome({
+          cwd,
+          workflow: workflowIdx !== -1 ? args[workflowIdx + 1] : null,
+          phase: phaseIdx !== -1 ? args[phaseIdx + 1] : null,
+          plan: planIdx !== -1 ? args[planIdx + 1] : null,
+          outcome: outcomeIdx !== -1 ? args[outcomeIdx + 1] : null,
+          source_ref: sourceRefIdx !== -1 ? args[sourceRefIdx + 1] : null,
+          recallEventId: recallEventIdIdx !== -1 ? args[recallEventIdIdx + 1] : null,
+        });
+        process.stdout.write(JSON.stringify(result, null, 2) + '\n');
+        process.exit(result.available === false && result.reason === 'no_recall_event' ? 1 : 0);
       } else {
-        error('Unknown brain subcommand. Available: health');
+        error('Unknown brain subcommand. Available: status, health, open-status, recall-feedback');
       }
       break;
     }
@@ -769,6 +1075,9 @@ async function main() {
         };
         const audit = require('./lib/audit.cjs');
         audit.cmdDebugLog(cwd, options, raw);
+      } else if (subcommand === 'recent') {
+        const audit = require('./lib/audit.cjs');
+        audit.cmdErrorsRecent(cwd, raw);
       } else {
         error('Unknown debug subcommand: ' + subcommand);
       }
@@ -778,17 +1087,17 @@ async function main() {
     case 'firecrawl': {
       const subcommand = args[1];
       if (subcommand === 'check') {
-        const result = await firecrawlClient.check();
+        const result = await getFirecrawlClient().check();
         output(result, raw, result.available ? 'ok' : 'down');
       } else if (subcommand === 'scrape') {
         const urlIdx = args.indexOf('--url');
         if (urlIdx === -1) error('--url is required for scrape');
-        const result = await firecrawlClient.scrape(args[urlIdx + 1]);
+        const result = await getFirecrawlClient().scrape(args[urlIdx + 1]);
         output(result, raw);
       } else if (subcommand === 'search') {
         const queryIdx = args.indexOf('--query');
         if (queryIdx === -1) error('--query is required for search');
-        const result = await firecrawlClient.search(args[queryIdx + 1]);
+        const result = await getFirecrawlClient().search(args[queryIdx + 1]);
         output(result, raw);
       } else if (subcommand === 'extract') {
         const urlIdx = args.indexOf('--url');
@@ -801,12 +1110,12 @@ async function main() {
         } catch {
           error('Invalid JSON for --schema');
         }
-        const result = await firecrawlClient.extract(args[urlIdx + 1], schema);
+        const result = await getFirecrawlClient().extract(args[urlIdx + 1], schema);
         output(result, raw);
       } else if (subcommand === 'map') {
         const urlIdx = args.indexOf('--url');
         if (urlIdx === -1) error('--url is required for map');
-        const result = await firecrawlClient.map(args[urlIdx + 1]);
+        const result = await getFirecrawlClient().map(args[urlIdx + 1]);
         output(result, raw);
       } else if (subcommand === 'audit') {
         // Check if subcommand is 'audit cleanup'
@@ -936,15 +1245,31 @@ async function main() {
       break;
     }
 
+    case 'plane': {
+      const subcommand = args[1];
+      if (subcommand === 'status') {
+        const status = await getPlaneHealth().getPlaneStatus();
+        output(status, raw);
+      } else if (subcommand === 'audit') {
+        const limitIdx = args.indexOf('--limit');
+        const limit = limitIdx !== -1 ? parseInt(args[limitIdx + 1], 10) : 20;
+        const logs = await require('./lib/second-brain.cjs').getPlaneAudit(limit);
+        output(logs, raw);
+      } else {
+        error('Unknown plane subcommand. Available: status, audit');
+      }
+      break;
+    }
+
     case 'searxng': {
       const subcommand = args[1];
       if (subcommand === 'check') {
-        const result = await searxngClient.check();
+        const result = await getSearxngClient().check();
         output(result, raw, result.available ? 'ok' : 'down');
       } else if (subcommand === 'search') {
         const queryIdx = args.indexOf('--query');
         if (queryIdx === -1) error('--query is required for search');
-        const result = await searxngClient.search(args[queryIdx + 1]);
+        const result = await getSearxngClient().search(args[queryIdx + 1]);
         output(result, raw);
       } else {
         error('Unknown searxng subcommand. Available: check, search');
@@ -953,22 +1278,22 @@ async function main() {
     }
 
     case 'generate-slug': {
-      commands.cmdGenerateSlug(args[1], raw);
+      getCommands().cmdGenerateSlug(args[1], raw);
       break;
     }
 
     case 'current-timestamp': {
-      commands.cmdCurrentTimestamp(args[1] || 'full', raw);
+      getCommands().cmdCurrentTimestamp(args[1] || 'full', raw);
       break;
     }
 
     case 'list-todos': {
-      commands.cmdListTodos(cwd, args[1], raw);
+      getCommands().cmdListTodos(cwd, args[1], raw);
       break;
     }
 
     case 'verify-path-exists': {
-      commands.cmdVerifyPathExists(cwd, args[1], raw);
+      getCommands().cmdVerifyPathExists(cwd, args[1], raw);
       break;
     }
 
@@ -993,7 +1318,7 @@ async function main() {
     }
 
     case 'history-digest': {
-      commands.cmdHistoryDigest(cwd, raw);
+      getCommands().cmdHistoryDigest(cwd, raw);
       break;
     }
 
@@ -1021,9 +1346,21 @@ async function main() {
       } else if (subcommand === 'analyze') {
         roadmap.cmdRoadmapAnalyze(cwd, raw);
       } else if (subcommand === 'update-plan-progress') {
-        roadmap.cmdRoadmapUpdatePlanProgress(cwd, args[2], raw);
+        const planIdx = args.indexOf('--plan');
+        const waveIdx = args.indexOf('--wave');
+        const options = {
+          plan: planIdx !== -1 ? args[planIdx + 1] : null,
+          wave: waveIdx !== -1 ? args[waveIdx + 1] : '1'
+        };
+        roadmap.cmdRoadmapUpdatePlanProgress(cwd, args[2], options, raw);
+      } else if (subcommand === 'sync') {
+        const options = {
+          dryRun: args.includes('--dry-run'),
+          force: args.includes('--force')
+        };
+        roadmap.cmdRoadmapSync(cwd, options, raw);
       } else {
-        error('Unknown roadmap subcommand. Available: get-phase, analyze, update-plan-progress');
+        error('Unknown roadmap subcommand. Available: get-phase, analyze, update-plan-progress, sync');
       }
       break;
     }
@@ -1043,16 +1380,47 @@ async function main() {
       if (subcommand === 'next-decimal') {
         phase.cmdPhaseNextDecimal(cwd, args[2], raw);
       } else if (subcommand === 'add') {
-        phase.cmdPhaseAdd(cwd, args.slice(2).join(' '), raw);
+        const planIdx = args.indexOf('--plan');
+        const waveIdx = args.indexOf('--wave');
+        const phaseOptions = {
+          plan: planIdx !== -1 ? args[planIdx + 1] : null,
+          wave: waveIdx !== -1 ? args[waveIdx + 1] : null,
+        };
+        phase.cmdPhaseAdd(cwd, args.slice(2).join(' '), phaseOptions, raw);
       } else if (subcommand === 'insert') {
-        phase.cmdPhaseInsert(cwd, args[2], args.slice(3).join(' '), raw);
+        const planIdx = args.indexOf('--plan');
+        const waveIdx = args.indexOf('--wave');
+        const phaseOptions = {
+          plan: planIdx !== -1 ? args[planIdx + 1] : null,
+          wave: waveIdx !== -1 ? args[waveIdx + 1] : null,
+        };
+        phase.cmdPhaseInsert(cwd, args[2], args.slice(3).join(' '), phaseOptions, raw);
       } else if (subcommand === 'remove') {
         const forceFlag = args.includes('--force');
         phase.cmdPhaseRemove(cwd, args[2], { force: forceFlag }, raw);
       } else if (subcommand === 'complete') {
-        phase.cmdPhaseComplete(cwd, args[2], raw);
+        const planIdx = args.indexOf('--plan');
+        const waveIdx = args.indexOf('--wave');
+        const phaseOptions = {
+          plan: planIdx !== -1 ? args[planIdx + 1] : null,
+          wave: waveIdx !== -1 ? args[waveIdx + 1] : null,
+        };
+        phase.cmdPhaseComplete(cwd, args[2], phaseOptions, raw);
       } else {
         error('Unknown phase subcommand. Available: next-decimal, add, insert, remove, complete');
+      }
+      break;
+    }
+
+    case 'phase-truth': {
+      const subcommand = args[1];
+      if (subcommand === 'generate') {
+        const phaseArg = args[2];
+        if (!phaseArg) error('phase required for phase-truth generate');
+        const result = phaseTruth.writePhaseTruth(cwd, phaseArg);
+        output(result, raw, result.machine_artifact);
+      } else {
+        error('Unknown phase-truth subcommand. Available: generate');
       }
       break;
     }
@@ -1082,10 +1450,10 @@ async function main() {
     case 'validate': {
       const subcommand = args[1];
       if (subcommand === 'consistency') {
-        verify.cmdValidateConsistency(cwd, raw);
+        getVerify().cmdValidateConsistency(cwd, raw);
       } else if (subcommand === 'health') {
         const repairFlag = args.includes('--repair');
-        verify.cmdValidateHealth(cwd, { repair: repairFlag }, raw);
+        getVerify().cmdValidateHealth(cwd, { repair: repairFlag }, raw);
       } else {
         error('Unknown validate subcommand. Available: consistency, health');
       }
@@ -1094,20 +1462,28 @@ async function main() {
 
     case 'progress': {
       const subcommand = args[1] || 'json';
-      commands.cmdProgressRender(cwd, subcommand, raw);
+      getCommands().cmdProgressRender(cwd, subcommand, raw);
       break;
     }
 
     case 'stats': {
       const subcommand = args[1] || 'json';
-      commands.cmdStats(cwd, subcommand, raw);
+      getCommands().cmdStats(cwd, subcommand, raw);
       break;
     }
 
     case 'todo': {
       const subcommand = args[1];
       if (subcommand === 'complete') {
-        commands.cmdTodoComplete(cwd, args[2], raw);
+        const phaseIdx = args.indexOf('--phase');
+        const planIdx = args.indexOf('--plan');
+        const waveIdx = args.indexOf('--wave');
+        const todoOptions = {
+          phase: phaseIdx !== -1 ? args[phaseIdx + 1] : null,
+          plan: planIdx !== -1 ? args[planIdx + 1] : null,
+          wave: waveIdx !== -1 ? args[waveIdx + 1] : null,
+        };
+        getCommands().cmdTodoComplete(cwd, args[2], todoOptions, raw);
       } else {
         error('Unknown todo subcommand. Available: complete');
       }
@@ -1118,11 +1494,15 @@ async function main() {
       const scaffoldType = args[1];
       const phaseIndex = args.indexOf('--phase');
       const nameIndex = args.indexOf('--name');
+      const planIdx = args.indexOf('--plan');
+      const waveIdx = args.indexOf('--wave');
       const scaffoldOptions = {
         phase: phaseIndex !== -1 ? args[phaseIndex + 1] : null,
         name: nameIndex !== -1 ? args.slice(nameIndex + 1).join(' ') : null,
+        plan: planIdx !== -1 ? args[planIdx + 1] : null,
+        wave: waveIdx !== -1 ? args[waveIdx + 1] : null,
       };
-      commands.cmdScaffold(cwd, scaffoldType, scaffoldOptions, raw);
+      getCommands().cmdScaffold(cwd, scaffoldType, scaffoldOptions, raw);
       break;
     }
 
@@ -1176,6 +1556,31 @@ async function main() {
       break;
     }
 
+    case 'replay-mission': {
+      const missionId = args[1];
+      if (!missionId) error('mission_id required');
+      getCommands().cmdReplayMission(cwd, missionId, {}, raw);
+      break;
+    }
+
+    case 'verify-synthesis': {
+      const artifactId = args[1];
+      if (!artifactId) error('artifact_id required');
+      getCommands().cmdVerifySynthesis(cwd, artifactId, {}, raw);
+      break;
+    }
+
+    case 'rank-synthesis': {
+      const missionId = args[1];
+      if (!missionId) error('mission_id required');
+      const limitIndex = args.indexOf('--limit');
+      const options = {
+        limit: limitIndex !== -1 && args[limitIndex + 1] ? parseInt(args[limitIndex + 1], 10) : 10
+      };
+      getCommands().cmdRankSynthesis(cwd, missionId, options, raw);
+      break;
+    }
+
     case 'state-snapshot': {
       state.cmdStateSnapshot(cwd, raw);
       break;
@@ -1185,7 +1590,7 @@ async function main() {
       const summaryPath = args[1];
       const fieldsIndex = args.indexOf('--fields');
       const fields = fieldsIndex !== -1 ? args[fieldsIndex + 1].split(',') : null;
-      commands.cmdSummaryExtract(cwd, summaryPath, fields, raw);
+      getCommands().cmdSummaryExtract(cwd, summaryPath, fields, raw);
       break;
     }
 
@@ -1220,7 +1625,7 @@ async function main() {
         const text = textIndex !== -1
           ? args[textIndex + 1]
           : args.slice(2).filter(arg => !arg.startsWith('--')).join(' ');
-        itl.cmdItlInterpret(cwd, {
+        getItl().cmdItlInterpret(cwd, {
           text,
           provider,
           provider_response: providerResponse,
@@ -1233,7 +1638,7 @@ async function main() {
         const text = textIndex !== -1
           ? args[textIndex + 1]
           : args.slice(2).filter(arg => !arg.startsWith('--')).join(' ');
-        itl.cmdItlInitSeed(cwd, {
+        getItl().cmdItlInitSeed(cwd, {
           text,
           provider,
           provider_response: providerResponse,
@@ -1245,7 +1650,7 @@ async function main() {
         const text = textIndex !== -1
           ? args[textIndex + 1]
           : args.slice(2).filter(arg => !arg.startsWith('--')).join(' ');
-        itl.cmdItlDiscussSeed(cwd, {
+        getItl().cmdItlDiscussSeed(cwd, {
           text,
           provider,
           provider_response: providerResponse,
@@ -1257,7 +1662,7 @@ async function main() {
         const text = textIndex !== -1
           ? args[textIndex + 1]
           : args.slice(2).filter(arg => !arg.startsWith('--')).join(' ');
-        itl.cmdItlVerifySeed(cwd, {
+        getItl().cmdItlVerifySeed(cwd, {
           text,
           provider,
           provider_response: providerResponse,
@@ -1265,7 +1670,7 @@ async function main() {
           phase: phase,
         }, raw);
       } else if (subcommand === 'latest') {
-        itl.cmdItlLatest(cwd, raw);
+        getItl().cmdItlLatest(cwd, raw);
       } else {
         error('Unknown itl subcommand. Available: interpret, init-seed, discuss-seed, verify-seed, latest');
       }
@@ -1274,7 +1679,11 @@ async function main() {
 
     case 'audit': {
       const subcommand = args[1];
-      if (subcommand === 'log') {
+      if (subcommand === 'enforcement-boundary') {
+        const write = args.includes('--write');
+        const result = enforcementBoundaryAudit.runEnforcementBoundaryAudit(cwd, { write });
+        output(result, raw);
+      } else if (subcommand === 'log') {
         const phaseIdx = args.indexOf('--phase');
         const planIdx = args.indexOf('--plan');
         const taskIdx = args.indexOf('--task');
@@ -1307,7 +1716,7 @@ async function main() {
         const limit = limitIdx !== -1 ? parseInt(args[limitIdx + 1], 10) : 20;
         integrityLog.cmdIntegrityRead(cwd, limit, raw);
       } else {
-        error('Unknown audit subcommand. Available: log, read, analyze-impact, integrity');
+        error('Unknown audit subcommand. Available: enforcement-boundary, log, read, analyze-impact, integrity');
       }
       break;
     }
@@ -1416,16 +1825,16 @@ async function main() {
         const phaseVal = phaseIdx !== -1 ? args[phaseIdx + 1] : null;
         const planIdx = args.indexOf('--plan');
         const planVal = planIdx !== -1 ? args[planIdx + 1] : null;
-        await context.cmdContextBuild(cwd, workflow, { phase: phaseVal, plan: planVal }, raw);
+        await getContext().cmdContextBuild(cwd, workflow, { phase: phaseVal, plan: planVal }, raw);
       } else if (sub === 'read') {
         const ids = args.slice(2).filter(a => !a.startsWith('--'));
-        context.cmdContextRead(cwd, ids, { raw });
+        getContext().cmdContextRead(cwd, ids, { raw });
       } else if (sub === 'normalize') {
         const sourceIdx = args.indexOf('--source');
         const fileIdx = args.indexOf('--file');
         const typeIdx = args.indexOf('--type');
         const producerIdx = args.indexOf('--producer');
-        context.cmdContextNormalize(cwd, sourceIdx !== -1 ? args[sourceIdx + 1] : null, fileIdx !== -1 ? args[fileIdx + 1] : null, {
+        getContext().cmdContextNormalize(cwd, sourceIdx !== -1 ? args[sourceIdx + 1] : null, fileIdx !== -1 ? args[fileIdx + 1] : null, {
           raw,
           type: typeIdx !== -1 ? args[typeIdx + 1] : null,
           producer: producerIdx !== -1 ? args[producerIdx + 1] : null,
@@ -1436,9 +1845,32 @@ async function main() {
       break;
     }
 
+    case 'integrity-gauntlet': {
+      const subcommand = args[1];
+      if (subcommand === 'run') {
+        const scenarioIds = [];
+        for (let i = 2; i < args.length; i += 1) {
+          if (args[i] === '--scenario' && args[i + 1]) {
+            scenarioIds.push(args[i + 1]);
+            i += 1;
+          }
+        }
+        const result = getIntegrityGauntlet().runDeterministicGauntlet({
+          cwd,
+          scenarioIds: scenarioIds.length > 0 ? scenarioIds : null,
+        });
+        output(result, raw);
+      } else {
+        error('Unknown integrity-gauntlet subcommand. Available: run');
+      }
+      break;
+    }
+
     default:
       error(`Unknown command: ${command}`);
   }
 }
 
 main();
+
+// GSD-AUTHORITY: 79-01-1:f36ee20eca31611e068ea3a7c3a281cfeec5713d79d399b1d24e19c9614a0aa1

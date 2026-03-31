@@ -646,6 +646,7 @@ function cmdInitTodos(cwd, area, raw) {
 function cmdInitMilestoneOp(cwd, raw) {
   const config = loadConfig(cwd);
   const milestone = getMilestoneInfo(cwd);
+  const isDirInMilestone = getMilestonePhaseFilter(cwd);
 
   // Count phases
   let phaseCount = 0;
@@ -653,7 +654,10 @@ function cmdInitMilestoneOp(cwd, raw) {
   const phasesDir = path.join(cwd, '.planning', 'phases');
   try {
     const entries = fs.readdirSync(phasesDir, { withFileTypes: true });
-    const dirs = entries.filter(e => e.isDirectory()).map(e => e.name);
+    const dirs = entries
+      .filter(e => e.isDirectory())
+      .map(e => e.name)
+      .filter(isDirInMilestone);
     phaseCount = dirs.length;
 
     // Count phases with summaries (completed)

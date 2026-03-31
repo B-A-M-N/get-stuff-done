@@ -2,7 +2,7 @@
 const { spawn, execSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
-const PORT = 3011;
+const PORT = 32000 + Math.floor(Math.random() * 1000);
 const SERVER = path.resolve(__dirname, '../../get-stuff-done/bin/lib/planning-server.cjs');
 const TOKEN = 'test-token-123';
 
@@ -143,6 +143,41 @@ try {
   assert(count429 > 0, `Rate limiting: ${count429} requests rate-limited`);
 } catch (e) {
   assert(false, 'Rate limiting: no 429 observed');
+}
+
+// 15. Plane webhook route accepts valid authenticated payload
+try {
+  const cmd = `curl -s -X POST -H "Authorization: Bearer ${TOKEN}" -H "Content-Type: application/json" --data '${JSON.stringify({
+    event: 'issue.updated',
+    issue: {
+      id: 'issue-123',
+      custom_fields: {
+        gsd_phase_number: '49',
+        gsd_plan_id: '49-01'
+      }
+    }
+  })}' http://127.0.0.1:${PORT}/v1/plane/webhook`;
+  const body = execSync(cmd).toString();
+  const json = JSON.parse(body);
+  assert(json.accepted === true && json.event === 'issue.updated', 'Plane webhook: valid payload accepted');
+} catch (e) {
+  assert(false, 'Plane webhook accept: ' + e.message);
+}
+
+// 16. Plane webhook route rejects invalid content type
+try {
+  const code = execSync(`curl -s -o /dev/null -w "%{http_code}" -X POST -H "Authorization: Bearer ${TOKEN}" -H "Content-Type: text/plain" --data 'nope' http://127.0.0.1:${PORT}/v1/plane/webhook`).toString().trim();
+  assert(code === '415', `Plane webhook content-type: 415 (got ${code})`);
+} catch (e) {
+  assert(false, 'Plane webhook content-type: ' + e.message);
+}
+
+// 17. Plane webhook route rejects invalid token
+try {
+  const code = execSync(`curl -s -o /dev/null -w "%{http_code}" -X POST -H "Authorization: Bearer wrong" -H "Content-Type: application/json" --data '{"event":"issue.updated"}' http://127.0.0.1:${PORT}/v1/plane/webhook`).toString().trim();
+  assert(code === '401', `Plane webhook invalid token: 401 (got ${code})`);
+} catch (e) {
+  assert(false, 'Plane webhook invalid token: ' + e.message);
 }
 
 stop();

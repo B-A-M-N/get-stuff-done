@@ -620,6 +620,7 @@ Check ~/.claude/settings and run gsd:health.`;
 
 describe('copyCommandsAsCopilotSkills', () => {
   const srcDir = path.join(__dirname, '..', 'commands', 'gsd');
+  const expectedSkillCount = fs.readdirSync(srcDir).filter(f => f.endsWith('.md')).length;
 
   test('creates skill folders from source commands', () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gsd-copilot-skills-'));
@@ -635,7 +636,7 @@ describe('copyCommandsAsCopilotSkills', () => {
       // Count gsd-* directories
       const dirs = fs.readdirSync(tempDir, { withFileTypes: true })
         .filter(e => e.isDirectory() && e.name.startsWith('gsd-'));
-      assert.strictEqual(dirs.length, 41, `expected 41 skill folders, got ${dirs.length}`);
+      assert.strictEqual(dirs.length, expectedSkillCount, `expected ${expectedSkillCount} skill folders, got ${dirs.length}`);
     } finally {
       fs.rmSync(tempDir, { recursive: true });
     }
@@ -752,7 +753,7 @@ describe('Copilot agent conversion - real files', () => {
     const toolsLine = result.split('\n').find(l => l.startsWith('tools:'));
     assert.ok(toolsLine.includes('io.github.upstash/context7/*'), 'mcp wildcard mapped in tools');
     assert.ok(!toolsLine.includes('mcp__context7__'), 'no mcp__ prefix in tools line');
-    assert.ok(toolsLine.includes("'web'"), 'WebSearch/WebFetch deduplicated to web');
+    assert.ok(toolsLine.includes("'search'"), 'Grep/Glob deduplicated to search');
     assert.ok(toolsLine.includes("'read'"), 'Read mapped');
   });
 
@@ -1130,8 +1131,9 @@ const { execFileSync } = require('child_process');
 const crypto = require('crypto');
 
 const INSTALL_PATH = path.join(__dirname, '..', 'bin', 'install.js');
-const EXPECTED_SKILLS = 41;
-const EXPECTED_AGENTS = 16;
+// Dynamic counts: derive from actual source files to avoid brittle assertions
+const EXPECTED_SKILLS = fs.readdirSync(path.join(__dirname, '..', 'commands', 'gsd')).filter(f => f.endsWith('.md')).length;
+const EXPECTED_AGENTS = fs.readdirSync(path.join(__dirname, '..', 'agents')).filter(f => f.startsWith('gsd-') && f.endsWith('.md')).length;
 
 function runCopilotInstall(cwd) {
   const env = { ...process.env };

@@ -1,0 +1,13 @@
+{
+  "id": "e92ba0a018e5d7bf969707e33472a2add1c1cffbbc05e528ab5a65de71cd8b95",
+  "source_uri": ".planning/phases/27-independent-memory-wiring-postgres-rabbitmq-local-second-brain/27-VALIDATION.md",
+  "type": "internal",
+  "content_markdown": "# Phase 27 Verification: Independent Memory Wiring (Postgres/RabbitMQ/Local Second Brain)\n\n## Goal-Backward Verification\n\n### 1. Observable Truths\n\n- [ ] Schema `gsd_local_brain` exists in Postgres with `artifacts`, `symbols`, and `dependencies` tables.\n- [ ] RabbitMQ exchange `gsd.pulse` is active and receiving messages.\n- [ ] `broker.cjs` gracefully handles RabbitMQ being down (retries, no crash).\n- [ ] `second-brain.cjs` gracefully handles Postgres being down (logs error, continues execution).\n- [ ] Artifact normalization automatically triggers Second Brain ingestion.\n- [ ] Symbols and dependencies from normalization are correctly stored in Postgres.\n\n### 2. Required Artifacts\n\n- [ ] `scripts/init-local-brain.sql`: SQL schema definition.\n- [ ] `get-stuff-done/bin/lib/broker.cjs`: RabbitMQ wrapper with retry logic.\n- [ ] `get-stuff-done/bin/lib/second-brain.cjs`: Postgres storage wrapper with failure handling.\n- [ ] `tests/second-brain.test.cjs`: Integration and failure simulation tests.\n\n### 3. Key Links\n\n- [ ] `internal-normalizer.cjs` -> `second-brain.cjs`: `ingestArtifact()` call.\n- [ ] `second-brain.cjs` -> `broker.cjs`: `publish()` call for symbols.\n- [ ] `second-brain.cjs` -> `pg`: Database connection.\n- [ ] `broker.cjs` -> `amqplib`: RabbitMQ connection.\n\n## Automated Verification Tests\n\n- `npm test tests/second-brain.test.cjs` (Standard flow)\n- `FAILURE_SIM=postgres node tests/second-brain.test.cjs` (Postgres down simulation)\n- `FAILURE_SIM=rabbitmq node tests/second-brain.test.cjs` (RabbitMQ down simulation)\n",
+  "content_hash": "3fa3d4a4a95da04bce218d9d71c78774942ae7a9e00f3b7f473c0e7b1014d950",
+  "normalized_at": "2026-03-29T18:41:58.201Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  }
+}

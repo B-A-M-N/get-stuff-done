@@ -897,6 +897,87 @@ describe('verify summary command', () => {
     assert.ok(output.errors.some(err => err.includes('Task commit hashes not found in git history')));
   });
 
+  test('requires structured proof index for phase 71 summaries', () => {
+    fs.writeFileSync(path.join(tmpDir, 'task.txt'), 'task\n');
+    execSync('git add -A', { cwd: tmpDir, stdio: 'pipe' });
+    execSync('git commit -m "task 1"', { cwd: tmpDir, stdio: 'pipe' });
+    const hash = execSync('git rev-parse --short HEAD', { cwd: tmpDir, encoding: 'utf-8' }).trim();
+
+    const summaryPath = path.join(tmpDir, '.planning', 'phases', '01-test', '71-01-SUMMARY.md');
+    fs.writeFileSync(summaryPath, [
+      '---',
+      'phase: 71',
+      'plan: 01',
+      'subsystem: truth',
+      'tags: [proof]',
+      'provides: [proof-chain]',
+      'context_artifact_ids: [phase-71-proof]',
+      'duration: 5min',
+      'completed: 2026-03-27',
+      '---',
+      '# Summary',
+      '',
+      '- **Tasks:** 1',
+      '',
+      '## Task Commits',
+      '',
+      `- Task 1: ${hash}`,
+    ].join('\n'));
+
+    const output = JSON.parse(runGsdTools('verify-summary .planning/phases/01-test/71-01-SUMMARY.md', tmpDir).output);
+    assert.strictEqual(output.passed, false);
+    assert.ok(output.errors.some(err => err.includes('Missing required ## Proof Index section')));
+  });
+
+  test('accepts structured proof index for phase 71 summaries', () => {
+    fs.writeFileSync(path.join(tmpDir, 'task.txt'), 'task\n');
+    execSync('git add -A', { cwd: tmpDir, stdio: 'pipe' });
+    execSync('git commit -m "task 1"', { cwd: tmpDir, stdio: 'pipe' });
+    const hash = execSync('git rev-parse --short HEAD', { cwd: tmpDir, encoding: 'utf-8' }).trim();
+
+    const summaryPath = path.join(tmpDir, '.planning', 'phases', '01-test', '71-02-SUMMARY.md');
+    fs.writeFileSync(summaryPath, [
+      '---',
+      'phase: 71',
+      'plan: 02',
+      'subsystem: truth',
+      'tags: [proof]',
+      'provides: [proof-chain]',
+      'context_artifact_ids: [phase-71-proof]',
+      'duration: 5min',
+      'completed: 2026-03-27',
+      '---',
+      '# Summary',
+      '',
+      '- **Tasks:** 1',
+      '',
+      '## Task Commits',
+      '',
+      `- Task 1: ${hash}`,
+      '',
+      '## Proof Index',
+      '',
+      '```json',
+      JSON.stringify([
+        {
+          task: 1,
+          canonical_commit: hash,
+          files: ['task.txt'],
+          verify: 'node --test tests/proof.test.cjs',
+          evidence: ['node --test tests/proof.test.cjs'],
+          runtime_required: false,
+          runtime_proof: [],
+        },
+      ], null, 2),
+      '```',
+    ].join('\n'));
+
+    const output = JSON.parse(runGsdTools('verify-summary .planning/phases/01-test/71-02-SUMMARY.md', tmpDir).output);
+    assert.strictEqual(output.passed, true, JSON.stringify(output));
+    assert.strictEqual(output.checks.proof_index.required, true);
+    assert.strictEqual(output.checks.proof_index.entries, 1);
+  });
+
   test('verify-work-cold-start reports runtime-sensitive summary paths', () => {
     fs.mkdirSync(path.join(tmpDir, 'src'), { recursive: true });
     fs.writeFileSync(path.join(tmpDir, 'src', 'server.js'), 'console.log("server");\n');
@@ -947,6 +1028,410 @@ describe('verify summary command', () => {
     const output = JSON.parse(runGsdTools('verify verify-work-cold-start 01', tmpDir).output);
     assert.strictEqual(output.needs_cold_start_smoke_test, false);
     assert.deepStrictEqual(output.cold_start_paths, []);
+  });
+});
+
+describe('verify verification artifact command', () => {
+  let tmpDir;
+
+  beforeEach(() => {
+    tmpDir = createTempProject();
+    fs.mkdirSync(path.join(tmpDir, '.planning', 'phases', '72-test'), { recursive: true });
+  });
+
+  afterEach(() => {
+    cleanup(tmpDir);
+  });
+
+  test('passes for a hardened verification artifact with direct evidence', () => {
+    const verificationPath = path.join(tmpDir, '.planning', 'phases', '72-test', '72-VERIFICATION.md');
+    fs.writeFileSync(verificationPath, [
+      '---',
+      'phase: 72-test',
+      'verified: 2026-03-27T19:00:00Z',
+      'status: VALID',
+      'score: 1/1 requirements verified',
+      '---',
+      '# Phase 72 Verification',
+      '',
+      '## Observable Truths',
+      '',
+      '| # | Truth | Status | Evidence |',
+      '|---|-------|--------|----------|',
+      '| 1 | Verification uses strict statuses | VALID | `get-stuff-done/templates/verification-report.md` |',
+      '',
+      '## Requirement Coverage',
+      '',
+      '| Requirement | Status | Evidence | Gap |',
+      '|-------------|--------|----------|-----|',
+      '| TRUTH-VERIFY-01 | VALID | `get-stuff-done/templates/verification-report.md`, `node --test tests/commands.test.cjs` | - |',
+      '',
+      '## Anti-Pattern Scan',
+      '',
+      '| File | Pattern | Classification | Impact |',
+      '|------|---------|----------------|--------|',
+      '| None | - | - | - |',
+      '',
+      '## Drift Analysis',
+      '',
+      '```json',
+      '[]',
+      '```',
+      '',
+      '## Escalation',
+      '',
+      '```json',
+      '{"required":false,"type":null,"reason":null,"explanation":null,"options":[],"implications":[]}',
+      '```',
+      '',
+      '## Final Status',
+      '',
+      '```json',
+      '{"status":"VALID","reason":"All requirements carry direct evidence."}',
+      '```',
+    ].join('\n'));
+
+    const result = runGsdTools('verify verification-artifact .planning/phases/72-test/72-VERIFICATION.md', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.valid, true, JSON.stringify(output));
+  });
+
+  test('fails when requirement evidence is summary-only', () => {
+    const verificationPath = path.join(tmpDir, '.planning', 'phases', '72-test', '72-VERIFICATION.md');
+    fs.writeFileSync(verificationPath, [
+      '---',
+      'phase: 72-test',
+      'verified: 2026-03-27T19:00:00Z',
+      'status: INVALID',
+      'score: 0/1 requirements verified',
+      '---',
+      '# Phase 72 Verification',
+      '',
+      '## Observable Truths',
+      '',
+      '| # | Truth | Status | Evidence |',
+      '|---|-------|--------|----------|',
+      '| 1 | Verification uses strict statuses | INVALID | `72-01-SUMMARY.md` |',
+      '',
+      '## Requirement Coverage',
+      '',
+      '| Requirement | Status | Evidence | Gap |',
+      '|-------------|--------|----------|-----|',
+      '| TRUTH-VERIFY-01 | INVALID | `72-01-SUMMARY.md` | direct proof missing |',
+      '',
+      '## Anti-Pattern Scan',
+      '',
+      '| File | Pattern | Classification | Impact |',
+      '|------|---------|----------------|--------|',
+      '| None | - | - | - |',
+      '',
+      '## Drift Analysis',
+      '',
+      '```json',
+      '[{"type":"verification_drift","description":"Summary-only evidence"}]',
+      '```',
+      '',
+      '## Final Status',
+      '',
+      '```json',
+      '{"status":"INVALID","reason":"Summary-only evidence is not proof."}',
+      '```',
+    ].join('\n'));
+
+    const output = JSON.parse(runGsdTools('verify verification-artifact .planning/phases/72-test/72-VERIFICATION.md', tmpDir).output);
+    assert.strictEqual(output.valid, false);
+    assert.ok(output.errors.some(err => err.includes('summary-only evidence')));
+  });
+
+  test('fails when conditional requirement omits explicit gap details', () => {
+    const verificationPath = path.join(tmpDir, '.planning', 'phases', '72-test', '72-VERIFICATION.md');
+    fs.writeFileSync(verificationPath, [
+      '---',
+      'phase: 72-test',
+      'verified: 2026-03-27T19:00:00Z',
+      'status: CONDITIONAL',
+      'score: 0/1 requirements verified',
+      '---',
+      '# Phase 72 Verification',
+      '',
+      '## Observable Truths',
+      '',
+      '| # | Truth | Status | Evidence |',
+      '|---|-------|--------|----------|',
+      '| 1 | Verification uses strict statuses | CONDITIONAL | `get-stuff-done/templates/verification-report.md` |',
+      '',
+      '## Requirement Coverage',
+      '',
+      '| Requirement | Status | Evidence | Gap |',
+      '|-------------|--------|----------|-----|',
+      '| TRUTH-VERIFY-02 | CONDITIONAL | `get-stuff-done/templates/verification-report.md` |  |',
+      '',
+      '## Anti-Pattern Scan',
+      '',
+      '| File | Pattern | Classification | Impact |',
+      '|------|---------|----------------|--------|',
+      '| None | - | - | - |',
+      '',
+      '## Drift Analysis',
+      '',
+      '```json',
+      '[]',
+      '```',
+      '',
+      '## Final Status',
+      '',
+      '```json',
+      '{"status":"CONDITIONAL","reason":"Gap remains open."}',
+      '```',
+    ].join('\n'));
+
+    const output = JSON.parse(runGsdTools('verify verification-artifact .planning/phases/72-test/72-VERIFICATION.md', tmpDir).output);
+    assert.strictEqual(output.valid, false);
+    assert.ok(output.errors.some(err => err.includes('missing explicit gap details')));
+  });
+
+  test('fails when escalation remains unresolved but final status claims VALID', () => {
+    const verificationPath = path.join(tmpDir, '.planning', 'phases', '72-test', '72-VERIFICATION.md');
+    fs.writeFileSync(verificationPath, [
+      '---',
+      'phase: 72-test',
+      'verified: 2026-03-27T19:00:00Z',
+      'status: VALID',
+      'score: 1/1 requirements verified',
+      '---',
+      '# Phase 72 Verification',
+      '',
+      '## Observable Truths',
+      '',
+      '| # | Truth | Status | Evidence |',
+      '|---|-------|--------|----------|',
+      '| 1 | Verification uses strict statuses | VALID | `get-stuff-done/templates/verification-report.md` |',
+      '',
+      '## Requirement Coverage',
+      '',
+      '| Requirement | Status | Evidence | Gap |',
+      '|-------------|--------|----------|-----|',
+      '| TRUTH-VERIFY-01 | VALID | `get-stuff-done/templates/verification-report.md` | - |',
+      '',
+      '## Anti-Pattern Scan',
+      '',
+      '| File | Pattern | Classification | Impact |',
+      '|------|---------|----------------|--------|',
+      '| None | - | - | - |',
+      '',
+      '## Drift Analysis',
+      '',
+      '```json',
+      '[]',
+      '```',
+      '',
+      '## Escalation',
+      '',
+      '```json',
+      '{"required":true,"type":"semantic_ambiguity","reason":"Meaning unresolved","explanation":"Need a human choice","options":["A","B"],"implications":["A narrows scope","B expands proof needs"]}',
+      '```',
+      '',
+      '## Final Status',
+      '',
+      '```json',
+      '{"status":"VALID","reason":"Incorrectly marked valid."}',
+      '```',
+    ].join('\n'));
+
+    const output = JSON.parse(runGsdTools('verify verification-artifact .planning/phases/72-test/72-VERIFICATION.md', tmpDir).output);
+    assert.strictEqual(output.valid, false);
+    assert.ok(output.errors.some(err => err.includes('Final Status must be CONDITIONAL')));
+  });
+
+  test('fails when blocker anti-pattern exists but final status is not INVALID', () => {
+    const verificationPath = path.join(tmpDir, '.planning', 'phases', '72-test', '72-VERIFICATION.md');
+    fs.writeFileSync(verificationPath, [
+      '---',
+      'phase: 72-test',
+      'verified: 2026-03-27T19:00:00Z',
+      'status: CONDITIONAL',
+      'score: 1/1 requirements verified',
+      '---',
+      '# Phase 72 Verification',
+      '',
+      '## Observable Truths',
+      '',
+      '| # | Truth | Status | Evidence |',
+      '|---|-------|--------|----------|',
+      '| 1 | Verification uses strict statuses | VALID | `get-stuff-done/templates/verification-report.md` |',
+      '',
+      '## Requirement Coverage',
+      '',
+      '| Requirement | Status | Evidence | Gap |',
+      '|-------------|--------|----------|-----|',
+      '| TRUTH-VERIFY-01 | VALID | `get-stuff-done/templates/verification-report.md` | - |',
+      '',
+      '## Anti-Pattern Scan',
+      '',
+      '| File | Pattern | Classification | Impact |',
+      '|------|---------|----------------|--------|',
+      '| src/api.js | `return { ok: true }` placeholder | blocker | Placeholder affects execution |',
+      '',
+      '## Drift Analysis',
+      '',
+      '```json',
+      '[{"type":"verification_drift","description":"Blocker anti-pattern remains in shipped path"}]',
+      '```',
+      '',
+      '## Final Status',
+      '',
+      '```json',
+      '{"status":"CONDITIONAL","reason":"Incorrect downgrade."}',
+      '```',
+    ].join('\n'));
+
+    const output = JSON.parse(runGsdTools('verify verification-artifact .planning/phases/72-test/72-VERIFICATION.md', tmpDir).output);
+    assert.strictEqual(output.valid, false);
+    assert.ok(output.errors.some(err => err.includes('Final Status must be INVALID')));
+  });
+
+  test('accepts degrader anti-pattern when final status is CONDITIONAL and drift is classified', () => {
+    const verificationPath = path.join(tmpDir, '.planning', 'phases', '72-test', '72-VERIFICATION.md');
+    fs.writeFileSync(verificationPath, [
+      '---',
+      'phase: 72-test',
+      'verified: 2026-03-27T19:00:00Z',
+      'status: CONDITIONAL',
+      'score: 1/1 requirements verified',
+      '---',
+      '# Phase 72 Verification',
+      '',
+      '## Observable Truths',
+      '',
+      '| # | Truth | Status | Evidence |',
+      '|---|-------|--------|----------|',
+      '| 1 | Verification uses strict statuses | VALID | `get-stuff-done/templates/verification-report.md` |',
+      '',
+      '## Requirement Coverage',
+      '',
+      '| Requirement | Status | Evidence | Gap |',
+      '|-------------|--------|----------|-----|',
+      '| TRUTH-VERIFY-02 | VALID | `get-stuff-done/templates/verification-report.md` | - |',
+      '',
+      '## Anti-Pattern Scan',
+      '',
+      '| File | Pattern | Classification | Impact |',
+      '|------|---------|----------------|--------|',
+      '| src/api.js | `// TODO: tighten this check` | degrader | Incomplete but non-blocking |',
+      '',
+      '## Drift Analysis',
+      '',
+      '```json',
+      '[{"type":"verification_drift","description":"Non-blocking degrader documented explicitly"}]',
+      '```',
+      '',
+      '## Final Status',
+      '',
+      '```json',
+      '{"status":"CONDITIONAL","reason":"Degrader remains open."}',
+      '```',
+    ].join('\n'));
+
+    const output = JSON.parse(runGsdTools('verify verification-artifact .planning/phases/72-test/72-VERIFICATION.md', tmpDir).output);
+    assert.strictEqual(output.valid, true, JSON.stringify(output));
+    assert.strictEqual(output.anti_pattern_summary.degraders, true);
+    assert.strictEqual(output.anti_pattern_summary.blockers, false);
+  });
+
+  test('fails when inconsistency exists but drift analysis does not classify it', () => {
+    const verificationPath = path.join(tmpDir, '.planning', 'phases', '72-test', '72-VERIFICATION.md');
+    fs.writeFileSync(verificationPath, [
+      '---',
+      'phase: 72-test',
+      'verified: 2026-03-27T19:00:00Z',
+      'status: CONDITIONAL',
+      'score: 0/1 requirements verified',
+      '---',
+      '# Phase 72 Verification',
+      '',
+      '## Observable Truths',
+      '',
+      '| # | Truth | Status | Evidence |',
+      '|---|-------|--------|----------|',
+      '| 1 | Verification uses strict statuses | CONDITIONAL | `get-stuff-done/templates/verification-report.md` |',
+      '',
+      '## Requirement Coverage',
+      '',
+      '| Requirement | Status | Evidence | Gap |',
+      '|-------------|--------|----------|-----|',
+      '| TRUTH-VERIFY-02 | CONDITIONAL | `get-stuff-done/templates/verification-report.md` | missing runtime proof |',
+      '',
+      '## Anti-Pattern Scan',
+      '',
+      '| File | Pattern | Classification | Impact |',
+      '|------|---------|----------------|--------|',
+      '| None | - | - | - |',
+      '',
+      '## Drift Analysis',
+      '',
+      '```json',
+      '[]',
+      '```',
+      '',
+      '## Final Status',
+      '',
+      '```json',
+      '{"status":"CONDITIONAL","reason":"Gap remains open."}',
+      '```',
+    ].join('\n'));
+
+    const output = JSON.parse(runGsdTools('verify verification-artifact .planning/phases/72-test/72-VERIFICATION.md', tmpDir).output);
+    assert.strictEqual(output.valid, false);
+    assert.ok(output.errors.some(err => err.includes('Drift Analysis must classify inconsistencies')));
+  });
+
+  test('accepts historical drift findings as non-blocking when current scope remains valid', () => {
+    const verificationPath = path.join(tmpDir, '.planning', 'phases', '72-test', '72-VERIFICATION.md');
+    fs.writeFileSync(verificationPath, [
+      '---',
+      'phase: 72-test',
+      'verified: 2026-03-27T19:00:00Z',
+      'status: VALID',
+      'score: 1/1 requirements verified',
+      '---',
+      '# Phase 72 Verification',
+      '',
+      '## Observable Truths',
+      '',
+      '| # | Truth | Status | Evidence |',
+      '|---|-------|--------|----------|',
+      '| 1 | Verification uses strict statuses | VALID | `get-stuff-done/templates/verification-report.md` |',
+      '',
+      '## Requirement Coverage',
+      '',
+      '| Requirement | Status | Evidence | Gap |',
+      '|-------------|--------|----------|-----|',
+      '| TRUTH-VERIFY-01 | VALID | `get-stuff-done/templates/verification-report.md`, `node --test tests/verify.test.cjs` | - |',
+      '',
+      '## Anti-Pattern Scan',
+      '',
+      '| File | Pattern | Classification | Impact |',
+      '|------|---------|----------------|--------|',
+      '| legacy/old.js | `// TODO: remove` | historical_drift | Out-of-scope legacy finding |',
+      '',
+      '## Drift Analysis',
+      '',
+      '```json',
+      '[{"type":"verification_drift","description":"Historical out-of-scope TODO retained for visibility only"}]',
+      '```',
+      '',
+      '## Final Status',
+      '',
+      '```json',
+      '{"status":"VALID","reason":"Current-scope requirements are fully evidenced; only historical drift remains."}',
+      '```',
+    ].join('\n'));
+
+    const output = JSON.parse(runGsdTools('verify verification-artifact .planning/phases/72-test/72-VERIFICATION.md', tmpDir).output);
+    assert.strictEqual(output.valid, true, JSON.stringify(output));
+    assert.strictEqual(output.anti_pattern_summary.historical_only, true);
+    assert.strictEqual(output.anti_pattern_summary.blockers, false);
   });
 });
 
@@ -1660,11 +2145,11 @@ describe('verify context-contract command', () => {
     const output = JSON.parse(result.output);
     assert.strictEqual(output.valid, false, 'should be invalid');
     assert.ok(
-      output.errors.some(e => e.includes('Unresolved ambiguity appears in the plan')),
+      output.errors.some(e => e.includes('Unresolved ambiguity appears in the research without an assumption/defer/clarification marker')),
       `Expected unresolved ambiguity carry-forward error: ${JSON.stringify(output.errors)}`
     );
     assert.ok(
-      output.errors.some(e => e.includes('Interpreted assumption appears in the plan')),
+      output.errors.some(e => e.includes('Interpreted assumption appears in the research without an assumption/defer/clarification marker')),
       `Expected interpreted assumption carry-forward error: ${JSON.stringify(output.errors)}`
     );
   });
@@ -1713,3 +2198,5 @@ describe('verify context-contract command', () => {
     assert.strictEqual(output.valid, true, `should be valid, errors: ${JSON.stringify(output.errors)}`);
   });
 });
+
+// GSD-AUTHORITY: 72-02-1:679e25c9e6346459acf2ce39c6b6e08efd82caad72f00a9d863c0cb356b903fe

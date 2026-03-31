@@ -1,0 +1,13 @@
+{
+  "id": "e89fc55494229f86de7185c161c71cc36841a8ca6d736614706afc4e2d8fc85f",
+  "source_uri": ".planning/phases/72-verification-hardening/72-TRUTH.md",
+  "type": "internal",
+  "content_markdown": "# Phase 72: Verification Hardening — Truth\n\n**Generated:** 2026-03-28T00:24:41.612Z\n**Final Status:** CONDITIONAL\n\n## Status Reasons\n\n- Verification artifact is missing.\n- Current degraded truth posture is UNSAFE.\n- context:plan-phase blocked by planning_server: planning_server_unavailable\n- context:execute-plan blocked by planning_server: planning_server_unavailable\n- verify:integrity blocked by drift_truth: drift_truth_stale\n- verify:workflow-readiness blocked by drift_truth: drift_truth_stale\n\n## Inputs\n\n- Verification: None\n- Summaries: .planning/phases/72-verification-hardening/72-01-SUMMARY.md, .planning/phases/72-verification-hardening/72-02-SUMMARY.md\n- Drift reports: .planning/drift/latest-report.json\n- Reconciliation: .planning/drift/latest-reconciliation.json\n- Degraded state: .planning/health/latest-degraded-state.json\n\n## Claimed Outcomes\n\n- Replace narrative verification with a strict evidence-first verification contract and validator.\n- evidence-first verification scaffold\n- strict verification status contract\n- direct-evidence validation for verification artifacts\n- blocker and degrader anti-pattern enforcement\n- required drift typing for verification inconsistencies\n- dedicated Phase 72 verification-artifact regression suite\n\n## Observable Evidence\n\n- file: .planning/phases/72-verification-hardening/72-01-SUMMARY.md\n- file: .planning/phases/72-verification-hardening/72-02-SUMMARY.md\n- command: phase-truth generate 72\n\n## Gaps\n\n- verification_gap: Verification artifact is missing.\n- degraded_state_caveat: Current degraded truth posture is UNSAFE.\n- workflow_block: context:plan-phase blocked by planning_server: planning_server_unavailable\n- workflow_block: context:execute-plan blocked by planning_server: planning_server_unavailable\n- workflow_block: verify:integrity blocked by drift_truth: drift_truth_stale\n- workflow_block: verify:workflow-readiness blocked by drift_truth: drift_truth_stale\n\n## Drift Effects\n\n- None\n\n## Reconciliation Effects\n\n- None\n",
+  "content_hash": "ed1761e3517b575e44f96753b407a02fe5dc1549aca4aa7184e24d3030b99ee8",
+  "normalized_at": "2026-03-28T03:46:21.099Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  }
+}

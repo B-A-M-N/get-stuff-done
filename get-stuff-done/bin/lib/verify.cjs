@@ -5,13 +5,15 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-const { safeReadFile, loadConfig, normalizePhaseName, execGit, findPhaseInternal, getRoadmapPhaseInternal, getMilestoneInfo, stripShippedMilestones, output, error } = require('./core.cjs');
+const { safeReadFile, loadConfig, normalizePhaseName, execGit, findPhaseInternal, getRoadmapPhaseInternal, getMilestoneInfo, stripShippedMilestones, output, error, getActiveRequirementsPath } = require('./core.cjs');
 const { extractFrontmatter, parseMustHavesBlock } = require('./frontmatter.cjs');
 const { writeStateMd } = require('./state.cjs');
 const { checkpointResponseSchema, executionSummarySchema } = require('./artifact-schema.cjs');
+const degradedMode = require('./degraded-mode.cjs');
 
 function extractSummaryReferencedPaths(content, frontmatter = {}) {
   const found = new Set();
+  const contentWithoutCodeBlocks = String(content || '').replace(/```[\s\S]*?```/g, '');
   const keyFiles = frontmatter['key-files'];
   if (keyFiles && typeof keyFiles === 'object') {
     for (const bucket of ['created', 'modified']) {
@@ -33,7 +35,7 @@ function extractSummaryReferencedPaths(content, frontmatter = {}) {
 
   for (const pattern of patterns) {
     let match;
-    while ((match = pattern.exec(content)) !== null) {
+    while ((match = pattern.exec(contentWithoutCodeBlocks)) !== null) {
       const candidate = match[1]?.trim();
       if (candidate && candidate.includes('/') && !candidate.startsWith('http')) {
         found.add(candidate);
@@ -60,20 +62,327 @@ function extractTaskCountFromSummary(content) {
   return match ? parseInt(match[1], 10) : null;
 }
 
+function extractMarkdownSection(content, heading) {
+  const headingRegex = new RegExp(`^\\s*##\\s*${heading}\\s*$`, 'im');
+  const headingMatch = headingRegex.exec(content);
+  if (!headingMatch) return null;
+
+  const start = headingMatch.index + headingMatch[0].length;
+  const remainder = content.slice(start);
+  const nextHeadingMatch = /^\s*##\s+.+$/im.exec(remainder);
+  const sectionBody = nextHeadingMatch
+    ? remainder.slice(0, nextHeadingMatch.index)
+    : remainder;
+  return sectionBody;
+}
+
 function extractTaskCommitHashes(content) {
-  const sectionMatch = content.match(/##\s*Task Commits([\s\S]*?)(?:\n##\s|\n#\s|$)/i);
-  if (!sectionMatch) {
+  const section = extractMarkdownSection(content, 'Task Commits');
+  if (section === null) {
     return { sectionPresent: false, hashes: [] };
   }
 
   const hashes = [];
   const hashPattern = /\b([0-9a-f]{7,40})\b/g;
   let match;
-  while ((match = hashPattern.exec(sectionMatch[1])) !== null) {
+  while ((match = hashPattern.exec(section)) !== null) {
     hashes.push(match[1]);
   }
 
   return { sectionPresent: true, hashes };
+}
+
+function extractStructuredProofIndex(content) {
+  const section = extractMarkdownSection(content, 'Proof Index');
+  if (section === null) {
+    return { sectionPresent: false, entries: [], parse_error: null };
+  }
+
+  const blockMatch = section.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (!blockMatch) {
+    return { sectionPresent: true, entries: [], parse_error: 'missing fenced JSON block' };
+  }
+
+  try {
+    const parsed = JSON.parse(blockMatch[1]);
+    return {
+      sectionPresent: true,
+      entries: Array.isArray(parsed) ? parsed : [],
+      parse_error: Array.isArray(parsed) ? null : 'proof index must be a JSON array',
+    };
+  } catch (err) {
+    return { sectionPresent: true, entries: [], parse_error: err.message };
+  }
+}
+
+function extractJsonBlockSection(content, heading) {
+  const section = extractMarkdownSection(content, heading);
+  if (section === null) {
+    return { sectionPresent: false, value: null, parse_error: null };
+  }
+
+  const blockMatch = section.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (!blockMatch) {
+    return { sectionPresent: true, value: null, parse_error: 'missing fenced JSON block' };
+  }
+
+  try {
+    return {
+      sectionPresent: true,
+      value: JSON.parse(blockMatch[1]),
+      parse_error: null,
+    };
+  } catch (err) {
+    return {
+      sectionPresent: true,
+      value: null,
+      parse_error: err.message,
+    };
+  }
+}
+
+function extractMarkdownTableRows(content, heading, expectedColumns) {
+  const section = extractMarkdownSection(content, heading);
+  if (section === null) {
+    return { sectionPresent: false, rows: [] };
+  }
+
+  const lines = section.split('\n').map(line => line.trim()).filter(Boolean);
+  const tableLines = lines.filter(line => line.startsWith('|'));
+  if (tableLines.length < 3) {
+    return { sectionPresent: true, rows: [] };
+  }
+
+  const rows = [];
+  for (const line of tableLines.slice(2)) {
+    const parts = line.split('|').slice(1, -1).map(part => part.trim());
+    if (parts.length < expectedColumns) continue;
+    rows.push(parts.slice(0, expectedColumns));
+  }
+  return { sectionPresent: true, rows };
+}
+
+function looksLikeDirectEvidence(cell) {
+  const text = String(cell || '').trim();
+  if (!text) return false;
+  if (/\b[0-9a-f]{7,40}\b/.test(text)) return true;
+  if (/`[^`]+`/.test(text)) return true;
+  if (/\b(node|npm|pnpm|yarn|pytest|go test|cargo test)\b/i.test(text)) return true;
+  if (/\b(exit code|stdout|stderr|runtime|output)\b/i.test(text)) return true;
+  if (/(^|[^A-Z])(\/|\.\/|[A-Za-z0-9_.-]+\/)[^\s]+/.test(text) && !/SUMMARY\.md/i.test(text)) return true;
+  return false;
+}
+
+function isSummaryOnlyEvidence(cell) {
+  const text = String(cell || '').trim();
+  return /SUMMARY\.md/i.test(text)
+    && !/\b[0-9a-f]{7,40}\b/.test(text)
+    && !/\b(node|npm|pnpm|yarn|pytest|go test|cargo test)\b/i.test(text)
+    && !/\b(runtime|output|exit code|stdout|stderr)\b/i.test(text);
+}
+
+function normalizeClassification(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function normalizeProofEntry(entry = {}) {
+  return {
+    task: entry.task != null ? Number(entry.task) : null,
+    proof_mode: entry.proof_mode || 'commit',
+    canonical_commit: entry.canonical_commit || entry.hash || null,
+    files: Array.isArray(entry.files) ? entry.files.map(String) : [],
+    verify: entry.verify || entry.verify_command || null,
+    evidence: Array.isArray(entry.evidence) ? entry.evidence.map(String) : [],
+    runtime_required: Boolean(entry.runtime_required),
+    runtime_proof: Array.isArray(entry.runtime_proof) ? entry.runtime_proof.map(String) : [],
+  };
+}
+
+function evaluateVerificationArtifact(cwd, filePath) {
+  if (!filePath) {
+    error('verification artifact path required');
+  }
+
+  const fullPath = path.isAbsolute(filePath) ? filePath : path.join(cwd, filePath);
+  if (!fs.existsSync(fullPath)) {
+    return { valid: false, error: 'Verification artifact not found', path: filePath };
+  }
+
+  const content = fs.readFileSync(fullPath, 'utf-8');
+  const fm = extractFrontmatter(content);
+  const errors = [];
+  const warnings = [];
+  const allowedStatuses = new Set(['VALID', 'CONDITIONAL', 'INVALID']);
+  const requiredSections = [
+    'Observable Truths',
+    'Requirement Coverage',
+    'Anti-Pattern Scan',
+    'Drift Analysis',
+    'Final Status',
+  ];
+
+  if (!allowedStatuses.has(String(fm.status || '').trim())) {
+    errors.push('Frontmatter status must be one of VALID, CONDITIONAL, INVALID');
+  }
+
+  for (const heading of requiredSections) {
+    if (extractMarkdownSection(content, heading) === null) {
+      errors.push(`Missing required section: ${heading}`);
+    }
+  }
+
+  const reqCoverage = extractMarkdownTableRows(content, 'Requirement Coverage', 4);
+  if (!reqCoverage.sectionPresent || reqCoverage.rows.length === 0) {
+    errors.push('Requirement Coverage must contain at least one requirement row');
+  }
+
+  let hasInvalidRequirement = false;
+  let hasConditionalRequirement = false;
+  let hasBlockingAntiPattern = false;
+  let hasDegradingAntiPattern = false;
+  let hasHistoricalOnlyAntiPattern = false;
+  for (const row of reqCoverage.rows) {
+    const [requirement, status, evidence, gap] = row;
+    if (!allowedStatuses.has(status)) {
+      errors.push(`Requirement ${requirement} uses invalid status: ${status}`);
+      continue;
+    }
+    if (isSummaryOnlyEvidence(evidence)) {
+      errors.push(`Requirement ${requirement} cannot use summary-only evidence`);
+    } else if (!looksLikeDirectEvidence(evidence)) {
+      errors.push(`Requirement ${requirement} is missing direct evidence`);
+    }
+    if (status === 'CONDITIONAL') {
+      hasConditionalRequirement = true;
+      if (!String(gap || '').trim()) {
+        errors.push(`Requirement ${requirement} is CONDITIONAL but missing explicit gap details`);
+      }
+    }
+    if (status === 'INVALID') {
+      hasInvalidRequirement = true;
+    }
+  }
+
+  const escalation = extractJsonBlockSection(content, 'Escalation');
+  if (escalation.sectionPresent && escalation.parse_error) {
+    errors.push(`Escalation JSON invalid: ${escalation.parse_error}`);
+  }
+  if (escalation.sectionPresent && escalation.value && escalation.value.required === true) {
+    hasConditionalRequirement = true;
+    if (!escalation.value.explanation) {
+      errors.push('Escalation required=true must include explanation');
+    }
+  }
+
+  const drift = extractJsonBlockSection(content, 'Drift Analysis');
+  if (drift.sectionPresent && drift.parse_error) {
+    errors.push(`Drift Analysis JSON invalid: ${drift.parse_error}`);
+  }
+
+  const antiPatterns = extractMarkdownTableRows(content, 'Anti-Pattern Scan', 4);
+  if (!antiPatterns.sectionPresent) {
+    errors.push('Missing required section: Anti-Pattern Scan');
+  } else {
+    for (const row of antiPatterns.rows) {
+      const [file, pattern, classification] = row;
+      const normalized = normalizeClassification(classification);
+      const isNoneRow = normalizeClassification(file) === 'none' || normalizeClassification(pattern) === '-';
+      if (isNoneRow || !normalized || normalized === '-') {
+        continue;
+      }
+      if (normalized === 'blocker') {
+        hasBlockingAntiPattern = true;
+      } else if (normalized === 'degrader') {
+        hasDegradingAntiPattern = true;
+      } else if (normalized === 'historical_drift' || normalized === 'historical') {
+        hasHistoricalOnlyAntiPattern = true;
+      } else {
+        errors.push(`Unknown anti-pattern classification: ${classification}`);
+      }
+    }
+  }
+
+  const allowedDriftTypes = new Set([
+    'spec_drift',
+    'implementation_drift',
+    'verification_drift',
+    'execution_drift',
+  ]);
+  let driftEntries = [];
+  if (drift.sectionPresent && drift.value != null) {
+    if (!Array.isArray(drift.value)) {
+      errors.push('Drift Analysis must be a JSON array');
+    } else {
+      driftEntries = drift.value;
+      for (const [index, entry] of driftEntries.entries()) {
+        const driftType = String(entry?.type || '').trim();
+        if (!allowedDriftTypes.has(driftType)) {
+          errors.push(`Drift Analysis entry ${index + 1} must use one of: ${Array.from(allowedDriftTypes).join(', ')}`);
+        }
+        if (!String(entry?.description || '').trim()) {
+          errors.push(`Drift Analysis entry ${index + 1} must include description`);
+        }
+      }
+    }
+  }
+
+  const inconsistencyPresent = hasInvalidRequirement
+    || hasConditionalRequirement
+    || hasBlockingAntiPattern
+    || hasDegradingAntiPattern;
+  if (inconsistencyPresent && driftEntries.length === 0) {
+    errors.push('Drift Analysis must classify inconsistencies when requirements, escalation, or anti-pattern findings are not fully valid');
+  }
+
+  const finalStatus = extractJsonBlockSection(content, 'Final Status');
+  if (!finalStatus.sectionPresent) {
+    errors.push('Missing required section: Final Status');
+  } else if (finalStatus.parse_error) {
+    errors.push(`Final Status JSON invalid: ${finalStatus.parse_error}`);
+  } else if (!allowedStatuses.has(String(finalStatus.value?.status || '').trim())) {
+    errors.push('Final Status JSON must include status = VALID, CONDITIONAL, or INVALID');
+  } else {
+    const expectedFinal = hasInvalidRequirement || hasBlockingAntiPattern
+      ? 'INVALID'
+      : hasConditionalRequirement || hasDegradingAntiPattern
+        ? 'CONDITIONAL'
+        : 'VALID';
+    if (finalStatus.value.status !== expectedFinal) {
+      errors.push(`Final Status must be ${expectedFinal} based on requirement and escalation state`);
+    }
+  }
+
+  const valid = errors.length === 0;
+  return {
+    valid,
+    path: path.relative(cwd, fullPath).replace(/\\/g, '/'),
+    requirement_rows: reqCoverage.rows.length,
+    anti_pattern_rows: antiPatterns.rows.length,
+    anti_pattern_summary: {
+      blockers: hasBlockingAntiPattern,
+      degraders: hasDegradingAntiPattern,
+      historical_only: hasHistoricalOnlyAntiPattern,
+    },
+    drift_entries: driftEntries.length,
+    errors,
+    warnings,
+  };
+}
+
+function maybeTriggerPhaseTruth(cwd, phase, source) {
+  if (!phase) return null;
+  const phaseTruth = require('./phase-truth.cjs');
+  return phaseTruth.triggerPhaseTruthGeneration(cwd, phase, { source });
+}
+
+function cmdVerifyVerificationArtifact(cwd, filePath, raw) {
+  const result = evaluateVerificationArtifact(cwd, filePath);
+  const phaseTruthHelper = require('./phase-truth.cjs');
+  const phaseTruth = result.valid ? maybeTriggerPhaseTruth(cwd, phaseTruthHelper.inferPhaseFromPath(result.path), 'verify-verification-artifact') : null;
+  output({
+    ...result,
+    ...(phaseTruth ? { phase_truth: phaseTruth } : {}),
+  }, raw, result.valid ? 'valid' : 'invalid');
 }
 
 function cmdVerifySummary(cwd, summaryPath, checkFileCount, raw) {
@@ -142,10 +451,13 @@ function cmdVerifySummary(cwd, summaryPath, checkFileCount, raw) {
   const commitsExist = allHashes.length > 0 && invalidHashes.length === 0;
 
   const taskCommitInfo = extractTaskCommitHashes(content);
+  const proofIndexInfo = extractStructuredProofIndex(content);
+  const normalizedProofEntries = proofIndexInfo.entries.map(normalizeProofEntry);
   const uniqueTaskHashes = Array.from(new Set(taskCommitInfo.hashes));
   const invalidTaskHashes = uniqueTaskHashes.filter(hash => invalidHashes.includes(hash));
   const declaredTaskCount = extractTaskCountFromSummary(content);
   const taskCommitsRequired = !isLegacy;
+  const structuredProofRequired = !isNaN(phaseNum) && phaseNum >= 71;
 
   let selfCheck = 'not_found';
   const selfCheckPattern = /##\s*(?:Self[- ]?Check|Verification|Quality Check)/i;
@@ -182,6 +494,51 @@ function cmdVerifySummary(cwd, summaryPath, checkFileCount, raw) {
     errors.push('Task commit hashes not found in git history: ' + invalidTaskHashes.join(', '));
   }
 
+  if (structuredProofRequired && !proofIndexInfo.sectionPresent) {
+    errors.push('Missing required ## Proof Index section');
+  }
+  if (proofIndexInfo.parse_error) {
+    errors.push(`Proof Index parse error: ${proofIndexInfo.parse_error}`);
+  }
+  if (structuredProofRequired && normalizedProofEntries.length === 0) {
+    errors.push('Proof Index must contain at least one structured proof entry');
+  }
+
+  const invalidProofHashes = [];
+  const proofEntryErrors = [];
+  for (const entry of normalizedProofEntries) {
+    if (entry.task == null || Number.isNaN(entry.task)) {
+      proofEntryErrors.push('Proof Index entry missing numeric task id');
+    }
+    if (!Array.isArray(entry.files) || entry.files.length === 0) {
+      proofEntryErrors.push(`Proof Index task ${entry.task ?? '?'} missing files`);
+    }
+    if (!entry.verify) {
+      proofEntryErrors.push(`Proof Index task ${entry.task ?? '?'} missing verify command`);
+    }
+    if (!Array.isArray(entry.evidence) || entry.evidence.length === 0) {
+      proofEntryErrors.push(`Proof Index task ${entry.task ?? '?'} missing evidence`);
+    }
+    if (entry.proof_mode !== 'proof_only' && !entry.canonical_commit) {
+      proofEntryErrors.push(`Proof Index task ${entry.task ?? '?'} missing canonical commit`);
+    }
+    if (entry.canonical_commit) {
+      const result = execGit(cwd, ['cat-file', '-t', entry.canonical_commit]);
+      if (!(result.exitCode === 0 && result.stdout.trim() === 'commit')) {
+        invalidProofHashes.push(entry.canonical_commit);
+      }
+    }
+    if (entry.runtime_required && (!Array.isArray(entry.runtime_proof) || entry.runtime_proof.length === 0)) {
+      proofEntryErrors.push(`Proof Index task ${entry.task ?? '?'} missing runtime proof`);
+    }
+  }
+  if (invalidProofHashes.length > 0) {
+    errors.push('Proof Index canonical commits not found in git history: ' + invalidProofHashes.join(', '));
+  }
+  if (proofEntryErrors.length > 0) {
+    errors.push(...proofEntryErrors);
+  }
+
   const passed = errors.length === 0;
 
   const checks = {
@@ -197,10 +554,19 @@ function cmdVerifySummary(cwd, summaryPath, checkFileCount, raw) {
       section_present: taskCommitInfo.sectionPresent,
       invalid: invalidTaskHashes,
     },
+    proof_index: {
+      required: structuredProofRequired,
+      section_present: proofIndexInfo.sectionPresent,
+      parsed: !proofIndexInfo.parse_error,
+      entries: normalizedProofEntries.length,
+      invalid: invalidProofHashes,
+    },
     self_check: selfCheck,
   };
 
-  const result = { passed, checks, errors, warnings, legacy: isLegacy };
+  const phaseTruthHelper = require('./phase-truth.cjs');
+  const phaseTruth = passed ? maybeTriggerPhaseTruth(cwd, phaseTruthHelper.inferPhaseFromPath(summaryPath), 'verify-summary') : null;
+  const result = { passed, checks, errors, warnings, legacy: isLegacy, ...(phaseTruth ? { phase_truth: phaseTruth } : {}) };
   output(result, raw, passed ? 'passed' : 'failed');
 }
 
@@ -1122,18 +1488,23 @@ function extractHeadingBullets(content, heading) {
     .filter(line => !/^none\b/i.test(line));
 }
 
-function findUncheckedCarryForward(items, planContent, label) {
+function findUncheckedCarryForward(items, researchContent, label) {
   const issues = [];
+  const lowerResearch = researchContent.toLowerCase();
 
   for (const item of items) {
-    const index = planContent.toLowerCase().indexOf(item.toLowerCase());
-    if (index === -1) continue;
+    const index = lowerResearch.indexOf(item.toLowerCase());
+    if (index === -1) {
+      // Item not carried forward at all
+      issues.push(`${label} not carried forward into research: ${item}`);
+      continue;
+    }
     const windowStart = Math.max(0, index - 120);
-    const windowEnd = Math.min(planContent.length, index + item.length + 120);
-    const window = planContent.slice(windowStart, windowEnd).toLowerCase();
+    const windowEnd = Math.min(researchContent.length, index + item.length + 120);
+    const window = researchContent.slice(windowStart, windowEnd).toLowerCase();
     const markedSafe = /(assumption|defer|deferred|follow-up|open question|clarif|pause|unknown|unresolved)/.test(window);
     if (!markedSafe) {
-      issues.push(`${label} appears in the plan without an assumption/defer/clarification marker: ${item}`);
+      issues.push(`${label} appears in the research without an assumption/defer/clarification marker: ${item}`);
     }
   }
 
@@ -1223,7 +1594,7 @@ function cmdVerifyResearchContract(cwd, contextFilePath, researchFilePath, raw) 
     warnings.push('RESEARCH.md carries context ambiguity forward, but does not materialize any domain contract sections such as Invariants, Policy Rules, Test Oracles, or Executable Checks.');
   }
 
-  output({
+  const result = {
     valid: errors.length === 0,
     context: {
       path: contextFilePath,
@@ -1237,7 +1608,21 @@ function cmdVerifyResearchContract(cwd, contextFilePath, researchFilePath, raw) 
     domain_contract: domainContract,
     errors,
     warnings,
-  }, raw, errors.length === 0 ? 'valid' : 'invalid');
+  };
+
+  if (raw) {
+    process.stdout.write(JSON.stringify(result));
+  } else {
+    process.stdout.write(JSON.stringify(result, null, 2));
+  }
+
+  // If there are errors, log a clear message to stderr and exit with failure
+  if (errors.length > 0) {
+    console.error('Research Contract Violation');
+    process.exit(1);
+  } else {
+    process.exit(0);
+  }
 }
 
 function cmdValidateConsistency(cwd, raw) {
@@ -1768,6 +2153,7 @@ function getWorkflowPhaseMarkers(markers, phaseNumber) {
 }
 
 function cmdVerifyWorkflowReadiness(cwd, workflow, options = {}, raw) {
+  // Truth governance is handled by command-governance; always proceed to gate evaluation
   if (!workflow) error('workflow required');
   if (!['plan-phase', 'execute-phase'].includes(workflow)) {
     error('Unsupported workflow for workflow-readiness. Available: plan-phase, execute-phase');
@@ -2031,8 +2417,8 @@ function cmdVerifyRequirementCoverage(cwd, phase, raw) {
     return;
   }
 
-  const reqPath = path.join(cwd, '.planning', 'REQUIREMENTS.md');
-  const reqContent = safeReadFile(reqPath);
+  const reqPath = getActiveRequirementsPath(cwd);
+  const reqContent = reqPath ? safeReadFile(reqPath) : null;
   if (!reqContent) {
     output({ error: 'REQUIREMENTS.md not found — cannot verify coverage', valid: false }, raw, 'invalid');
     return;
@@ -2649,32 +3035,68 @@ function runVerifyIntegrity(cwd, options) {
       if (fs.existsSync(summaryFile) && fs.existsSync(logFile)) {
         const summaryContent = fs.readFileSync(summaryFile, 'utf-8');
         const summaryInfo = extractTaskCommitHashes(summaryContent);
+        const proofIndexInfo = extractStructuredProofIndex(summaryContent);
         const summaryHashSet = new Set(summaryInfo.hashes);
 
         const lines = fs.readFileSync(logFile, 'utf-8').trim().split('\n').filter(Boolean);
         const logHashes = [];
+        const logEntries = [];
         for (const line of lines) {
           let entry = null;
           try { entry = JSON.parse(line); } catch { continue; }
+          if (!entry) continue;
+          logEntries.push(normalizeProofEntry(entry));
           if (entry?.hash) logHashes.push(entry.hash);
         }
         const logHashSet = new Set(logHashes);
 
         const inLogNotSummary = logHashes.filter(h => !summaryHashSet.has(h));
         const inSummaryNotLog = summaryInfo.hashes.filter(h => !logHashSet.has(h));
+        const requiresStructuredProof = parseInt(String(phase), 10) >= 71;
+        const summaryProofEntries = proofIndexInfo.entries.map(normalizeProofEntry);
+        const summaryByTask = new Map(summaryProofEntries.map(entry => [entry.task, entry]));
+        const structuredMismatches = [];
+        if (requiresStructuredProof) {
+          for (const entry of logEntries) {
+            const summaryEntry = summaryByTask.get(entry.task);
+            if (!summaryEntry) {
+              structuredMismatches.push({ task: entry.task, reason: 'missing task entry in Proof Index' });
+              continue;
+            }
+            const filesMatch = JSON.stringify([...entry.files].sort()) === JSON.stringify([...summaryEntry.files].sort());
+            const evidencePresent = Array.isArray(summaryEntry.evidence) && summaryEntry.evidence.length > 0;
+            const verifyPresent = Boolean(summaryEntry.verify);
+            const commitMatches = (entry.canonical_commit || null) === (summaryEntry.canonical_commit || null);
+            if (!commitMatches) structuredMismatches.push({ task: entry.task, reason: 'canonical commit mismatch' });
+            if (!filesMatch) structuredMismatches.push({ task: entry.task, reason: 'files mismatch' });
+            if (!verifyPresent) structuredMismatches.push({ task: entry.task, reason: 'missing verify command' });
+            if (!evidencePresent) structuredMismatches.push({ task: entry.task, reason: 'missing evidence' });
+            if (entry.runtime_required && (!summaryEntry.runtime_proof || summaryEntry.runtime_proof.length === 0)) {
+              structuredMismatches.push({ task: entry.task, reason: 'missing runtime proof' });
+            }
+          }
+          if (!proofIndexInfo.sectionPresent) {
+            structuredMismatches.push({ task: null, reason: 'missing Proof Index section' });
+          }
+        }
 
         summaryAgreement = {
-          pass: inLogNotSummary.length === 0 && inSummaryNotLog.length === 0,
+          pass: inLogNotSummary.length === 0 && inSummaryNotLog.length === 0 && structuredMismatches.length === 0,
           log_count: logHashes.length,
           summary_count: summaryInfo.hashes.length,
           in_log_not_summary: inLogNotSummary,
           in_summary_not_log: inSummaryNotLog,
+          structured_mismatches: structuredMismatches,
+          proof_index_present: proofIndexInfo.sectionPresent,
         };
         if (inLogNotSummary.length > 0) {
           errors.push(`${inLogNotSummary.length} task log hash(es) absent from SUMMARY ## Task Commits: ${inLogNotSummary.join(', ')}`);
         }
         if (inSummaryNotLog.length > 0) {
           warnings.push(`${inSummaryNotLog.length} hash(es) in SUMMARY ## Task Commits not found in task log (may be legitimate if log was reset): ${inSummaryNotLog.join(', ')}`);
+        }
+        if (structuredMismatches.length > 0) {
+          errors.push(`Structured proof index mismatch: ${structuredMismatches.map(item => `task ${item.task} ${item.reason}`).join('; ')}`);
         }
       }
     }
@@ -2804,6 +3226,14 @@ function runVerifyIntegrity(cwd, options) {
 }
 
 function cmdVerifyIntegrity(cwd, options, raw) {
+  const degradedSnapshot = degradedMode.readLatestDegradedState(cwd);
+  if (degradedSnapshot) {
+    const blocked = degradedMode.evaluateWorkflow(degradedSnapshot, 'verify:integrity');
+    if (!blocked.allowed) {
+      process.stdout.write(JSON.stringify(blocked, null, 2) + '\n');
+      process.exit(1);
+    }
+  }
   const result = runVerifyIntegrity(cwd, options);
   output(result, raw, result.coherent ? 'coherent' : 'incoherent');
 }
@@ -2835,6 +3265,7 @@ function cmdVerifyBypass(cwd, filePath, raw) {
 }
 
 module.exports = {
+  evaluateVerificationArtifact,
   cmdVerifySummary,
   cmdVerifyWorkColdStart,
   cmdVerifyPlanStructure,
@@ -2848,6 +3279,7 @@ module.exports = {
   cmdVerifyResearchContract,
   cmdVerifyCheckpointResponse,
   cmdVerifyRequirementCoverage,
+  cmdVerifyVerificationArtifact,
   cmdVerifyCrossPlanDataContracts,
   cmdVerifyDeadExports,
   cmdVerifyPlanQuality,
@@ -2860,3 +3292,5 @@ module.exports = {
   cmdValidateHealth,
   cmdVerifyBypass,
 };
+
+// GSD-AUTHORITY: 72-02-1:eae17e327e7bd8f3428fcc2098b5d0424ba77aa959a3c2c50dcb0cb27c6e371c

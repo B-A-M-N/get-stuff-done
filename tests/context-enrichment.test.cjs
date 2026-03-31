@@ -69,10 +69,10 @@ gsd_state_version: 1.0
     const { persistItlOutput } = require('../get-stuff-done/bin/lib/itl.cjs');
     const itlResult = { interpretation: { goals: ['Test goal'] } };
     const targetPath = persistItlOutput(tmpDir, 18, itlResult);
-    
-    assert.ok(fs.existsSync(targetPath));
+
+    assert.ok(fs.existsSync(path.join(tmpDir, targetPath)));
     assert.ok(targetPath.endsWith('18-ITL.json'));
-    const persisted = JSON.parse(fs.readFileSync(targetPath, 'utf-8'));
+    const persisted = JSON.parse(fs.readFileSync(path.join(tmpDir, targetPath), 'utf-8'));
     assert.deepStrictEqual(persisted, itlResult);
   });
 

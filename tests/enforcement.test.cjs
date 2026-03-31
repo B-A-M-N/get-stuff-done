@@ -70,6 +70,194 @@ describe('enforcement: gate pending stops flow', () => {
   });
 });
 
+describe('enforcement: typed proof and runtime proof', () => {
+  let tmpDir;
+
+  beforeEach(() => { tmpDir = createTempGitProject(); });
+  afterEach(() => { cleanup(tmpDir); });
+
+  test('behavior-changing task without execution evidence exits 1 and writes failure artifact', () => {
+    fs.writeFileSync(path.join(tmpDir, 'feature.js'), 'module.exports = {}\n');
+
+    const r = runGsdTools(
+      ['commit-task', 'feat(01-01): feature', '--scope', '01-01',
+        '--proof-type', 'behavioral',
+        '--verify-command', 'node --test tests/feature.test.cjs',
+        '--files', 'feature.js'],
+      tmpDir
+    );
+
+    assert.strictEqual(r.success, false, 'behavioral task without evidence should fail');
+    const out = JSON.parse(r.output);
+    assert.ok(out.errors.some(e => e.includes('Behavior-changing tasks require execution evidence')));
+    assert.ok(out.failure_artifact_path, 'failure artifact path should be returned');
+
+    const failureLines = fs.readFileSync(out.failure_artifact_path, 'utf-8').trim().split('\n').filter(Boolean);
+    const failure = JSON.parse(failureLines[failureLines.length - 1]);
+    assert.strictEqual(failure.status, 'INVALID');
+    assert.strictEqual(failure.proof_type, 'behavioral');
+  });
+
+  test('runtime-facing task without runtime proof exits 1 and writes failure artifact', () => {
+    fs.writeFileSync(path.join(tmpDir, 'cli.js'), 'module.exports = {}\n');
+
+    const r = runGsdTools(
+      ['commit-task', 'feat(01-01): cli', '--scope', '01-01',
+        '--proof-type', 'behavioral',
+        '--verify-command', 'node --test tests/cli.test.cjs',
+        '--evidence', 'node --test tests/cli.test.cjs',
+        '--runtime-surface',
+        '--files', 'cli.js'],
+      tmpDir
+    );
+
+    assert.strictEqual(r.success, false, 'runtime-facing task without runtime proof should fail');
+    const out = JSON.parse(r.output);
+    assert.ok(out.errors.some(e => e.includes('Runtime-facing tasks require installed/runtime proof')));
+    assert.ok(out.failure_artifact_path, 'failure artifact path should be returned');
+  });
+
+  test('proof-only audit task succeeds when explicit evidence is supplied', () => {
+    fs.mkdirSync(path.join(tmpDir, '.planning', 'phases', '01-auth'), { recursive: true });
+    fs.writeFileSync(path.join(tmpDir, 'existing.md'), '# existing\n');
+
+    const r = runGsdTools(
+      ['commit-task', 'docs(01-01): audit existing state', '--scope', '01-01',
+        '--phase', '01', '--plan', '01', '--task', '1',
+        '--proof-only', '--proof-type', 'audit',
+        '--verify-command', 'node get-stuff-done/bin/gsd-tools.cjs verify integrity --phase 01 --plan 01',
+        '--evidence', 'file:existing.md',
+        '--files', 'existing.md'],
+      tmpDir
+    );
+
+    assert.ok(r.success, r.error);
+    const out = JSON.parse(r.output);
+    assert.strictEqual(out.committed, false);
+    assert.strictEqual(out.verified, true);
+    const logPath = path.join(tmpDir, '.planning', 'phases', '01-auth', '01-01-TASK-LOG.jsonl');
+    const entry = JSON.parse(fs.readFileSync(logPath, 'utf-8').trim().split('\n')[0]);
+    assert.strictEqual(entry.proof_mode, 'proof_only');
+    assert.strictEqual(entry.canonical_commit, null);
+  });
+
+  test('phase 71 integrity requires structured proof index agreement', () => {
+    const phaseDir = path.join(tmpDir, '.planning', 'phases', '71-proof');
+    fs.mkdirSync(phaseDir, { recursive: true });
+    fs.writeFileSync(path.join(tmpDir, 'feature.js'), 'module.exports = {}\n');
+
+    const r = runGsdTools(
+      ['commit-task', 'feat(71-01): feature', '--scope', '71-01',
+        '--phase', '71', '--plan', '01', '--task', '1',
+        '--proof-type', 'behavioral',
+        '--verify-command', 'node --test tests/feature.test.cjs',
+        '--evidence', 'node --test tests/feature.test.cjs',
+        '--files', 'feature.js'],
+      tmpDir
+    );
+    assert.ok(r.success, r.error);
+    const hash = JSON.parse(r.output).hash;
+
+    fs.writeFileSync(path.join(phaseDir, '71-01-SUMMARY.md'), [
+      '---',
+      'phase: 71',
+      'plan: 01',
+      'subsystem: truth',
+      'tags: [proof]',
+      'provides: [proof-chain]',
+      'duration: 5min',
+      'completed: 2026-03-27',
+      '---',
+      '# Summary',
+      '',
+      '- **Tasks:** 1',
+      '',
+      '## Task Commits',
+      '',
+      `- Task 1: ${hash}`,
+      '',
+      '## Proof Index',
+      '',
+      '```json',
+      JSON.stringify([
+        {
+          task: 1,
+          canonical_commit: hash,
+          files: ['feature.js'],
+          verify: 'node --test tests/feature.test.cjs',
+          evidence: ['node --test tests/feature.test.cjs'],
+          runtime_required: false,
+          runtime_proof: [],
+        },
+      ], null, 2),
+      '```',
+    ].join('\n'));
+
+    const ri = runGsdTools(['verify', 'integrity', '--phase', '71', '--plan', '01'], tmpDir);
+    const out = JSON.parse(ri.output);
+    assert.strictEqual(out.checks.task_log_summary_agreement.pass, true, JSON.stringify(out.checks.task_log_summary_agreement));
+  });
+});
+
+describe('enforcement: hardened verification artifact validation', () => {
+  let tmpDir;
+
+  beforeEach(() => { tmpDir = createTempProject(); });
+  afterEach(() => { cleanup(tmpDir); });
+
+  test('verification-artifact rejects blocker anti-patterns that claim CONDITIONAL instead of INVALID', () => {
+    const phaseDir = path.join(tmpDir, '.planning', 'phases', '72-verification');
+    fs.mkdirSync(phaseDir, { recursive: true });
+    const verificationPath = path.join(phaseDir, '72-VERIFICATION.md');
+
+    fs.writeFileSync(verificationPath, [
+      '---',
+      'phase: 72-verification',
+      'verified: 2026-03-27T19:30:00Z',
+      'status: CONDITIONAL',
+      'score: 1/1 requirements verified',
+      '---',
+      '# Phase 72 Verification',
+      '',
+      '## Observable Truths',
+      '',
+      '| # | Truth | Status | Evidence |',
+      '|---|-------|--------|----------|',
+      '| 1 | Runtime verification is enforced | VALID | `get-stuff-done/bin/lib/verify.cjs` |',
+      '',
+      '## Requirement Coverage',
+      '',
+      '| Requirement | Status | Evidence | Gap |',
+      '|-------------|--------|----------|-----|',
+      '| TRUTH-VERIFY-01 | VALID | `get-stuff-done/bin/lib/verify.cjs`, `node --check get-stuff-done/bin/lib/verify.cjs` | - |',
+      '',
+      '## Anti-Pattern Scan',
+      '',
+      '| File | Pattern | Classification | Impact |',
+      '|------|---------|----------------|--------|',
+      '| src/live-path.js | `return mockResponse` | blocker | Mocked logic presented as real |',
+      '',
+      '## Drift Analysis',
+      '',
+      '```json',
+      '[{"type":"verification_drift","description":"Blocker anti-pattern remains active"}]',
+      '```',
+      '',
+      '## Final Status',
+      '',
+      '```json',
+      '{"status":"CONDITIONAL","reason":"Incorrect downgrade for blocker."}',
+      '```',
+    ].join('\n'));
+
+    const r = runGsdTools(['verify', 'verification-artifact', '.planning/phases/72-verification/72-VERIFICATION.md'], tmpDir);
+    assert.strictEqual(r.success, true, 'validator should return structured JSON even when artifact is invalid');
+    const out = JSON.parse(r.output);
+    assert.strictEqual(out.valid, false);
+    assert.ok(out.errors.some(err => err.includes('Final Status must be INVALID')));
+  });
+});
+
 // ─────────────────────────────────────────────────────────────────────────────
 // 2. Missing checkpoint artifact blocks completion
 // ─────────────────────────────────────────────────────────────────────────────
@@ -339,6 +527,7 @@ describe('enforcement: health degraded-mode', () => {
     // no pending gates
     assert.deepStrictEqual(out.gate_pending_keys, []);
     assert.ok(!out.warnings.some(w => w.includes('Gate pending')));
+    assert.ok(['HEALTHY', 'DEGRADED', 'UNSAFE'].includes(out.canonical_state));
   });
 
   test('reports degraded when config.json is malformed', () => {
@@ -350,6 +539,7 @@ describe('enforcement: health degraded-mode', () => {
     assert.strictEqual(out.config_ok, false);
     assert.ok(out.warnings.some(w => w.includes('config.json')));
     assert.ok(out.fallbacks.length > 0, 'fallbacks should describe what defaults are in use');
+    assert.strictEqual(out.subsystems.planning_truth.canonical_state, 'DEGRADED');
   });
 
   test('reports degraded when a gate is pending', () => {
@@ -362,6 +552,7 @@ describe('enforcement: health degraded-mode', () => {
     assert.strictEqual(out.degraded, true);
     assert.ok(out.gate_pending_keys.length > 0, 'pending gate key should be listed');
     assert.ok(out.warnings.some(w => w.includes('Gate pending')));
+    assert.strictEqual(out.subsystems.planning_truth.canonical_state, 'DEGRADED');
   });
 
   test('reports ok after gate is released', () => {
@@ -375,6 +566,33 @@ describe('enforcement: health degraded-mode', () => {
     assert.strictEqual(out.gate_pending_keys.length, 0, 'no pending gates after release');
     // degraded may still be true if planning files are missing, but pending gates are gone
     assert.ok(!out.warnings.some(w => w.includes('Gate pending')), 'no gate-pending warning after release');
+  });
+});
+
+describe('enforcement: governance narrowing preserves hard backstops', () => {
+  let tmpDir;
+
+  beforeEach(() => { tmpDir = createTempProject(); });
+  afterEach(() => { cleanup(tmpDir); });
+
+  test('warn-only state inspection does not weaken verify integrity blocking under unsafe posture', () => {
+    fs.mkdirSync(path.join(tmpDir, '.planning', 'drift'), { recursive: true });
+    fs.writeFileSync(path.join(tmpDir, '.planning', 'PROJECT.md'), '# Project\n');
+    fs.writeFileSync(path.join(tmpDir, '.planning', 'ROADMAP.md'), '# Roadmap\n');
+    fs.writeFileSync(path.join(tmpDir, '.planning', 'STATE.md'), '# State\n');
+
+    const stateView = runGsdTools(['state', 'json', '--raw'], tmpDir, {
+      env: { GSD_MEMORY_MODE: 'sqlite', NODE_NO_WARNINGS: '1' },
+    });
+    assert.strictEqual(stateView.success, true, stateView.error);
+
+    const integrity = runGsdTools(['verify', 'integrity', '--raw'], tmpDir, {
+      env: { GSD_MEMORY_MODE: 'sqlite', NODE_NO_WARNINGS: '1' },
+    });
+    assert.strictEqual(integrity.success, false, 'verify integrity must remain blocked under unsafe truth posture');
+    const out = JSON.parse(integrity.output);
+    assert.strictEqual(out.canonical_state, 'UNSAFE');
+    assert.ok(['drift_truth', 'reconciliation_truth'].includes(out.subsystem));
   });
 });
 
@@ -733,3 +951,5 @@ describe('enforcement: verify integrity — extended', () => {
     assert.ok(out.errors.some(e => /absent from SUMMARY/i.test(e)));
   });
 });
+
+// GSD-AUTHORITY: 72-02-1:38111b036d39d9d1b4de0d3b1bfb2a26185eb1a586ed6a38b21e1115984eb47c

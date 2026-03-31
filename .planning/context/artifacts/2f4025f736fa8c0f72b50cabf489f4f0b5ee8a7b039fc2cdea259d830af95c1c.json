@@ -1,0 +1,13 @@
+{
+  "id": "2f4025f736fa8c0f72b50cabf489f4f0b5ee8a7b039fc2cdea259d830af95c1c",
+  "source_uri": ".planning/phases/76-enforcement-boundary-audit/76-TRUTH.md",
+  "type": "internal",
+  "content_markdown": "# Phase 76: Enforcement Boundary Audit — Truth\n\n**Generated:** 2026-03-28T21:15:04.063Z\n**Final Status:** CONDITIONAL\n\n## Status Reasons\n\n- Current degraded truth posture is UNSAFE.\n- context:plan-phase blocked by model_facing_memory: canonical_postgres_memory_unavailable\n- context:execute-plan blocked by model_facing_memory: canonical_postgres_memory_unavailable\n- verify:integrity blocked by drift_truth: drift_truth_stale\n- verify:workflow-readiness blocked by drift_truth: drift_truth_stale\n\n## Inputs\n\n- Verification: .planning/phases/76-enforcement-boundary-audit/76-VERIFICATION.md\n- Summaries: .planning/phases/76-enforcement-boundary-audit/76-01-SUMMARY.md\n- Drift reports: .planning/drift/latest-report.json\n- Reconciliation: .planning/drift/latest-reconciliation.json\n- Degraded state: .planning/health/latest-degraded-state.json\n\n## Claimed Outcomes\n\n- Prove that critical truth-bearing flows cannot bypass required validators, artifact writers, and sanctioned execution interfaces.\n- explicit sanctioned-interface policy\n- explicit required-validator policy\n- machine-readable enforcement boundary audit artifact\n- human verification artifact proving no critical bypass remains\n\n## Observable Evidence\n\n- file: .planning/phases/76-enforcement-boundary-audit/76-01-SUMMARY.md\n- file: .planning/phases/76-enforcement-boundary-audit/76-VERIFICATION.md\n- command: phase-truth generate 76\n\n## Gaps\n\n- degraded_state_caveat: Current degraded truth posture is UNSAFE.\n- workflow_block: context:plan-phase blocked by model_facing_memory: canonical_postgres_memory_unavailable\n- workflow_block: context:execute-plan blocked by model_facing_memory: canonical_postgres_memory_unavailable\n- workflow_block: verify:integrity blocked by drift_truth: drift_truth_stale\n- workflow_block: verify:workflow-readiness blocked by drift_truth: drift_truth_stale\n\n## Drift Effects\n\n- None\n\n## Reconciliation Effects\n\n- None\n",
+  "content_hash": "575fa54b5537002d9b1bd2a320dd3b30f5d87a6fd4d0524705d4ce9571204776",
+  "normalized_at": "2026-03-29T18:41:57.297Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  }
+}

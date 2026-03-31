@@ -1,0 +1,13 @@
+{
+  "id": "81fd59d1de497d7676e8506361c9768ed0aa2c3ab069e8a2c81a3f6b344ee8b8",
+  "source_uri": ".planning/phases/79-end-to-end-integrity-gauntlet/79-DRIFT-REPORT.md",
+  "type": "internal",
+  "content_markdown": "# Phase 79 Drift Report\n\n## fake-verification-forged-verdict\n\n- Outcome: INVALID\n- Notes: verification artifact validation rejected forged truth\n\n## fake-verification-missing-truth-table\n\n- Outcome: INVALID\n- Notes: verification artifact validation rejected forged truth\n\n## missing-commit-proof-chain\n\n- Outcome: INVALID\n- Notes: summary verification rejected missing commit proof\n\n## missing-proof-index-commit\n\n- Outcome: INVALID\n- Notes: summary verification rejected missing commit proof\n\n## partial-execution-summary-claim\n\n- Outcome: INVALID\n- Notes: summary claimed more tasks than its commit proof supports\n\n## partial-execution-task-gap\n\n- Outcome: INVALID\n- Notes: complete-task enforced sequential proof chain\n\n## undeclared-memory-degradation\n\n- Outcome: INVALID\n- Notes: underlying truth is stale but no degraded-state artifact surfaced the condition\n\n## firecrawl-context-governance-bypass\n\n- Outcome: INVALID\n- Notes: retrieval posture and context-build behavior are evaluated together\n\n## memory-truth-contradiction\n\n- Outcome: RECONCILIATION_REQUIRED\n- Notes: contradiction is present in authoritative drift reporting\n\n## retrieval-truth-posture-downgrade\n\n- Outcome: INVALID\n- Notes: retrieval posture claims healthy truth without authoritative backing\n\n## drift-reconciliation-trigger\n\n- Outcome: RECONCILIATION_REQUIRED\n- Notes: contradiction is present in authoritative drift reporting\n\n## mixed-fake-proof-and-drift\n\n- Outcome: INVALID\n- Notes: forged verification compounded with drift contradiction\n\n## mixed-missing-commit-and-undeclared-degradation\n\n- Outcome: INVALID\n- Notes: missing commit proof compounded with undeclared degradation\n\n## mixed-partial-execution-and-fake-verification\n\n- Outcome: INVALID\n- Notes: partial execution compounded with forged verification\n\n## mixed-declared-firecrawl-and-undeclared-memory\n\n- Outcome: INVALID\n- Notes: retrieval degradation is explicit while memory degradation remains undeclared\n\n## mixed-retrieval-downgrade-and-memory-contradiction\n\n- Outcome: INVALID\n- Notes: retrieval downgrade compounded with memory contradiction\n\n<!-- GSD-AUTHORITY: 79-01-3:29c56ac651bfac2d5930b5d672204dcd0f421e51e28996457c461c1bf168ec17 -->\n",
+  "content_hash": "85a172d7f097abc1255e22edffc6fc58d9e3fc36d3d0b363e3fc5efa9cd43ba5",
+  "normalized_at": "2026-03-29T18:41:57.158Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  }
+}

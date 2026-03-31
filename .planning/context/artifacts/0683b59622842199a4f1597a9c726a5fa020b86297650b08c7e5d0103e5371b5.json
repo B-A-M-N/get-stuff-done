@@ -1,0 +1,13 @@
+{
+  "id": "0683b59622842199a4f1597a9c726a5fa020b86297650b08c7e5d0103e5371b5",
+  "source_uri": ".planning/phases/27-independent-memory-wiring-postgres-rabbitmq-local-second-brain/27-VERIFICATION.md",
+  "type": "internal",
+  "content_markdown": "---\nphase: 27-independent-memory-wiring-postgres-rabbitmq-local-second-brain\nverified: 2026-03-21T18:35:00Z\nstatus: passed\nscore: 5/5 must-haves verified\n---\n\n# Phase 27 Verification Report: Independent Memory Wiring\n\n**Phase Goal:** Establish an independent, project-isolated memory foundation using Postgres, RabbitMQ, and a local planning server.\n**Status:** passed\n\n## Goal Achievement\n\n### Observable Truths\n\n| # | Truth | Status | Evidence |\n|---|-------|--------|----------|\n| 1 | Postgres schema is isolated | ✓ VERIFIED | `gsd_local_brain` schema created via `init-local-brain.sql`. |\n| 2 | Pulse Broker handles project events | ✓ VERIFIED | `broker.cjs` implemented with `amqplib` and topic-based isolation. |\n| 3 | Second Brain has offline resilience | ✓ VERIFIED | `second-brain.cjs` implements `offlineMode` for graceful degradation. |\n| 4 | Local Planning Server is functional | ✓ VERIFIED | `planning-server.cjs` active on port 3011 and integrated with normalizer. |\n| 5 | E2E Integration tests pass | ✓ VERIFIED | `tests/second-brain.test.cjs` verifies full pipeline and fault tolerance. |\n\n## Required Artifacts\n\n| Artifact | Status | Details |\n|----------|--------|---------|\n| `get-stuff-done/bin/lib/broker.cjs` | ✓ VERIFIED | RabbitMQ event broker. |\n| `get-stuff-done/bin/lib/second-brain.cjs` | ✓ VERIFIED | Relational memory core. |\n| `get-stuff-done/bin/lib/planning-server.cjs` | ✓ VERIFIED | Project-isolated context server. |\n| `tests/second-brain.test.cjs` | ✓ VERIFIED | Comprehensive fault-tolerance suite. |\n\n## Summary\n\nPhase 27 has established a robust, project-isolated \"Local Consciousness\" for the system. By combining high-throughput event distribution (RabbitMQ) with relational memory (Postgres) and a dedicated context sensor (Local Planning Server), we have created an independent memory plane that is both powerful and resilient to infrastructure failures.\n",
+  "content_hash": "2a242239e040457aafbbf603e35534886cbca4b21ce1e7e9dcb78484468247c7",
+  "normalized_at": "2026-03-29T18:41:58.197Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  }
+}

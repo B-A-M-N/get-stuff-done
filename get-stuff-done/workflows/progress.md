@@ -91,6 +91,8 @@ Use this instead of manually reading/parsing ROADMAP.md.
 ```bash
 # Get formatted progress bar
 PROGRESS_BAR=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" progress bar --raw)
+# Fetch performance metrics
+METRICS=$(node "$HOME/.claude/get-stuff-done/bin/gsd-tools.cjs" state get-metrics --raw)
 ```
 
 Present:
@@ -123,6 +125,16 @@ If `$STATE.clarification.status` is `pending`, `deferred`, or `blocked`, show:
 ## Blockers/Concerns
 - [extract from $STATE.blockers[]]
 - [e.g. jq -r '.blockers[].text' from state-snapshot]
+
+## Performance Metrics
+
+**By Phase:**
+| Phase | Plans | Total | Avg/Plan |
+|-------|-------|-------|----------|
+$(echo "$METRICS" | jq -r '.by_phase[] | "| \(.phase) | \(.plans) | \(.total) | \(.avg) |"')
+
+**Recent Plan Executions:**
+$(echo "$METRICS" | jq -r '.plan_entries[-5:] | .[] | "- \(.phase_plan): \(.duration), \(.tasks // "?") tasks, \(.files // "?") files"')
 
 ## Pending Todos
 - [count] pending — /gsd:check-todos to review

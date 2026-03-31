@@ -1,0 +1,13 @@
+{
+  "id": "2db6d114ae35ad26e7e134a70d14eb8a946e94615552f6d6defbd7d7f982fddb",
+  "source_uri": ".planning/phases/19-workflow-surface-hardening/19-VERIFICATION.md",
+  "type": "internal",
+  "content_markdown": "---\nphase: 19-workflow-surface-hardening\nverified: 2026-03-21T16:45:00Z\nstatus: passed\nscore: 5/5 must-haves verified\nre_verification:\n  previous_status: gaps_found\n  gaps_closed:\n\n    - \"Update transition.md reference in resume-project.md to use lib/ path\"\n\n---\n\n# Phase 19: Workflow Surface Hardening Verification Report\n\n**Phase Goal:** Harden workflow surfaces and enforce artifact consistency across all orchestrator paths.\n**Status:** Passed\n\n## Goal Achievement\n\n### Observable Truths\n\n| # | Truth | Status | Evidence |\n|---|---|---|---|\n| 1 | Blocked-state gates in all workflows | ✓ VERIFIED | SURFACE-01 gates in research, validate, execute phases |\n| 2 | Internal workflow library extraction | ✓ VERIFIED | All sub-workflows moved to `workflows/lib/` |\n| 3 | gsd:diagnose command exists | ✓ VERIFIED | `commands/gsd/diagnose.md` present and wired |\n| 4 | SUMMARY.md schema enforcement | ✓ VERIFIED | `verify.cjs` safe-parses against `executionSummarySchema` |\n| 5 | Autonomous blocked awareness | ✓ VERIFIED | `autonomous.md` halts on blocked initialization |\n\n### Requirements Coverage\n\n| Requirement | Description | Status | Evidence |\n|---|---|---|---|\n| SURFACE-01 | Workflow gates for blocked status | SATISFIED | Hard gates in core workflows |\n| SURFACE-02 | Autonomous block detection | SATISFIED | Halts on blocked phase state |\n| SURFACE-03 | Internal library consolidation | SATISFIED | Files moved to `workflows/lib/` |\n| SURFACE-04 | gsd:diagnose surface | SATISFIED | Command implemented and documented |\n| SURFACE-05 | Summary schema enforcement | SATISFIED | Zod validation in `cmdVerifySummary` |\n\n## Summary\n\nWorkflow surfaces have been successfully hardened. The move to a consolidated internal library (`workflows/lib/`) improves maintainability, while the pervasive application of blocked-state gates ensures project integrity. Artifact consistency is now strictly enforced through schema validation of phase summaries.\n",
+  "content_hash": "c939f26b8e6d60d26cdaef236fdc164e8e7bc72d06a125e2d70e46dc0b1ff756",
+  "normalized_at": "2026-03-29T18:41:58.470Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  }
+}

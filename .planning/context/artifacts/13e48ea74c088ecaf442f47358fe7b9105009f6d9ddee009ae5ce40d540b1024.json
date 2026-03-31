@@ -4,7 +4,7 @@
   "type": "internal",
   "content_markdown": "# PLAN: 1-1 - Global Rebrand to get-stuff-done\n\n## Goal\n\nReplace all instances of `get-stuff-done` with `get-stuff-done` across the entire codebase, including documentation, configuration, and source code, and verify that the test suite passes.\n\n## Tasks\n\n<task type=\"auto\">\n  <name>Global Search and Replace</name>\n  <files>All repository files</files>\n  <action>\n    Use a recursive search-and-replace to change \"get-stuff-done\" to \"get-stuff-done\".\n    Ensure case-sensitivity is handled (e.g., \"GET-STUFF-DONE\" -> \"GET-STUFF-DONE\").\n    Update package.json name and dependencies if applicable.\n  </action>\n  <verify>grep -r \"get-stuff-done\" . should return no results (excluding .git).</verify>\n</task>\n\n<task type=\"auto\">\n  <name>Verify Test Suite</name>\n  <files>tests/*.test.cjs</files>\n  <action>\n    Run the full test suite to ensure the renaming didn't break any internal paths or logic.\n    Command: `npm test`\n  </action>\n  <verify>All tests pass.</verify>\n</task>\n\n## Verification\n\n- `grep -r \"get-stuff-done\" .` returns zero results.\n- `npm test` passes 100%.\n\n---\n*Status: Ready*\n",
   "content_hash": "53c4b6791999a3dd6888299394af354248dfd013bfb9fed7e9f1aa163b02ada7",
-  "normalized_at": "2026-03-21T22:39:06.392Z",
+  "normalized_at": "2026-03-29T18:41:56.921Z",
   "provenance": {
     "producer": "internal-normalizer",
     "producer_version": "1.1.0",

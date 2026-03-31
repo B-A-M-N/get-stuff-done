@@ -1,0 +1,13 @@
+{
+  "id": "c4473e814d12b7e1d0d7644672dc60a1f69d30dc0e1711424be5b3d18c658ac2",
+  "source_uri": "file://.planning/phases/82-drift-remediation-canonical-restoration/82-04-PLAN.md",
+  "type": "internal",
+  "content_markdown": "---\nphase: 82\ntitle: Re-validate end-to-end milestone closure\nplan: 04\ntype: execute\nwave: 1\ndepends_on: [\"82-03\"]\nautonomous: true\n---\n\n\n### Acceptance\n- All artifacts admissibility = VALID_ACCEPTED or CONDITIONAL_ACCEPTED (with rationale)\n\n### Verification\n`shell: node gsd-tools.cjs validate-all --strict && node gsd-tools.cjs audit admissibility --json | jq -e '.artifacts | all(.admissibility | test(\\\"VALID|CONDITIONAL\\\"))'`\n",
+  "content_hash": "1e5cfd6c2e4229c778b5139aa3365c06d96f9fe8917cc8a076d6e42f7de031a4",
+  "normalized_at": "2026-03-29T18:48:11.282Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.0.0",
+    "parameters_hash": null
+  }
+}

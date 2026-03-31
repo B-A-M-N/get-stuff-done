@@ -9,10 +9,25 @@ const { join } = require('path');
 const { execFileSync } = require('child_process');
 
 const testDir = join(__dirname, '..', 'tests');
-const files = readdirSync(testDir)
-  .filter(f => f.endsWith('.test.cjs'))
-  .sort()
-  .map(f => join('tests', f));
+const files = [];
+
+function collectTests(dir, relativePrefix = 'tests') {
+  const entries = readdirSync(dir, { withFileTypes: true })
+    .sort((a, b) => a.name.localeCompare(b.name));
+  for (const entry of entries) {
+    const fullPath = join(dir, entry.name);
+    const relativePath = join(relativePrefix, entry.name);
+    if (entry.isDirectory()) {
+      collectTests(fullPath, relativePath);
+      continue;
+    }
+    if (entry.name.endsWith('.test.cjs')) {
+      files.push(relativePath);
+    }
+  }
+}
+
+collectTests(testDir);
 
 if (files.length === 0) {
   console.error('No test files found in tests/');
@@ -22,7 +37,7 @@ if (files.length === 0) {
 try {
   execFileSync(process.execPath, ['--test', ...files], {
     stdio: 'inherit',
-    env: { ...process.env },
+    env: { ...process.env, NODE_ENV: 'test' },
   });
 } catch (err) {
   process.exit(err.status || 1);

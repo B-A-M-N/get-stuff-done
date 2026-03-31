@@ -1,0 +1,13 @@
+{
+  "id": "f1e7a671e61f39e61c0b298ead48c698e01045f5930fdfa07dfd5dea4799875d",
+  "source_uri": ".planning/phases/04-narrative-first-initialization/04-01-SUMMARY.md",
+  "type": "internal",
+  "content_markdown": "---\nphase: \"04\"\nplan: \"01\"\nstatus: \"Complete\"\ncompleted: \"2026-03-16\"\nrequirements:\n\n  - \"FR-01\"\n\n---\n\n# SUMMARY: 04-01 - Add ITL-backed narrative intake to source new-project workflow\n\n## Outcome\n\nThe canonical `new-project` command/workflow now describes a narrative-first initialization flow that uses the Phase 2 ITL before project artifacts are written.\n\n## Implemented\n\n- Updated `commands/gsd/new-project.md` to describe narrative-first intake, ITL interpretation, and installed `/dostuff:*` next steps.\n- Updated `get-stuff-done/workflows/new-project.md` so the workflow now:\n  - treats interactive or `--auto` document text as a single `NARRATIVE` source,\n  - runs `gsd-tools.cjs itl init-seed`,\n  - displays an interpretation summary before writing artifacts,\n  - performs one bounded clarification round when ambiguity is high,\n  - seeds PROJECT/REQUIREMENTS generation from `project_seed` and `requirements_seed`.\n- Added `buildInitializationSeed()` and `cmdItlInitSeed()` in `get-stuff-done/bin/lib/itl.cjs`.\n- Added the `itl init-seed` CLI surface in `get-stuff-done/bin/gsd-tools.cjs`.\n\n## Verification\n\n- `node --test tests/itl.test.cjs tests/dostuff.test.cjs`\n- `node get-stuff-done/bin/gsd-tools.cjs itl init-seed --text \"…\"`\n\n## Notes\n\n- The implementation follows the canonical source command/workflow path and relies on Phase 3 install rewriting for the installed `/dostuff:new-project` surface.\n",
+  "content_hash": "d1d0bb0c470cbe9ec8e5316a5589918b9badc854a2c5180fee6f7983cdac3f5f",
+  "normalized_at": "2026-03-29T18:41:59.000Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  }
+}

@@ -1,0 +1,66 @@
+phase: "76"
+title: "Enforcement Boundary Audit"
+generated_at: "2026-03-28T21:15:04.063Z"
+strict: false
+inputs:
+  verification: ".planning/phases/76-enforcement-boundary-audit/76-VERIFICATION.md"
+  summaries:
+    - ".planning/phases/76-enforcement-boundary-audit/76-01-SUMMARY.md"
+  drift_reports:
+    - ".planning/drift/latest-report.json"
+  reconciliation:
+    - ".planning/drift/latest-reconciliation.json"
+  degraded_state:
+    - ".planning/health/latest-degraded-state.json"
+claimed_outcomes:
+  - id: null
+    description: "Prove that critical truth-bearing flows cannot bypass required validators, artifact writers, and sanctioned execution interfaces."
+    supporting_artifacts:
+      - ".planning/phases/76-enforcement-boundary-audit/76-01-SUMMARY.md"
+  - id: null
+    description: "explicit sanctioned-interface policy"
+    supporting_artifacts:
+      - ".planning/phases/76-enforcement-boundary-audit/76-01-SUMMARY.md"
+  - id: null
+    description: "explicit required-validator policy"
+    supporting_artifacts:
+      - ".planning/phases/76-enforcement-boundary-audit/76-01-SUMMARY.md"
+  - id: null
+    description: "machine-readable enforcement boundary audit artifact"
+    supporting_artifacts:
+      - ".planning/phases/76-enforcement-boundary-audit/76-01-SUMMARY.md"
+  - id: null
+    description: "human verification artifact proving no critical bypass remains"
+    supporting_artifacts:
+      - ".planning/phases/76-enforcement-boundary-audit/76-01-SUMMARY.md"
+observable_evidence:
+  - type: "file"
+    ref: ".planning/phases/76-enforcement-boundary-audit/76-01-SUMMARY.md"
+  - type: "file"
+    ref: ".planning/phases/76-enforcement-boundary-audit/76-VERIFICATION.md"
+  - type: "command"
+    ref: "phase-truth generate 76"
+gaps:
+  - type: "degraded_state_caveat"
+    description: "Current degraded truth posture is UNSAFE."
+  - type: "workflow_block"
+    description: "context:plan-phase blocked by model_facing_memory: canonical_postgres_memory_unavailable"
+  - type: "workflow_block"
+    description: "context:execute-plan blocked by model_facing_memory: canonical_postgres_memory_unavailable"
+  - type: "workflow_block"
+    description: "verify:integrity blocked by drift_truth: drift_truth_stale"
+  - type: "workflow_block"
+    description: "verify:workflow-readiness blocked by drift_truth: drift_truth_stale"
+drift_effects:
+  []
+reconciliation_effects:
+  []
+escalations:
+  []
+final_status: "CONDITIONAL"
+status_reason:
+  - "Current degraded truth posture is UNSAFE."
+  - "context:plan-phase blocked by model_facing_memory: canonical_postgres_memory_unavailable"
+  - "context:execute-plan blocked by model_facing_memory: canonical_postgres_memory_unavailable"
+  - "verify:integrity blocked by drift_truth: drift_truth_stale"
+  - "verify:workflow-readiness blocked by drift_truth: drift_truth_stale"

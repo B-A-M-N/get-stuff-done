@@ -1,0 +1,7 @@
+exceptions:
+  - path: tests/**
+    justification: Test files are excluded because the gate applies only to production critical modules.
+  - path: node_modules/**
+    justification: Third-party dependencies are out of scope for internal coverage enforcement.
+  - path: get-stuff-done/bin/lib/**
+    justification: Legacy orchestration harness modules are outside the phase-52 truth-enforcement package surface and are not part of this gate.

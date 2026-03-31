@@ -41,9 +41,11 @@ function verifySignature(content) {
   const lines = content.trimEnd().split('\n');
   const lastLine = lines[lines.length - 1];
   
-  // Format: // GSD-AUTHORITY: <phase>-<plan>-<wave>:<signature>
-  // Also support markdown <!-- GSD-AUTHORITY: ... -->
-  const match = lastLine.match(/(?:\/\/|<!--)\s*GSD-AUTHORITY:\s*([^-]+)-([^-]+)-([^:]+):([a-f0-9]{64})\s*(?:-->)?/);
+  // Formats:
+  //   // GSD-AUTHORITY: <phase>-<plan>-<wave>:<signature>
+  //   # GSD-AUTHORITY: <phase>-<plan>-<wave>:<signature>
+  //   <!-- GSD-AUTHORITY: <phase>-<plan>-<wave>:<signature> -->
+  const match = lastLine.match(/(?:\/\/|#|<!--)\s*GSD-AUTHORITY:\s*([^-]+)-([^-]+)-([^:]+):([a-f0-9]{64})\s*(?:-->)?/);
   
   if (!match) {
     return { valid: false, reason: 'No authority envelope found' };
@@ -58,10 +60,28 @@ function verifySignature(content) {
   const expectedSignature = generateSignature(actualContent, phase, plan, wave);
   
   if (signature === expectedSignature) {
-    return { valid: true, phase, plan, wave };
+    return { valid: true, phase, plan, wave, signature };
   } else {
     return { valid: false, reason: 'Signature mismatch' };
   }
+}
+
+function getEnvelopeStyle(filePath) {
+  const ext = path.extname(filePath).toLowerCase();
+  if (['.md', '.html', '.xml'].includes(ext)) return 'html';
+  if (['.yaml', '.yml'].includes(ext)) return 'hash';
+  return 'line';
+}
+
+function formatEnvelope(filePath, phase, plan, wave, signature) {
+  const style = getEnvelopeStyle(filePath);
+  if (style === 'html') {
+    return `<!-- GSD-AUTHORITY: ${phase}-${plan}-${wave}:${signature} -->`;
+  }
+  if (style === 'hash') {
+    return `# GSD-AUTHORITY: ${phase}-${plan}-${wave}:${signature}`;
+  }
+  return `// GSD-AUTHORITY: ${phase}-${plan}-${wave}:${signature}`;
 }
 
 /**
@@ -87,14 +107,7 @@ function signFile(filePath, phase, plan, wave) {
 
     const signature = generateSignature(baseContent, phase, plan, wave);
     
-    // Choose comment style based on extension
-    const ext = filePath.split('.').pop().toLowerCase();
-    let signatureLine;
-    if (['md', 'html', 'xml'].includes(ext)) {
-      signatureLine = `<!-- GSD-AUTHORITY: ${phase}-${plan}-${wave}:${signature} -->`;
-    } else {
-      signatureLine = `// GSD-AUTHORITY: ${phase}-${plan}-${wave}:${signature}`;
-    }
+    const signatureLine = formatEnvelope(filePath, phase, plan, wave, signature);
 
     const signedContent = baseContent.trimEnd() + '\n\n' + signatureLine + '\n';
     fs.writeFileSync(filePath, signedContent, 'utf-8');
@@ -106,7 +119,9 @@ function signFile(filePath, phase, plan, wave) {
 }
 
 module.exports = {
+  formatEnvelope,
   generateSignature,
+  getEnvelopeStyle,
   verifySignature,
   signFile,
 };

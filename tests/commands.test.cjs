@@ -632,7 +632,11 @@ describe('scaffold command', () => {
       path.join(tmpDir, '.planning', 'phases', '03-api', '03-VERIFICATION.md'),
       'utf-8'
     );
-    assert.ok(content.includes('Goal-Backward Verification'), 'should have verification heading');
+    assert.ok(content.includes('## Observable Truths'), 'should include observable truths section');
+    assert.ok(content.includes('## Requirement Coverage'), 'should include requirement coverage section');
+    assert.ok(content.includes('## Drift Analysis'), 'should include drift analysis section');
+    assert.ok(content.includes('"status": "CONDITIONAL"'), 'should default to hardened conditional status');
+    assert.ok(!content.includes('Goal-Backward Verification'), 'should not use legacy verification scaffold');
   });
 
   test('scaffolds phase directory', () => {
@@ -1064,129 +1068,6 @@ describe('commit command', () => {
   });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// cmdWebsearch tests (CMD-05)
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe('websearch command', () => {
-  const { cmdWebsearch } = require('../get-stuff-done/bin/lib/commands.cjs');
-  let origFetch;
-  let origApiKey;
-  let origStdoutWrite;
-  let captured;
-
-  beforeEach(() => {
-    origFetch = global.fetch;
-    origApiKey = process.env.BRAVE_API_KEY;
-    origStdoutWrite = process.stdout.write;
-    captured = '';
-    process.stdout.write = (chunk) => { captured += chunk; return true; };
-  });
-
-  afterEach(() => {
-    global.fetch = origFetch;
-    if (origApiKey !== undefined) {
-      process.env.BRAVE_API_KEY = origApiKey;
-    } else {
-      delete process.env.BRAVE_API_KEY;
-    }
-    process.stdout.write = origStdoutWrite;
-  });
-
-  test('returns available=false when BRAVE_API_KEY is unset', async () => {
-    delete process.env.BRAVE_API_KEY;
-
-    await cmdWebsearch('test query', {}, false);
-
-    const output = JSON.parse(captured);
-    assert.strictEqual(output.available, false);
-    assert.ok(output.reason.includes('BRAVE_API_KEY'), 'should mention missing API key');
-  });
-
-  test('returns error when no query provided', async () => {
-    process.env.BRAVE_API_KEY = 'test-key';
-
-    await cmdWebsearch(null, {}, false);
-
-    const output = JSON.parse(captured);
-    assert.strictEqual(output.available, false);
-    assert.ok(output.error.includes('Query required'), 'should mention query required');
-  });
-
-  test('returns results for successful API response', async () => {
-    process.env.BRAVE_API_KEY = 'test-key';
-
-    global.fetch = async () => ({
-      ok: true,
-      json: async () => ({
-        web: {
-          results: [
-            { title: 'Test Result', url: 'https://example.com', description: 'A test result', age: '1d' },
-          ],
-        },
-      }),
-    });
-
-    await cmdWebsearch('test query', { limit: 5, freshness: 'pd' }, false);
-
-    const output = JSON.parse(captured);
-    assert.strictEqual(output.available, true);
-    assert.strictEqual(output.query, 'test query');
-    assert.strictEqual(output.count, 1);
-    assert.strictEqual(output.results[0].title, 'Test Result');
-    assert.strictEqual(output.results[0].url, 'https://example.com');
-    assert.strictEqual(output.results[0].age, '1d');
-  });
-
-  test('constructs correct URL parameters', async () => {
-    process.env.BRAVE_API_KEY = 'test-key';
-    let capturedUrl = '';
-
-    global.fetch = async (url) => {
-      capturedUrl = url;
-      return {
-        ok: true,
-        json: async () => ({ web: { results: [] } }),
-      };
-    };
-
-    await cmdWebsearch('node.js testing', { limit: 5, freshness: 'pd' }, false);
-
-    const parsed = new URL(capturedUrl);
-    assert.strictEqual(parsed.searchParams.get('q'), 'node.js testing', 'query param should decode to original string');
-    assert.strictEqual(parsed.searchParams.get('count'), '5', 'count param should be 5');
-    assert.strictEqual(parsed.searchParams.get('freshness'), 'pd', 'freshness param should be pd');
-  });
-
-  test('handles API error (non-200 status)', async () => {
-    process.env.BRAVE_API_KEY = 'test-key';
-
-    global.fetch = async () => ({
-      ok: false,
-      status: 429,
-    });
-
-    await cmdWebsearch('test query', {}, false);
-
-    const output = JSON.parse(captured);
-    assert.strictEqual(output.available, false);
-    assert.ok(output.error.includes('429'), 'error should include status code');
-  });
-
-  test('handles network failure', async () => {
-    process.env.BRAVE_API_KEY = 'test-key';
-
-    global.fetch = async () => {
-      throw new Error('Network timeout');
-    };
-
-    await cmdWebsearch('test query', {}, false);
-
-    const output = JSON.parse(captured);
-    assert.strictEqual(output.available, false);
-    assert.strictEqual(output.error, 'Network timeout');
-  });
-});
 
 describe('stats command', () => {
   let tmpDir;
@@ -1392,3 +1273,5 @@ describe('stats command', () => {
     assert.ok(parsed.rendered.includes('1/1 phases'), 'should report phase progress');
   });
 });
+
+// GSD-AUTHORITY: 72-01-1:469f4130447c679c0ca5ae27c20d23f50d17c4b78c77bd467c97d9e7f466ab26

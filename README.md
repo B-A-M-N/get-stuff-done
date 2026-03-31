@@ -53,7 +53,7 @@ I agree with everything above. But when I used it, I ran into three problems the
 
 **Agents can't be trusted to verify their own work.** When an agent commits code, runs a test, and reports back — you have no way to know whether the commit actually happened, whether the test actually ran, or whether the log reflects what was built. The original relies on prose instructions. This fork replaces prose with a non-bypassable enforcement boundary: a set of CLI primitives (`complete-task`, `verify integrity`, `context build`) that agents must call to commit, verify, and log work. An agent that skips them fails — not with a note in the output but with a non-zero exit code that halts the workflow. Every task commit is sequential, hash-verified, and logged to disk before the next task can start. Every workflow entry starts from a Zod-validated snapshot of current state, not from what the agent guesses the state is.
 
-Additionally: this fork runs a self-hosted [Firecrawl](https://github.com/mendableai/firecrawl) instance as the external normalization layer for all research. When agents fetch docs, changelogs, or external references, they go through Firecrawl — not raw WebFetch. This means structured extraction, consistent markdown output, and local-only traffic. Agents check availability first (`gsd-tools firecrawl check`) and declare degraded mode if it's down rather than silently falling back.
+Additionally: this fork runs a self-hosted [Firecrawl](https://github.com/mendableai/firecrawl) instance as the retrieval and normalization layer for agent context. When agents fetch internal project material, Plane-backed content, docs, changelogs, or external references, they go through Firecrawl rather than mixing raw file reads and ad hoc fetches. This means structured extraction, consistent markdown output, and a single auditable context path. Agents check availability first (`gsd-tools firecrawl check`) and declare degraded mode if it's down rather than silently falling back.
 
 These aren't cosmetic changes. They affect how reliably the system builds what you actually want, and whether you can trust what it reports.
 
@@ -69,17 +69,47 @@ People who want to describe what they want and have it built correctly — witho
 
 This fork integrates external services to enhance reliability, auditability, and traceability.
 
+### Second Brain
+
+Second Brain is this fork's database for workflow memory, auditability, and agent-performance improvements. In this repo it is a local Postgres-backed system, with SQLite fallback for degraded operation, and a sanctioned MCP/toolbox boundary for model-facing access. It is not a Supabase-hosted personal knowledge base, and it is not wired through Slack or OpenRouter.
+
+**What it does:**
+- Tracks backend truth for memory operations, including explicit degraded mode when Postgres is unavailable and SQLite fallback is active
+- Stores audit records for Firecrawl access, policy grants, schema registrations, and workflow writeback events
+- Exposes operator-facing status via `brain status` and `brain health`
+- Builds a bounded `memory_pack` for planner and executor workflows from curated prior decisions, summaries, pitfalls, and unresolved blockers
+- Supports append-only checkpoint and summary writeback for executor-side model-facing memory
+
+**Why we use it:** GSD needs a trustworthy database that records what actually happened across runs and improves planner/executor performance without letting agents invent or overreach. Second Brain holds curated workflow memory, checkpoints, summaries, decisions, and audits so the system can stay coherent across sessions. When Postgres is unhealthy, model-facing memory is blocked on purpose instead of silently pretending SQLite fallback is good enough.
+
+**How it is used here:**
+- `brain status` reports the actual active backend and whether model-facing memory is available
+- `brain health --raw` provides machine-readable diagnostics and makes degraded mode explicit
+- `context build --workflow plan-phase` and `context build --workflow execute-plan` attach a bounded `memory_pack` instead of dumping raw memory rows into prompts
+- Executor writeback flows call bounded append operations for checkpoints and summaries rather than arbitrary database writes
+- The sanctioned MCP toolbox contract lives at [.planning/phases/54-model-facing-second-brain-via-mcp/toolbox/tools.yaml](.planning/phases/54-model-facing-second-brain-via-mcp/toolbox/tools.yaml), targeting the local GenAI toolbox over Postgres with a read-only planner toolset and a constrained executor writeback toolset
+
+**What it is not:**
+- Not Supabase
+- Not Slack-based memory capture
+- Not OpenRouter-dependent
+- Not unrestricted SQL access from prompts
+
+**Usage:** Inspect backend truth with `node get-stuff-done/bin/gsd-tools.cjs brain status` or `node get-stuff-done/bin/gsd-tools.cjs brain health --raw`. Workflow snapshots built through `context build` include `memory_pack` only when the backend is healthy enough to permit model-facing memory. For local embedding/runtime work, prefer repo-local providers such as `fastembed`, and use Ollama only when a local model runtime is actually needed.
+
 ### Firecrawl
 
 [Firecrawl](https://github.com/mendableai/firecrawl) is a web scraping and content extraction service. In this fork, it serves as the **unified context layer** for all external documentation and internal project files.
 
 **What it does:**
-- Fetches external URLs (documentation, changelogs, API references) and converts to clean markdown
-- Provides a single `POST /v1/context/crawl` endpoint that aggregates multiple sources (local files via `file://`, external URLs via `https://`) into normalized ContextArtifacts
+- Fetches external URLs (documentation, changelogs, API references) and converts them to clean markdown
+- Reads internal project content and normalizes it through the same retrieval path
+- Provides a single `POST /v1/context/crawl` endpoint that aggregates multiple sources such as local files via `file://` and external URLs via `https://` into normalized ContextArtifacts
+- Acts as the retrieval and normalization layer for the system's usable context/data
 - Enforces policy grants and audit logging via SecondBrain for every fetch
 - Caches results and respects rate limits
 
-**Why we use it:** Agents no longer make ad-hoc WebFetch or WebSearch calls. Instead, they construct a unified spec of all needed sources and call Firecrawl once. This ensures consistent normalization, centralized policy enforcement, and a complete audit trail. If Firecrawl is unavailable, agents fail fast rather than silently falling back to un-audited reads.
+**Why we use it:** Firecrawl is the source of context and data for agents in this fork. Instead of mixing raw file reads, ad-hoc fetches, and inconsistent transforms, agents construct a unified spec of the sources they need and let Firecrawl retrieve and normalize them. That keeps context assembly consistent across both internal and external sources, with centralized policy enforcement and a complete audit trail. If Firecrawl is unavailable, agents fail fast rather than silently falling back to un-audited reads.
 
 **Usage:** Agents invoke `firecrawl-tools check` before using it. The `/v1/context/crawl` endpoint is called via `firecrawl-client.cjs:crawl(spec)`.
 
@@ -89,12 +119,17 @@ This fork integrates external services to enhance reliability, auditability, and
 
 **What it does:**
 - Syncs `.planning/ROADMAP.md` phases to Plane issues (milestone tracking)
-- Pulls in external context from Plane (e.g., linked issues, definitions) via `plane-client.cjs`
+- Uses Plane as a project and test control layer with its own system of record
+- Exposes Plane-hosted project material for retrieval and normalization through the broader Firecrawl context path
 - Enables bidirectional traceability between GSD phases and Plane issues
 
-**Why we use it:** Keeps development planning aligned with broader project tracking, and allows fetching Plane-hosted context (future `plane://` URIs) through Firecrawl's unified context layer (Phase 47).
+**Why we use it:** Plane is not just a ticket board here. It is part of the control surface around project state and test execution, while also acting as an internal source that can be retrieved and normalized into agent context. That keeps workflow coordination, issue tracking, and internal project material tied to the same broader context system.
 
 **Usage:** Configure Plane API key via `PLANE_API_KEY` and workspace slug. See `docs/PLANE-INTEGRATION.md` for details.
+
+### Open Brain Sidecar
+
+If you want compounding long-horizon memory rather than only bounded workflow continuity, attach a separate Open Brain layer beside Second Brain rather than overloading it. The recommended split is documented in [docs/OPEN-BRAIN-ARCHITECTURE.md](docs/OPEN-BRAIN-ARCHITECTURE.md).
 
 ---
 

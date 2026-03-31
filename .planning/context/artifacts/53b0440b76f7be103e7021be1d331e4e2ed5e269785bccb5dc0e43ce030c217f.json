@@ -1,0 +1,13 @@
+{
+  "id": "53b0440b76f7be103e7021be1d331e4e2ed5e269785bccb5dc0e43ce030c217f",
+  "source_uri": ".planning/phases/28-zero-bypass-workflow-enforcement/28-02-SUMMARY.md",
+  "type": "internal",
+  "content_markdown": "---\nphase: 28\nplan: 02\ntype: standard\nstatus: complete\ndate: 2026-03-21\nrequirements_completed:\n\n  - ENFORCE-03\n  - ENFORCE-04\n\n---\n\n# Summary 28-02: Authority Envelopes and Bypass Detection\n\nImplemented Authority Envelope signing and Bypass Detection to ensure all codebase changes are traceable to a GSD execution wave.\n\n## Accomplishments\n\n- Created \\`get-stuff-done/bin/lib/authority.cjs\\` to generate and verify SHA-256 signatures for files based on Phase/Plan/Wave context.\n- Integrated \\`authority.cjs\\` into \\`get-stuff-done/bin/lib/commands.cjs\\` to automatically sign files modified during \\`commit-task\\`.\n- Updated \\`get-stuff-done/bin/gsd-tools.cjs\\` to support the \\`verify-bypass\\` command.\n- Updated \\`agents/gsd-executor.md\\` to explicitly require signed changes via sanctioned CLI commands.\n- Implemented comprehensive testing in \\`tests/authority.test.cjs\\`.\n\n## Evidence\n\n- Automated signing is verified by \\`tests/authority.test.cjs\\`.\n- \\`verify-bypass\\` CLI command correctly detects files that lack a valid \\`GSD-AUTHORITY\\` envelope.\n",
+  "content_hash": "6fe63b60446543df527968c41250b37a11d69bb51b529e54a717624a9d61a0d6",
+  "normalized_at": "2026-03-29T18:41:58.176Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  }
+}

@@ -1,0 +1,49 @@
+phase: "74"
+title: "State Reconciliation Layer"
+generated_at: "2026-03-28T20:37:04.835Z"
+strict: false
+inputs:
+  verification: ".planning/phases/74-state-reconciliation-layer/74-VERIFICATION.md"
+  summaries:
+    - ".planning/phases/74-state-reconciliation-layer/74-01-SUMMARY.md"
+  drift_reports:
+    - ".planning/drift/latest-report.json"
+  reconciliation:
+    - ".planning/drift/latest-reconciliation.json"
+  degraded_state:
+    - ".planning/health/latest-degraded-state.json"
+claimed_outcomes:
+  - id: null
+    description: "Reconcile detected inconsistencies deterministically by downgrading truth status, marking conditional validity, and requiring re-verification where needed."
+    supporting_artifacts:
+      - ".planning/phases/74-state-reconciliation-layer/74-01-SUMMARY.md"
+  - id: null
+    description: "deterministic reconciliation adapter and rule engine"
+    supporting_artifacts:
+      - ".planning/phases/74-state-reconciliation-layer/74-01-SUMMARY.md"
+  - id: null
+    description: "canonical preview and reconcile CLI surfaces"
+    supporting_artifacts:
+      - ".planning/phases/74-state-reconciliation-layer/74-01-SUMMARY.md"
+  - id: null
+    description: "machine-readable reconciliation artifact plus sanctioned state mutations"
+    supporting_artifacts:
+      - ".planning/phases/74-state-reconciliation-layer/74-01-SUMMARY.md"
+observable_evidence:
+  - type: "file"
+    ref: ".planning/phases/74-state-reconciliation-layer/74-01-SUMMARY.md"
+  - type: "file"
+    ref: ".planning/phases/74-state-reconciliation-layer/74-VERIFICATION.md"
+  - type: "command"
+    ref: "phase-truth generate 74"
+gaps:
+  []
+drift_effects:
+  []
+reconciliation_effects:
+  []
+escalations:
+  []
+final_status: "VALID"
+status_reason:
+  - "All claimed outcomes are backed and no unresolved gaps or downgrades remain."

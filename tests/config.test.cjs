@@ -72,8 +72,8 @@ describe('config-ensure-section command', () => {
     assert.strictEqual(typeof config.workflow.node_repair, 'boolean');
     assert.strictEqual(typeof config.workflow.node_repair_budget, 'number');
     assert.ok(config.gates && typeof config.gates === 'object', 'gates should be an object');
-    assert.strictEqual(typeof config.gates.confirm_plan, 'boolean');
-    assert.strictEqual(typeof config.gates.execute_next_plan, 'boolean');
+    assert.strictEqual(typeof config.gates.confirm_project, 'boolean');
+    assert.strictEqual(typeof config.gates.confirm_phases, 'boolean');
     assert.ok(config.safety && typeof config.safety === 'object', 'safety should be an object');
     assert.strictEqual(typeof config.safety.always_confirm_destructive, 'boolean');
     assert.strictEqual(typeof config.safety.always_confirm_external_services, 'boolean');
@@ -229,14 +229,14 @@ describe('config-set command', () => {
     assert.ok(runConfigTools('config-set workflow.auto_advance true').success);
     assert.ok(runConfigTools('config-set workflow.node_repair false').success);
     assert.ok(runConfigTools('config-set workflow.node_repair_budget 5').success);
-    assert.ok(runConfigTools('config-set gates.confirm_plan false').success);
+    assert.ok(runConfigTools('config-set gates.confirm_project false').success);
     assert.ok(runConfigTools('config-set safety.always_confirm_destructive false').success);
 
     const config = readConfig(tmpDir);
     assert.strictEqual(config.workflow.auto_advance, true);
     assert.strictEqual(config.workflow.node_repair, false);
     assert.strictEqual(config.workflow.node_repair_budget, 5);
-    assert.strictEqual(config.gates.confirm_plan, false);
+    assert.strictEqual(config.gates.confirm_project, false);
     assert.strictEqual(config.safety.always_confirm_destructive, false);
   });
 
@@ -320,7 +320,7 @@ describe('config-get command', () => {
     assert.strictEqual(JSON.parse(runConfigTools('config-get workflow.auto_advance').output), false);
     assert.strictEqual(JSON.parse(runConfigTools('config-get workflow.node_repair').output), true);
     assert.strictEqual(JSON.parse(runConfigTools('config-get workflow.node_repair_budget').output), 2);
-    assert.strictEqual(JSON.parse(runConfigTools('config-get gates.confirm_plan').output), true);
+    assert.strictEqual(JSON.parse(runConfigTools('config-get gates.confirm_project').output), true);
     assert.strictEqual(JSON.parse(runConfigTools('config-get safety.always_confirm_external_services').output), true);
   });
 

@@ -38,6 +38,7 @@ describe('loadConfig', () => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gsd-core-test-'));
     fs.mkdirSync(path.join(tmpDir, '.planning'), { recursive: true });
     originalCwd = process.cwd();
+    process.chdir(tmpDir); // Ensure sandbox treats tmpDir as project root
   });
 
   afterEach(() => {
@@ -130,13 +131,17 @@ describe('loadConfig', () => {
 
 describe('resolveModelInternal', () => {
   let tmpDir;
+  let originalCwd;
 
   beforeEach(() => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gsd-core-test-'));
     fs.mkdirSync(path.join(tmpDir, '.planning'), { recursive: true });
+    originalCwd = process.cwd();
+    process.chdir(tmpDir);
   });
 
   afterEach(() => {
+    process.chdir(originalCwd);
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
@@ -340,12 +345,16 @@ describe('comparePhaseNum', () => {
 
 describe('safeReadFile', () => {
   let tmpDir;
+  let originalCwd;
 
   beforeEach(() => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gsd-core-test-'));
+    originalCwd = process.cwd();
+    process.chdir(tmpDir);
   });
 
   afterEach(() => {
+    process.chdir(originalCwd);
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 

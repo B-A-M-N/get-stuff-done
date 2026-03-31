@@ -1,0 +1,13 @@
+{
+  "id": "a0a027474dc34a3221848a2052ea509d6f40cc512e37a38a310a29386305f736",
+  "source_uri": ".planning/phases/14-reusable-plugin-extraction/14-02-SUMMARY.md",
+  "type": "internal",
+  "content_markdown": "# SUMMARY: 14-02 - Verify standardized package output and align docs and coverage\n\n## Outcome\n\nVerified the extracted package through direct tests and aligned the stable docs/coverage contract with the new package boundary.\n\n## What Changed\n\n- Added direct package verification in [itl-package.test.cjs](/home/bamn/get-stuff-done/tests/itl-package.test.cjs) covering:\n  - canonical output shape\n  - provider-aware fixture normalization\n  - provider request builders\n  - clean API aliases\n  - error handling and fallback paths\n- Updated [package.json](/home/bamn/get-stuff-done/package.json) so `npm run test:coverage` now covers both:\n  - `get-stuff-done/bin/lib/itl*.cjs`\n  - `packages/itl/**/*.cjs`\n- Updated docs/contracts in:\n  - [help.md](/home/bamn/get-stuff-done/get-stuff-done/workflows/help.md)\n  - [COMMANDS.md](/home/bamn/get-stuff-done/docs/COMMANDS.md)\n  - [ARCHITECTURE.md](/home/bamn/get-stuff-done/docs/ARCHITECTURE.md)\n  - [dostuff.test.cjs](/home/bamn/get-stuff-done/tests/dostuff.test.cjs)\n\n## Verification\n\n- `node --test tests/itl.test.cjs tests/itl-package.test.cjs tests/dostuff.test.cjs`\n- `npm run test:coverage`\n\n## Notes\n\nThe stable verification path now includes the standalone package and remains deterministic/offline-friendly.\n",
+  "content_hash": "7b9cc3f98be7394d4db01c0465f6e99536e02f51cf318789bb45bbf06a4babfb",
+  "normalized_at": "2026-03-29T18:41:58.739Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  }
+}

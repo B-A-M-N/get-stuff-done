@@ -1,0 +1,13 @@
+{
+  "id": "90d6a646900921083212dab99f161f724d887ba43764d946a8ab7636bdd58a6b",
+  "source_uri": ".planning/phases/22-megaprompt-alignment/22-VERIFICATION.md",
+  "type": "internal",
+  "content_markdown": "---\nphase: 22-megaprompt-alignment\nverified: 2026-03-21T16:55:00Z\nstatus: passed\nscore: 6/6 must-haves verified\n---\n\n# Phase 22: Megaprompt Alignment Verification Report\n\n**Phase Goal:** Align all GSD agents and workflows with the canonical enforcement contract defined in MEGAPROMPT.md\n**Status:** Passed\n\n## Goal Achievement\n\n### Observable Truths\n\n| # | Truth | Status | Evidence |\n|---|---|---|---|\n| 1 | Executor checks CONTEXT.md before auto-fixing | ✓ VERIFIED | `gsd-executor.md` INV-03 rule |\n| 2 | Plan-checker implements Dimension 9 gate | ✓ VERIFIED | `gsd-plan-checker.md` data contract check |\n| 3 | Quick command probes scope before tasks | ✓ VERIFIED | `quick.md` 3-question protocol |\n| 4 | Verify-work offers auto-diagnosis on failure | ✓ VERIFIED | `verify-work.md` debug spawn step |\n| 5 | Debug command follows hypothesis protocol | ✓ VERIFIED | `debug.md` 7-question gathering |\n| 6 | CHANGELOG marks un-shipped features correctly | ✓ VERIFIED | Accuracy of \"Unreleased\" section |\n\n### Requirements Coverage\n\n| Requirement | Description | Status | Evidence |\n|---|---|---|---|\n| P1 | Executor context compliance | SATISFIED | `agents/gsd-executor.md` |\n| P2 | Cross-plan data gate | SATISFIED | `agents/gsd-plan-checker.md` |\n| P3 | Quick scope probing | SATISFIED | `get-stuff-done/workflows/quick.md` |\n| P4 | Verify-work auto-diagnosis | SATISFIED | `get-stuff-done/workflows/verify-work.md` |\n| P5 | Debug hypothesis protocol | SATISFIED | `commands/gsd/debug.md` |\n| P6 | CHANGELOG accuracy | SATISFIED | `CHANGELOG.md` |\n\n## Summary\n\nPhase 22 successfully aligns the entire GSD system with the high-fidelity enforcement standards defined in the megaprompt. Agents are now more context-aware, workflows are more defensive against scope creep, and the debugging process is more structured and hypothesis-driven.\n",
+  "content_hash": "64be535b0b7b2482222268322aa3693f6e42ebf6e0ef483418da7cbe64b3e4b7",
+  "normalized_at": "2026-03-29T18:41:58.369Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  }
+}

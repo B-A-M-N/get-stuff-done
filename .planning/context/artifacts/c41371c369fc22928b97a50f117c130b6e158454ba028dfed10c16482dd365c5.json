@@ -1,0 +1,13 @@
+{
+  "id": "c41371c369fc22928b97a50f117c130b6e158454ba028dfed10c16482dd365c5",
+  "source_uri": ".planning/phases/27-independent-memory-wiring-postgres-rabbitmq-local-second-brain/27-01-SUMMARY.md",
+  "type": "internal",
+  "content_markdown": "---\nphase: 27\nplan: 01\ntype: standard\nstatus: complete\ndate: 2026-03-21\nrequirements_completed:\n\n  - BRAIN-INFRA-01\n  - BRAIN-STORAGE-01\n\n---\n\n# Summary 27-01: Infrastructure Foundation\n\nEstablished the independent, project-isolated memory foundation using Postgres and RabbitMQ.\n\n## Accomplishments\n\n- Created `gsd_local_brain` Postgres schema and tables for artifacts, symbols, and dependencies.\n- Implemented `broker.cjs` with `amqplib` for RabbitMQ Pulse events, featuring automatic retries and project isolation.\n- Implemented `second-brain.cjs` using `pg` for relational memory, integrated with the Pulse broker and supporting \"offline mode\" fallbacks.\n- Verified schema existence and broker connectivity.\n\n## Decisions\n\n- Used `gsd_local_brain` as the dedicated namespace for all relational storage to ensure absolute independence from global systems.\n- Implemented SASL-ready conditional database configuration to support local environment credentials.\n",
+  "content_hash": "6b4dbd21ac114f35ccfa9846efc99cdc2285818c9579c9eeea3e4132f90cd5a3",
+  "normalized_at": "2026-03-29T18:41:58.218Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  }
+}

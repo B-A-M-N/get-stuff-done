@@ -43,6 +43,14 @@ jobs:
         shell: bash
         run: npm run test:coverage
 
+      - name: Run phase 52 gates
+        if: matrix.node-version != 18
+        shell: bash
+        run: |
+          npm run validate:secrets
+          npm run test:proofs:phase52
+          npm run audit:truth
+
       - name: Run tests (Node 18, coverage not supported)
         if: matrix.node-version == 18
         shell: bash

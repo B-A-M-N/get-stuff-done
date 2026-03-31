@@ -1,0 +1,43 @@
+{
+  "phase": "74",
+  "enforcement_area": "Reconciliation Truth Closure",
+  "invariants": [
+    {
+      "name": "reconciliation_artifact_fresh",
+      "affects_final_truth_synthesis": true,
+      "expected_evidence_surfaces": [
+        ".planning/drift/latest-report.json",
+        ".planning/drift/latest-reconciliation.json"
+      ]
+    },
+    {
+      "name": "preview_entrypoint_runnable",
+      "affects_final_truth_synthesis": true,
+      "expected_evidence_surfaces": [
+        "node get-stuff-done/bin/gsd-tools.cjs drift preview --raw"
+      ]
+    },
+    {
+      "name": "reconcile_entrypoint_runnable",
+      "affects_final_truth_synthesis": true,
+      "expected_evidence_surfaces": [
+        "node get-stuff-done/bin/gsd-tools.cjs drift reconcile --raw",
+        ".planning/drift/latest-reconciliation.json"
+      ]
+    },
+    {
+      "name": "reconciliation_mutation_recorded",
+      "affects_final_truth_synthesis": true,
+      "expected_evidence_surfaces": [
+        ".planning/drift/latest-reconciliation.json"
+      ]
+    },
+    {
+      "name": "verification_integrity",
+      "affects_final_truth_synthesis": true,
+      "expected_evidence_surfaces": [
+        ".planning/phases/74-state-reconciliation-layer/74-VERIFICATION.md"
+      ]
+    }
+  ]
+}

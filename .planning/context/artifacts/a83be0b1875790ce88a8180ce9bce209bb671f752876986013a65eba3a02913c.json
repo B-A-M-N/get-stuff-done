@@ -1,0 +1,13 @@
+{
+  "id": "a83be0b1875790ce88a8180ce9bce209bb671f752876986013a65eba3a02913c",
+  "source_uri": ".planning/phases/74-state-reconciliation-layer/74-TRUTH.md",
+  "type": "internal",
+  "content_markdown": "# Phase 74: State Reconciliation Layer — Truth\n\n**Generated:** 2026-03-28T00:24:41.740Z\n**Final Status:** CONDITIONAL\n\n## Status Reasons\n\n- Verification artifact is missing.\n- Current degraded truth posture is UNSAFE.\n- context:plan-phase blocked by planning_server: planning_server_unavailable\n- context:execute-plan blocked by planning_server: planning_server_unavailable\n- verify:integrity blocked by drift_truth: drift_truth_stale\n- verify:workflow-readiness blocked by drift_truth: drift_truth_stale\n\n## Inputs\n\n- Verification: None\n- Summaries: .planning/phases/74-state-reconciliation-layer/74-01-SUMMARY.md\n- Drift reports: .planning/drift/latest-report.json\n- Reconciliation: .planning/drift/latest-reconciliation.json\n- Degraded state: .planning/health/latest-degraded-state.json\n\n## Claimed Outcomes\n\n- Reconcile detected inconsistencies deterministically by downgrading truth status, marking conditional validity, and requiring re-verification where needed.\n- deterministic reconciliation adapter and rule engine\n- canonical preview and reconcile CLI surfaces\n- machine-readable reconciliation artifact plus sanctioned state mutations\n\n## Observable Evidence\n\n- file: .planning/phases/74-state-reconciliation-layer/74-01-SUMMARY.md\n- command: phase-truth generate 74\n\n## Gaps\n\n- verification_gap: Verification artifact is missing.\n- degraded_state_caveat: Current degraded truth posture is UNSAFE.\n- workflow_block: context:plan-phase blocked by planning_server: planning_server_unavailable\n- workflow_block: context:execute-plan blocked by planning_server: planning_server_unavailable\n- workflow_block: verify:integrity blocked by drift_truth: drift_truth_stale\n- workflow_block: verify:workflow-readiness blocked by drift_truth: drift_truth_stale\n\n## Drift Effects\n\n- None\n\n## Reconciliation Effects\n\n- None\n",
+  "content_hash": "7ea309d0aaa11cad2b7558f4595f2a32e76e7d874caae1a01376b6ab1b282904",
+  "normalized_at": "2026-03-28T03:46:21.019Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  }
+}

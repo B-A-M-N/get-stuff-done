@@ -1,0 +1,13 @@
+{
+  "id": "3c0e6a3657ed2a3020e289fc261e579113299acda8d89adff1cfcf13d776b830",
+  "source_uri": ".planning/phases/06-narrative-first-verification/06-01-SUMMARY.md",
+  "type": "internal",
+  "content_markdown": "---\nphase: \"06\"\nplan: \"01\"\nstatus: \"Complete\"\ncompleted: \"2026-03-16\"\nrequirements:\n\n  - \"FR-02\"\n  - \"FR-03\"\n\n---\n\n# SUMMARY: 06-01 - Add ITL-backed narrative intake to source verify-work workflow\n\n## Outcome\n\nThe canonical `verify-work` command/workflow now describes a narrative-first verification flow that captures a freeform testing narrative, runs ITL interpretation, and feeds that result into test prioritization and expectation framing without replacing the existing UAT loop or gap pipeline.\n\n## Implemented\n\n- Updated `commands/gsd/verify-work.md` to explicitly note the installed `/dostuff:verify-work` surface.\n- Updated `get-stuff-done/workflows/verify-work.md` so the workflow now:\n  - captures a short verification narrative after loading summaries,\n  - runs `gsd-tools.cjs itl verify-seed`,\n  - shows an interpretation preview before the first UAT checkpoint,\n  - performs one bounded clarification round when ambiguity is high,\n  - uses interpreted priorities to frame or reorder tests while preserving the standard UAT and gap flow.\n- Added `buildVerificationSeed()` and `cmdItlVerifySeed()` in `get-stuff-done/bin/lib/itl.cjs`.\n- Added the `itl verify-seed` CLI surface in `get-stuff-done/bin/gsd-tools.cjs`.\n\n## Verification\n\n- `node --test tests/itl.test.cjs`\n- `node get-stuff-done/bin/gsd-tools.cjs itl verify-seed --text \"I want to verify the key outcome first, make sure the new flow works, and confirm nothing important regressed.\" --raw`\n\n## Notes\n\n- Narrative-first verification is additive: user-confirmed UAT, issue logging, severity inference, and gap diagnosis remain the contract.\n",
+  "content_hash": "72e886e4b003d0b1b173801bd2fc529132aaa2d8f56f732c24f54ae7e0ee1890",
+  "normalized_at": "2026-03-29T18:41:58.940Z",
+  "provenance": {
+    "producer": "internal-normalizer",
+    "producer_version": "1.1.0",
+    "parameters_hash": null
+  }
+}

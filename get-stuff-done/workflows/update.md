@@ -21,6 +21,9 @@ Use `PREFERRED_RUNTIME` as the first runtime checked so `/gsd:update` targets th
 
 ```bash
 # Runtime candidates: "<runtime>:<config-dir>"
+# Codex checks both the canonical install root (`dostuff/get-stuff-done`) and the
+# repair-only legacy marker (`get-shit-done`) so `brain open-status` can be restored
+# without changing the canonical engine location.
 RUNTIME_DIRS="claude:.claude opencode:.config/opencode opencode:.opencode gemini:.gemini codex:.codex"
 
 # PREFERRED_RUNTIME should be set from execution_context before running this block.
@@ -59,10 +62,18 @@ LOCAL_VERSION_FILE="" LOCAL_MARKER_FILE="" LOCAL_DIR="" LOCAL_RUNTIME=""
 for entry in $ORDERED_RUNTIME_DIRS; do
   runtime="${entry%%:*}"
   dir="${entry#*:}"
-  if [ -f "./$dir/get-stuff-done/VERSION" ] || [ -f "./$dir/get-stuff-done/workflows/update.md" ]; then
+  local_version="./$dir/get-stuff-done/VERSION"
+  local_marker="./$dir/get-stuff-done/workflows/update.md"
+  if [ "$runtime" = "codex" ]; then
+    if [ -f "./$dir/dostuff/get-stuff-done/VERSION" ]; then local_version="./$dir/dostuff/get-stuff-done/VERSION"; fi
+    if [ -f "./$dir/dostuff/get-stuff-done/workflows/update.md" ]; then local_marker="./$dir/dostuff/get-stuff-done/workflows/update.md"; fi
+    if [ ! -f "$local_version" ] && [ -f "./$dir/get-shit-done/VERSION" ]; then local_version="./$dir/get-shit-done/VERSION"; fi
+    if [ ! -f "$local_marker" ] && [ -f "./$dir/get-shit-done/workflows/update.md" ]; then local_marker="./$dir/get-shit-done/workflows/update.md"; fi
+  fi
+  if [ -f "$local_version" ] || [ -f "$local_marker" ]; then
     LOCAL_RUNTIME="$runtime"
-    LOCAL_VERSION_FILE="./$dir/get-stuff-done/VERSION"
-    LOCAL_MARKER_FILE="./$dir/get-stuff-done/workflows/update.md"
+    LOCAL_VERSION_FILE="$local_version"
+    LOCAL_MARKER_FILE="$local_marker"
     LOCAL_DIR="$(cd "./$dir" 2>/dev/null && pwd)"
     break
   fi
@@ -72,10 +83,18 @@ GLOBAL_VERSION_FILE="" GLOBAL_MARKER_FILE="" GLOBAL_DIR="" GLOBAL_RUNTIME=""
 for entry in $ORDERED_RUNTIME_DIRS; do
   runtime="${entry%%:*}"
   dir="${entry#*:}"
-  if [ -f "$HOME/$dir/get-stuff-done/VERSION" ] || [ -f "$HOME/$dir/get-stuff-done/workflows/update.md" ]; then
+  global_version="$HOME/$dir/get-stuff-done/VERSION"
+  global_marker="$HOME/$dir/get-stuff-done/workflows/update.md"
+  if [ "$runtime" = "codex" ]; then
+    if [ -f "$HOME/$dir/dostuff/get-stuff-done/VERSION" ]; then global_version="$HOME/$dir/dostuff/get-stuff-done/VERSION"; fi
+    if [ -f "$HOME/$dir/dostuff/get-stuff-done/workflows/update.md" ]; then global_marker="$HOME/$dir/dostuff/get-stuff-done/workflows/update.md"; fi
+    if [ ! -f "$global_version" ] && [ -f "$HOME/$dir/get-shit-done/VERSION" ]; then global_version="$HOME/$dir/get-shit-done/VERSION"; fi
+    if [ ! -f "$global_marker" ] && [ -f "$HOME/$dir/get-shit-done/workflows/update.md" ]; then global_marker="$HOME/$dir/get-shit-done/workflows/update.md"; fi
+  fi
+  if [ -f "$global_version" ] || [ -f "$global_marker" ]; then
     GLOBAL_RUNTIME="$runtime"
-    GLOBAL_VERSION_FILE="$HOME/$dir/get-stuff-done/VERSION"
-    GLOBAL_MARKER_FILE="$HOME/$dir/get-stuff-done/workflows/update.md"
+    GLOBAL_VERSION_FILE="$global_version"
+    GLOBAL_MARKER_FILE="$global_marker"
     GLOBAL_DIR="$(cd "$HOME/$dir" 2>/dev/null && pwd)"
     break
   fi
