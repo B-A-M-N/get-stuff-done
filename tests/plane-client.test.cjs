@@ -13,14 +13,37 @@ const os = require('os');
 // Paths
 const PLANE_CLIENT_PATH = '../get-stuff-done/bin/lib/plane-client.cjs';
 const SECOND_BRAIN_PATH = '../get-stuff-done/bin/lib/second-brain.cjs';
+const PLANE_HEALTH_PATH = '../get-stuff-done/bin/lib/plane-health.cjs';
 
 function getPlaneClient() {
   return require(PLANE_CLIENT_PATH);
 }
 
+function getPlaneHealth() {
+  return require(PLANE_HEALTH_PATH);
+}
+
 function clearCaches() {
   delete require.cache[require.resolve(PLANE_CLIENT_PATH)];
   delete require.cache[require.resolve(SECOND_BRAIN_PATH)];
+  delete require.cache[require.resolve(PLANE_HEALTH_PATH)];
+  // Re-mock secondBrain.getPlaneHealthSummary to isolate tests from persistent audit data
+  const secondBrain = require(SECOND_BRAIN_PATH);
+  secondBrain.getPlaneHealthSummary = async () => ({
+    generated_at: new Date().toISOString(),
+    period_minutes: 60,
+    recent_outbound_total: 0,
+    recent_outbound_errors: 0,
+    recent_error_rate: 0,
+    last_webhook_received_at: null,
+    top_failing_actions: [],
+    latency_by_action: [],
+    breaker_basis: {
+      consecutive_errors: 0,
+      last_error_at: null,
+      last_success_at: null,
+    },
+  });
 }
 
 describe('PlaneClient', () => {
@@ -32,6 +55,7 @@ describe('PlaneClient', () => {
     originalEnv.PLANE_API_KEY = process.env.PLANE_API_KEY;
     originalEnv.PLANE_PROJECT_ID = process.env.PLANE_PROJECT_ID;
     originalEnv.PLANE_RATE_LIMIT_RPM = process.env.PLANE_RATE_LIMIT_RPM;
+    // Clear caches and re-establish test isolation (including health summary mock)
     clearCaches();
   });
 
