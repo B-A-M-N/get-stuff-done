@@ -1840,7 +1840,9 @@ class SecondBrain {
       const poolToClose = this.pool;
       this._poolClosed = true;
       try {
-        await poolToClose.end();
+        if (typeof poolToClose.end === 'function') {
+          await poolToClose.end();
+        }
       } catch (err) {
         if (!String(err?.message || '').includes('calling end')) {
           throw err;

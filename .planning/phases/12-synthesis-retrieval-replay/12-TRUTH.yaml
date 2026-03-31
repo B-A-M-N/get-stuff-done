@@ -1,0 +1,43 @@
+phase: "12"
+title: "synthesis-retrieval-replay"
+generated_at: "2026-03-31T13:40:13.070Z"
+strict: false
+inputs:
+  verification: ".planning/phases/12-synthesis-retrieval-replay/12-VERIFICATION.md"
+  summaries:
+    - ".planning/phases/12-synthesis-retrieval-replay/12-01-SUMMARY.md"
+    - ".planning/phases/12-synthesis-retrieval-replay/12-02-SUMMARY.md"
+    - ".planning/phases/12-synthesis-retrieval-replay/12-03-SUMMARY.md"
+    - ".planning/phases/12-synthesis-retrieval-replay/12-04-SUMMARY.md"
+  drift_reports:
+    - ".planning/drift/latest-report.json"
+  reconciliation:
+    - ".planning/drift/latest-reconciliation.json"
+  degraded_state:
+    - ".planning/health/latest-degraded-state.json"
+claimed_outcomes:
+  []
+observable_evidence:
+  - type: "file"
+    ref: ".planning/phases/12-synthesis-retrieval-replay/12-01-SUMMARY.md"
+  - type: "file"
+    ref: ".planning/phases/12-synthesis-retrieval-replay/12-02-SUMMARY.md"
+  - type: "file"
+    ref: ".planning/phases/12-synthesis-retrieval-replay/12-03-SUMMARY.md"
+  - type: "file"
+    ref: ".planning/phases/12-synthesis-retrieval-replay/12-04-SUMMARY.md"
+  - type: "file"
+    ref: ".planning/phases/12-synthesis-retrieval-replay/12-VERIFICATION.md"
+  - type: "command"
+    ref: "phase-truth generate 12"
+gaps:
+  []
+drift_effects:
+  []
+reconciliation_effects:
+  []
+escalations:
+  []
+final_status: "VALID"
+status_reason:
+  - "All claimed outcomes are backed and no unresolved gaps or downgrades remain."
